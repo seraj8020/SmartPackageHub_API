@@ -9,7 +9,9 @@ namespace SmartPackageHub_API.Data
     {
         public static void EnsureSeedData(AppDbContext db, bool force = false)
         {
-            if (db.Residents.Any() && !force) return;
+            // If any of the main tables already contain data and force is not set, skip seeding
+            var hasAnyData = db.Residents.Any() || db.Packages.Any() || db.DeliveryHistories.Any() || db.OtpCodes.Any();
+            if (hasAnyData && !force) return;
 
             if (force)
             {

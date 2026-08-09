@@ -25,7 +25,7 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 
     // Seed sample test data via separate seeder class (force to ensure data inserted)
-    SeedData.EnsureSeedData(db, force: true);
+    SeedData.EnsureSeedData(db, force: false);
 }
 
 // Configure the HTTP request pipeline.

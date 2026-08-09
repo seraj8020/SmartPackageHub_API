@@ -25,7 +25,7 @@ namespace SmartPackageHub_API.Controllers
         {
             var resident = await _db.Residents.Include(r => r.Packages).FirstOrDefaultAsync(r => r.Id == id);
             if (resident == null) return NotFound();
-            var packages = resident.Packages.Where(p => !p.IsPickedUp).Select(p => new { p.Id, p.TrackingNumber, p.Description, p.ReceivedAt, p.Courier });
+            var packages = resident.Packages.Where(p => !p.IsPickedUp).Select(p => new { p.Id, p.TrackingNumber, p.Description, p.ReceivedAt, p.Courier, p.Category, p.Weight, p.PkgNumber });
             return Ok(packages);
         }
 

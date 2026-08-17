@@ -14,7 +14,10 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<IOtpService, OtpService>();
+// Use HTTP client proxy to the OTP microservice instead of internal DB-backed OTP
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IOtpService, OtpProxyService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 var app = builder.Build();
 

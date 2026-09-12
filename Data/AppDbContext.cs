@@ -11,6 +11,8 @@ namespace SmartPackageHub_API.Data
         public DbSet<Package> Packages { get; set; }
         public DbSet<DeliveryHistory> DeliveryHistories { get; set; }
         public DbSet<OtpCode> OtpCodes { get; set; }
+        public DbSet<Society> Societies { get; set; }
+        public DbSet<User> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -18,6 +20,8 @@ namespace SmartPackageHub_API.Data
             modelBuilder.Entity<Package>().HasKey(p => p.Id);
             modelBuilder.Entity<DeliveryHistory>().HasKey(h => h.Id);
             modelBuilder.Entity<OtpCode>().HasKey(o => o.Id);
+            modelBuilder.Entity<Society>().HasKey(s => s.Id);
+            modelBuilder.Entity<User>().HasKey(u => u.Id);
 
             modelBuilder.Entity<Resident>()
                 .HasMany(r => r.Packages)

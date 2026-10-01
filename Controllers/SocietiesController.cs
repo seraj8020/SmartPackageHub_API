@@ -38,7 +38,16 @@ namespace SmartPackageHub_API.Controllers
             if (string.IsNullOrWhiteSpace(req.Name)) return BadRequest(new { Message = "Name is required" });
             var s = new Society { Name = req.Name, Address = req.Address, ContactEmail = req.ContactEmail, Phone = req.Phone };
             _db.Societies.Add(s);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SaveChangesAsync failed: {ex}");
+                Console.Error.WriteLine($"SaveChangesAsync failed: {ex}");
+                throw;
+            }
             return Ok(s);
         }
 

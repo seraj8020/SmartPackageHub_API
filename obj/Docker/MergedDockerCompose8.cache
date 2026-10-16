@@ -1,0 +1,649 @@
+name: dockercompose4234401124472417924
+services:
+  banking-accountmanagement:
+    build:
+      context: D:\BankingSystem
+      dockerfile: Dockerfile
+      args:
+        BUILD_CONFIGURATION: Debug
+        LAUNCHING_FROM_VS: "true"
+      labels:
+        com.microsoft.created-by: visual-studio
+        com.microsoft.visual-studio.project-name: BankingApp.AccountManagement
+      target: base
+    entrypoint:
+      - dotnet
+      - --roll-forward
+      - Major
+      - /VSTools/DistrolessHelper/DistrolessHelper.dll
+      - --wait
+    environment:
+      ASPNETCORE_LOGGING__CONSOLE__DISABLECOLORS: "true"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      NUGET_FALLBACK_PACKAGES: /.nuget/fallbackpackages
+    image: banking-accountmanagement:dev
+    labels:
+      com.microsoft.visualstudio.debuggee.arguments: ' --additionalProbingPath /.nuget/packages --additionalProbingPath /.nuget/fallbackpackages  "/app/bin/Debug/net8.0/BankingApp.AccountManagement.dll"'
+      com.microsoft.visualstudio.debuggee.killprogram: dotnet --roll-forward Major /VSTools/DistrolessHelper/DistrolessHelper.dll --stop dotnet
+      com.microsoft.visualstudio.debuggee.program: dotnet
+      com.microsoft.visualstudio.debuggee.workingdirectory: /app
+    networks:
+      default: null
+    tty: true
+    volumes:
+      - type: bind
+        source: E:\NewRepoBankingApp\BankingSystem\src\Services\BankingApp.AccountManagement
+        target: /app
+        bind:
+          create_host_path: true
+      - type: bind
+        source: E:\NewRepoBankingApp\BankingSystem
+        target: /src
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\vsdbg\vs2017u5
+        target: /remote_debugger
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\.nuget\packages
+        target: /.nuget/packages
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages
+        target: /.nuget/fallbackpackages
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\ASP.NET\Https
+        target: /root/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\ASP.NET\Https
+        target: /home/app/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\Microsoft\UserSecrets
+        target: /root/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\Microsoft\UserSecrets
+        target: /home/app/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Sdks\Microsoft.Docker.Sdk\tools\linux-x64\net8.0
+        target: /VSTools
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\HotReload
+        target: /HotReloadAgent
+        read_only: true
+        bind:
+          create_host_path: true
+  banking-apigateway:
+    build:
+      context: D:\BankingSystem
+      dockerfile: Dockerfile
+      args:
+        BUILD_CONFIGURATION: Debug
+        LAUNCHING_FROM_VS: "true"
+      labels:
+        com.microsoft.created-by: visual-studio
+        com.microsoft.visual-studio.project-name: BankingApp.ApiGateway
+      target: base
+    entrypoint:
+      - dotnet
+      - --roll-forward
+      - Major
+      - /VSTools/DistrolessHelper/DistrolessHelper.dll
+      - --wait
+    environment:
+      ASPNETCORE_LOGGING__CONSOLE__DISABLECOLORS: "true"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      NUGET_FALLBACK_PACKAGES: /.nuget/fallbackpackages
+    image: banking-apigateway:dev
+    labels:
+      com.microsoft.visualstudio.debuggee.arguments: ' --additionalProbingPath /.nuget/packages --additionalProbingPath /.nuget/fallbackpackages  "/app/bin/Debug/net8.0/BankingApp.ApiGateway.dll"'
+      com.microsoft.visualstudio.debuggee.killprogram: dotnet --roll-forward Major /VSTools/DistrolessHelper/DistrolessHelper.dll --stop dotnet
+      com.microsoft.visualstudio.debuggee.program: dotnet
+      com.microsoft.visualstudio.debuggee.workingdirectory: /app
+    networks:
+      default: null
+    tty: true
+    volumes:
+      - type: bind
+        source: E:\NewRepoBankingApp\BankingSystem\src\Crosscutting\BankingApp.ApiGateway
+        target: /app
+        bind:
+          create_host_path: true
+      - type: bind
+        source: E:\NewRepoBankingApp\BankingSystem
+        target: /src
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\vsdbg\vs2017u5
+        target: /remote_debugger
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\.nuget\packages
+        target: /.nuget/packages
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages
+        target: /.nuget/fallbackpackages
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\ASP.NET\Https
+        target: /root/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\ASP.NET\Https
+        target: /home/app/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\Microsoft\UserSecrets
+        target: /root/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\Microsoft\UserSecrets
+        target: /home/app/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Sdks\Microsoft.Docker.Sdk\tools\linux-x64\net8.0
+        target: /VSTools
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\HotReload
+        target: /HotReloadAgent
+        read_only: true
+        bind:
+          create_host_path: true
+  banking-identityserver:
+    build:
+      context: D:\BankingSystem
+      dockerfile: Dockerfile
+      args:
+        BUILD_CONFIGURATION: Debug
+        LAUNCHING_FROM_VS: "true"
+      labels:
+        com.microsoft.created-by: visual-studio
+        com.microsoft.visual-studio.project-name: Identity
+      target: base
+    entrypoint:
+      - dotnet
+      - --roll-forward
+      - Major
+      - /VSTools/DistrolessHelper/DistrolessHelper.dll
+      - --wait
+    environment:
+      ASPNETCORE_LOGGING__CONSOLE__DISABLECOLORS: "true"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      NUGET_FALLBACK_PACKAGES: /.nuget/fallbackpackages
+    image: banking-identityserver:dev
+    labels:
+      com.microsoft.visualstudio.debuggee.arguments: ' --additionalProbingPath /.nuget/packages --additionalProbingPath /.nuget/fallbackpackages  "/app/bin/Debug/net8.0/Identity.dll"'
+      com.microsoft.visualstudio.debuggee.killprogram: dotnet --roll-forward Major /VSTools/DistrolessHelper/DistrolessHelper.dll --stop dotnet
+      com.microsoft.visualstudio.debuggee.program: dotnet
+      com.microsoft.visualstudio.debuggee.workingdirectory: /app
+    networks:
+      default: null
+    tty: true
+    volumes:
+      - type: bind
+        source: E:\NewRepoBankingApp\BankingSystem\src\Crosscutting\BankingDDD.IdentityServer\Identity
+        target: /app
+        bind:
+          create_host_path: true
+      - type: bind
+        source: E:\NewRepoBankingApp\BankingSystem
+        target: /src
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\vsdbg\vs2017u5
+        target: /remote_debugger
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\.nuget\packages
+        target: /.nuget/packages
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages
+        target: /.nuget/fallbackpackages
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\ASP.NET\Https
+        target: /root/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\ASP.NET\Https
+        target: /home/app/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\Microsoft\UserSecrets
+        target: /root/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\Microsoft\UserSecrets
+        target: /home/app/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Sdks\Microsoft.Docker.Sdk\tools\linux-x64\net8.0
+        target: /VSTools
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\HotReload
+        target: /HotReloadAgent
+        read_only: true
+        bind:
+          create_host_path: true
+  banking-loanmanagement:
+    build:
+      context: D:\BankingSystem
+      dockerfile: Dockerfile
+      args:
+        BUILD_CONFIGURATION: Debug
+        LAUNCHING_FROM_VS: "true"
+      labels:
+        com.microsoft.created-by: visual-studio
+        com.microsoft.visual-studio.project-name: BankingApp.LoanManagement
+      target: base
+    entrypoint:
+      - dotnet
+      - --roll-forward
+      - Major
+      - /VSTools/DistrolessHelper/DistrolessHelper.dll
+      - --wait
+    environment:
+      ASPNETCORE_LOGGING__CONSOLE__DISABLECOLORS: "true"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      NUGET_FALLBACK_PACKAGES: /.nuget/fallbackpackages
+    image: banking-loanmanagement:dev
+    labels:
+      com.microsoft.visualstudio.debuggee.arguments: ' --additionalProbingPath /.nuget/packages --additionalProbingPath /.nuget/fallbackpackages  "/app/bin/Debug/net8.0/BankingApp.LoanManagement.dll"'
+      com.microsoft.visualstudio.debuggee.killprogram: dotnet --roll-forward Major /VSTools/DistrolessHelper/DistrolessHelper.dll --stop dotnet
+      com.microsoft.visualstudio.debuggee.program: dotnet
+      com.microsoft.visualstudio.debuggee.workingdirectory: /app
+    networks:
+      default: null
+    tty: true
+    volumes:
+      - type: bind
+        source: E:\NewRepoBankingApp\BankingSystem\src\Services\BankingApp.LoanManagement
+        target: /app
+        bind:
+          create_host_path: true
+      - type: bind
+        source: E:\NewRepoBankingApp\BankingSystem
+        target: /src
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\vsdbg\vs2017u5
+        target: /remote_debugger
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\.nuget\packages
+        target: /.nuget/packages
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages
+        target: /.nuget/fallbackpackages
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\ASP.NET\Https
+        target: /root/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\ASP.NET\Https
+        target: /home/app/.aspnet/https
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\Microsoft\UserSecrets
+        target: /root/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Users\DELL\AppData\Roaming\Microsoft\UserSecrets
+        target: /home/app/.microsoft/usersecrets
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Sdks\Microsoft.Docker.Sdk\tools\linux-x64\net8.0
+        target: /VSTools
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: bind
+        source: C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\HotReload
+        target: /HotReloadAgent
+        read_only: true
+        bind:
+          create_host_path: true
+  keycloak:
+    build:
+      context: D:\BankingSystem
+      dockerfile: ./KeyCloakDockerfile/Dockerfile
+    container_name: bankingkeycloak_identity
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: true
+    environment:
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_DB: postgres
+      KC_DB_PASSWORD: keycloakpassword
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_URL_DATABASE: keycloak_db
+      KC_DB_URL_HOST: postgres
+      KC_DB_USERNAME: keycloak
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT_BACKCHANNEL: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_LOG_LEVEL: info
+      KC_METRICS_ENABLED: "true"
+      KC_TRANSACTION_XA_ENABLED: "true"
+      QUARKUS_TRANSACTION_MANAGER_ENABLE_RECOVERY: "true"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\r\nhost: http://localhost\r\nConnection: close\r\n\r\n' >&3;if [ $$? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"
+      timeout: 5s
+      interval: 30s
+      retries: 3
+      start_period: 10s
+    networks:
+      backend: null
+    ports:
+      - mode: ingress
+        target: 8084
+        published: "8084"
+        protocol: tcp
+      - mode: ingress
+        target: 9000
+        published: "9000"
+        protocol: tcp
+    restart: always
+    volumes:
+      - type: bind
+        source: D:\BankingSystem\data\import
+        target: /opt/keycloak/data/import
+        bind:
+          create_host_path: true
+  mongodb:
+    container_name: mymongo
+    environment:
+      MONGO_INITDB_ROOT_PASSWORD: root123
+      MONGO_INITDB_ROOT_USERNAME: root
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - echo 'db.runCommand("ping").ok' | mongosh --port 27017 --quiet
+      timeout: 5s
+      interval: 10s
+      retries: 5
+      start_period: 30s
+    image: mongo:8.0
+    networks:
+      backend: null
+    ports:
+      - mode: ingress
+        target: 27017
+        published: "27017"
+        protocol: tcp
+    restart: always
+    volumes:
+      - type: volume
+        source: mongo_config
+        target: /data/configdb
+        volume: {}
+      - type: volume
+        source: mongodb_data
+        target: /data/db
+        volume: {}
+      - type: bind
+        source: D:\BankingSystem\data\mongo\001_users.js
+        target: /docker-entrypoint-initdb.d/001_users.js
+        read_only: true
+        bind:
+          create_host_path: true
+  pgadmin:
+    container_name: pgadmin_container
+    depends_on:
+      postgres:
+        condition: service_started
+        required: true
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    image: dpage/pgadmin4
+    networks:
+      backend: null
+    ports:
+      - mode: ingress
+        target: 80
+        published: "5050"
+        protocol: tcp
+    restart: on-failure
+    volumes:
+      - type: volume
+        source: pgadmin_data
+        target: /var/lib/pgadmin
+        volume: {}
+  postgres:
+    container_name: mypostgres
+    environment:
+      POSTGRES_DB: keycloak_db
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      POSTGRES_PASSWORD: keycloakpassword
+      POSTGRES_USER: keycloak
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U keycloak
+      timeout: 5s
+      interval: 10s
+      retries: 5
+    image: postgres:16.4
+    networks:
+      backend: null
+    ports:
+      - mode: ingress
+        target: 5434
+        published: "5434"
+        protocol: tcp
+    restart: on-failure
+    volumes:
+      - type: bind
+        source: D:\BankingSystem\pgdata
+        target: /var/lib/postgresql/data
+        bind:
+          create_host_path: true
+      - type: bind
+        source: D:\BankingSystem\postgres-init
+        target: /docker-entrypoint-initdb.d
+        bind:
+          create_host_path: true
+  rabbitmq:
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: guest
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - rabbitmq-diagnostics check_port_connectivity
+      timeout: 5s
+      interval: 10s
+      retries: 10
+      start_period: 5s
+    image: rabbitmq:3-management
+    networks:
+      backend: null
+    ports:
+      - mode: ingress
+        target: 15672
+        published: "15672"
+        protocol: tcp
+      - mode: ingress
+        target: 5672
+        published: "5672"
+        protocol: tcp
+    restart: always
+    volumes:
+      - type: volume
+        source: rabbitmq_data
+        target: /var/lib/rabbitmq
+        volume: {}
+  redis:
+    container_name: redis
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli ping | grep PONG
+      timeout: 3s
+      interval: 5s
+      retries: 5
+      start_period: 10s
+    image: redis:latest
+    networks:
+      backend: null
+    ports:
+      - mode: ingress
+        target: 6379
+        published: "6379"
+        protocol: tcp
+    restart: always
+    volumes:
+      - type: volume
+        source: redis_data
+        target: /docker_data/redis
+        volume: {}
+  seq:
+    container_name: seq
+    environment:
+      ACCEPT_EULA: "Y"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /seqsvr/Client/seqcli node health -s http://localhost
+      timeout: 10s
+      interval: 30s
+      retries: 3
+      start_period: 5s
+    image: datalust/seq:2024.3
+    networks:
+      backend: null
+    ports:
+      - mode: ingress
+        target: 5341
+        published: "5341"
+        protocol: tcp
+      - mode: ingress
+        target: 80
+        published: "8081"
+        protocol: tcp
+    restart: always
+    volumes:
+      - type: bind
+        source: D:\BankingSystem\docker_data\seq
+        target: /data
+        bind:
+          create_host_path: true
+  seq-input-gelf:
+    depends_on:
+      seq:
+        condition: service_started
+        required: true
+    environment:
+      SEQ_ADDRESS: http://seq:5341
+    image: datalust/seq-input-gelf:latest
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 12201
+        published: "12201"
+        protocol: udp
+    restart: unless-stopped
+networks:
+  backend:
+    name: backend
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+  default:
+    name: dockercompose4234401124472417924_default
+volumes:
+  mongo_config:
+    name: dockercompose4234401124472417924_mongo_config
+    driver: local
+  mongodb_data:
+    name: dockercompose4234401124472417924_mongodb_data
+    driver: local
+  pgadmin_data:
+    name: dockercompose4234401124472417924_pgadmin_data
+  rabbitmq_data:
+    name: dockercompose4234401124472417924_rabbitmq_data
+  redis_data:
+    name: dockercompose4234401124472417924_redis_data

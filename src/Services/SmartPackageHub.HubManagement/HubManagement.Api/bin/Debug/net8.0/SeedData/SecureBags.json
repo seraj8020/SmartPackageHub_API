@@ -1,0 +1,5 @@
+[
+  { "id": "b1000000-0000-4000-8000-000000000001", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "bagNumber": "SHB-BAG-1001", "barcode": "SHB1001", "qrCode": "QR-SHB-1001", "sealNumber": "SEAL-1001", "capacityOrSize": "Medium", "status": "Assigned" },
+  { "id": "b1000000-0000-4000-8000-000000000002", "societyId": "7199e325-70fd-4763-98b5-8db65cbdaf2a", "bagNumber": "SHB-BAG-2001", "barcode": "SHB2001", "qrCode": "QR-SHB-2001", "sealNumber": "SEAL-2001", "capacityOrSize": "Large", "status": "Assigned" },
+  { "id": "b1000000-0000-4000-8000-000000000003", "societyId": "937df1d5-5b9c-4fea-8e16-34d5d86cff15", "bagNumber": "SHB-BAG-3001", "barcode": "SHB3001", "qrCode": "QR-SHB-3001", "sealNumber": "SEAL-3001", "capacityOrSize": "Medium", "status": "Assigned" }
+]

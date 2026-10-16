@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..\..</DockerfileContext>
+	  <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+	<PropertyGroup>
+		<!-- Modify these constants to enable/disable a feature to debug the template. Note that this only affects the C#. -->
+		<DefineConstants>$(DefineConstants);UseSqlServer</DefineConstants>
+		<!-- Workaround to build this project: https://github.com/dotnet/templating/issues/1438 -->
+		<UseSqlServer>false</UseSqlServer>
+	</PropertyGroup>
+	<ItemGroup>
+		<!--#if (UseSqlServer)-->
+		<PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="8.0.2" />
+		<!--#else-->
+		<PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.2" />
+		<!--#endif-->
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.15" />
+		<PackageReference Include="Microsoft.Extensions.ML" Version="5.0.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.1" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Remove="Entities\**" />
+		<Content Remove="Entities\**" />
+		<EmbeddedResource Remove="Entities\**" />
+		<None Remove="Entities\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="SeedData\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+
+
+	<ItemGroup>
+		<PackageReference Include="Autofac.Extensions.DependencyInjection" Version="10.0.0" />
+		<PackageReference Include="MassTransit" Version="8.5.2" />
+		<PackageReference Include="MassTransit.AspNetCore" Version="7.3.1" />
+		<PackageReference Include="MassTransit.RabbitMQ" Version="8.5.2" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="9.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.1" />
+		<PackageReference Include="NServiceBus.RabbitMQ" Version="10.1.3" />
+		
+		<PackageReference Include="Z.EntityFramework.Plus.EFCore" Version="9.103.9.3" />
+		<PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.8.1" />
+		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.8.1" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.8.1" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.8.1" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.8.1" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.0.0-rc9.14" />
+		<PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+		<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+		<PackageReference Include="Serilog.Sinks.Seq" Version="8.0.0" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\Core\SmartPackageHub.CommonLibrary\Common\Common.csproj" />
+	  <ProjectReference Include="..\..\..\Core\SmartPackageHub.Infrastructure\Infrastructures\Infrastructures.csproj" />
+	  <ProjectReference Include="..\HubManagement.Application\HubManagement.Application.csproj" />
+	  <ProjectReference Include="..\HubManagement.Core\HubManagement.Core.csproj" />
+	  <ProjectReference Include="..\HubManagement.Infrastructure\HubManagement.Infrastructure.csproj" />
+	</ItemGroup>
+
+
+</Project>

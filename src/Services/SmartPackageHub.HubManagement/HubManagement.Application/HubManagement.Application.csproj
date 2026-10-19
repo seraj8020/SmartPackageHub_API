@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="PackageHub\DomainEventHandlers\" />
+    <Folder Include="PackageHub\IntegrationEvents\" />
+    <Folder Include="PackageHub\MappingProfile\" />
+    <Folder Include="Resident\DomainEventHandlers\" />
+    <Folder Include="Resident\MappingProfile\" />
+    <Folder Include="Resident\Validations\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Autofac" Version="8.1.0" />
+    <PackageReference Include="AutoMapper" Version="13.0.1" />
+    <PackageReference Include="MassTransit" Version="8.5.2" />
+    <PackageReference Include="MediatR" Version="12.0.1" />
+    <PackageReference Include="Microsoft.Extensions.ML" Version="5.0.0" />
+    <PackageReference Include="Polly" Version="8.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Core\SmartPackageHub.Application\Applications\Applications.csproj" />
+    <ProjectReference Include="..\HubManagement.Infrastructure\HubManagement.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

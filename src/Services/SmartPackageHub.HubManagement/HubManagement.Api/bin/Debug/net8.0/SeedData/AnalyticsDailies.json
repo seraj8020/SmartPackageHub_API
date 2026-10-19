@@ -1,0 +1,8 @@
+[
+  { "id": "81000000-0000-4000-8000-000000000001", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "day": "2026-10-14T00:00:00Z", "packagesReceived": 12, "packagesDelivered": 9, "overdueCount": 1 },
+  { "id": "81000000-0000-4000-8000-000000000002", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "day": "2026-10-15T00:00:00Z", "packagesReceived": 8, "packagesDelivered": 6, "overdueCount": 2 },
+  { "id": "81000000-0000-4000-8000-000000000003", "societyId": "7199e325-70fd-4763-98b5-8db65cbdaf2a", "day": "2026-10-14T00:00:00Z", "packagesReceived": 10, "packagesDelivered": 7, "overdueCount": 1 },
+  { "id": "81000000-0000-4000-8000-000000000004", "societyId": "7199e325-70fd-4763-98b5-8db65cbdaf2a", "day": "2026-10-15T00:00:00Z", "packagesReceived": 6, "packagesDelivered": 5, "overdueCount": 0 },
+  { "id": "81000000-0000-4000-8000-000000000005", "societyId": "937df1d5-5b9c-4fea-8e16-34d5d86cff15", "day": "2026-10-14T00:00:00Z", "packagesReceived": 9, "packagesDelivered": 8, "overdueCount": 1 },
+  { "id": "81000000-0000-4000-8000-000000000006", "societyId": "937df1d5-5b9c-4fea-8e16-34d5d86cff15", "day": "2026-10-15T00:00:00Z", "packagesReceived": 7, "packagesDelivered": 4, "overdueCount": 2 }
+]

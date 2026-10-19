@@ -1,0 +1,47 @@
+[
+  {
+    "id": "d1000000-0000-4000-8000-000000000001",
+    "societyId": "0ec36849-05c7-4ded-9614-8343891542af",
+    "receiptNumber": "DSR-20261015-0001",
+    "courierPartner": "Amazon",
+    "courierAgentId": "c1000000-0000-4000-8000-000000000001",
+    "courierAgentName": "Ravi Kumar",
+    "courierAgentPhone": "9000000001",
+    "staffUserId": "11111111-1111-4111-8111-111111111111",
+    "totalPackagesCount": 3,
+    "digitalSignature": "signed-by-ravi-kumar",
+    "status": "Acknowledged",
+    "signedAt": "2026-08-06T07:20:00Z",
+    "notes": "Amazon drop at PFP hub. Flat owners verified from the resident register."
+  },
+  {
+    "id": "d1000000-0000-4000-8000-000000000002",
+    "societyId": "7199e325-70fd-4763-98b5-8db65cbdaf2a",
+    "receiptNumber": "DSR-20261015-0002",
+    "courierPartner": "Flipkart",
+    "courierAgentId": "c1000000-0000-4000-8000-000000000002",
+    "courierAgentName": "Sneha Rao",
+    "courierAgentPhone": "9000000002",
+    "staffUserId": "11111111-1111-4111-8111-111111111111",
+    "totalPackagesCount": 3,
+    "digitalSignature": "signed-by-sneha-rao",
+    "status": "Acknowledged",
+    "signedAt": "2026-08-06T09:20:00Z",
+    "notes": "Flipkart drop at Regent hub."
+  },
+  {
+    "id": "d1000000-0000-4000-8000-000000000003",
+    "societyId": "937df1d5-5b9c-4fea-8e16-34d5d86cff15",
+    "receiptNumber": "DSR-20261015-0003",
+    "courierPartner": "DTDC",
+    "courierAgentId": "c1000000-0000-4000-8000-000000000003",
+    "courierAgentName": "Imran Shaikh",
+    "courierAgentPhone": "9000000003",
+    "staffUserId": "11111111-1111-4111-8111-111111111111",
+    "totalPackagesCount": 3,
+    "digitalSignature": "signed-by-imran-shaikh",
+    "status": "Acknowledged",
+    "signedAt": "2026-08-03T16:20:00Z",
+    "notes": "DTDC drop at Eldorado hub."
+  }
+]

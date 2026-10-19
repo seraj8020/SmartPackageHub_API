@@ -1,0 +1,23 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "src\\Services\\BankingApp.AccountManagement\\AccountManagement.Api\\HubManagement.Api.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "src\\Services\\BankingApp.UserManagement\\UserManagement.Api\\BankingApp.UserManagement.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "src\\Crosscutting\\BankingDDD.IdentityServer\\Identity\\Identity.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "src\\Services\\BankingApp.PaymentProcessing\\BankingApp.PaymentProcessing.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

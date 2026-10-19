@@ -1,0 +1,35 @@
+[
+  {
+    "id": "0ec36849-05c7-4ded-9614-8343891542af",
+    "name": "PFP",
+    "street": "Outer Ring Road",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "zipCode": "560037",
+    "country": "India",
+    "contactEmail": "pfp.hub@smartpackagehub.local",
+    "phone": "08040001001"
+  },
+  {
+    "id": "7199e325-70fd-4763-98b5-8db65cbdaf2a",
+    "name": "Regent",
+    "street": "Sarjapur Road",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "zipCode": "560035",
+    "country": "India",
+    "contactEmail": "regent.hub@smartpackagehub.local",
+    "phone": "08040001002"
+  },
+  {
+    "id": "937df1d5-5b9c-4fea-8e16-34d5d86cff15",
+    "name": "Eldorado",
+    "street": "Whitefield Main Road",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "zipCode": "560066",
+    "country": "India",
+    "contactEmail": "eldorado.hub@smartpackagehub.local",
+    "phone": "08040001003"
+  }
+]

@@ -1,9 +1,10 @@
+using Autofac;
 using AutoMapper;
+using MassTransit;
 using MediatR;
 using MediatR.NotificationPublishers;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Reflection;
-using Autofac;
-using MassTransit;
 
 namespace BankingApp.AccountManagement.Infrastructure.AutofacModules
 {
@@ -31,7 +32,11 @@ namespace BankingApp.AccountManagement.Infrastructure.AutofacModules
                 .AsSelf();
 
             // Register Automapper profiles
-            var config = new MapperConfiguration(cfg => { cfg.AddMaps(ThisAssembly); });
+           // var config = new MapperConfiguration(cfg => { cfg.AddMaps(ThisAssembly); });
+            var config = new MapperConfiguration(cfg =>
+            {
+                cfg.AddMaps(ThisAssembly);
+            }, NullLoggerFactory.Instance);
             config.AssertConfigurationIsValid();
 
             builder.Register(c => config)

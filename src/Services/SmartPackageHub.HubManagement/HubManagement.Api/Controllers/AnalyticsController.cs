@@ -1,5 +1,4 @@
-﻿using MediatR;
-using Microsoft.AspNetCore.Http;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
@@ -8,10 +7,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
     [ApiController]
     public class AnalyticsController : ControllerBase
     {
-        readonly IMediator _mediator;
-        public AnalyticsController(IMediator mediator)
+        public AnalyticsController()
         {
-            _mediator = mediator;
         }
     }
 }

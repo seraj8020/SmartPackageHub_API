@@ -3,7 +3,7 @@ using SmartPackageHub.Domains.Abstractions.Entities;
 
 namespace HubManagement.Core.Hubs.Entities
 {
-    public sealed class OTPLog : EntityBase, IAggregateRoot
+    public sealed class OtpLog : EntityBase, IAggregateRoot
     {
         public Guid SocietyId { get; set; }
         public Guid ResidentId { get; set; }
@@ -13,8 +13,8 @@ namespace HubManagement.Core.Hubs.Entities
         public string? Purpose { get; private set; }
         public bool IsUsed { get; private set; }
 
-        private OTPLog() { }
-        private OTPLog(Guid societyId, Guid residentId, Guid packageId, OtpToken token, ExpiryTime expiry, string purpose)
+        private OtpLog() { }
+        private OtpLog(Guid societyId, Guid residentId, Guid packageId, OtpToken token, ExpiryTime expiry, string purpose)
         {
             SocietyId = societyId;
             ResidentId = residentId;
@@ -25,7 +25,7 @@ namespace HubManagement.Core.Hubs.Entities
             IsUsed = false;
         }
 
-        public static OTPLog Generate(Guid societyId, Guid residentId, Guid packageId, string rawToken, TimeSpan validityDuration, string purpose)
+        public static OtpLog Generate(Guid societyId, Guid residentId, Guid packageId, string rawToken, TimeSpan validityDuration, string purpose)
         {
             if (packageId == Guid.Empty)
                 throw new ArgumentNullException(nameof(packageId));
@@ -33,9 +33,7 @@ namespace HubManagement.Core.Hubs.Entities
                 throw new ArgumentNullException(nameof(rawToken));
             var token = OtpToken.Create(rawToken);
             var expiry = ExpiryTime.Create(DateTime.UtcNow.Add(validityDuration));
-            if (expiry == null)
-                throw new ArgumentNullException(nameof(expiry));
-            return new OTPLog(societyId, residentId, packageId, token, expiry, purpose);
+            return new OtpLog(societyId, residentId, packageId, token, expiry, purpose);
         }
 
         // Domain Behaviors
@@ -44,7 +42,7 @@ namespace HubManagement.Core.Hubs.Entities
             if (IsUsed) return false;
             if (Expiry!.IsExpired) return false;
 
-            if (Token!.Value == inputToken)
+            if (string.Equals(Token!.Value, inputToken, StringComparison.Ordinal))
             {
                 IsUsed = true; // State change happens securely within the aggregate root boundary
                 return true;

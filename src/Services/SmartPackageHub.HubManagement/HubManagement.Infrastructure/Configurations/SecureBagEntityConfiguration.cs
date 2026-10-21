@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class SecureBagEntityConfiguration : IEntityTypeConfiguration<SecureBag>
+    internal sealed class SecureBagEntityConfiguration : IEntityTypeConfiguration<SecureBag>
     {
         public void Configure(EntityTypeBuilder<SecureBag> builder)
         {

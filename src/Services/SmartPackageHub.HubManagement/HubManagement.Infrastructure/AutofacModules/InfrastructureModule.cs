@@ -10,16 +10,15 @@ namespace SmartPackageHub.HubManagement.Infrastructure.AutofacModules
     public sealed class InfrastructureModule : Module
     {
         private readonly DbContextOptions<HubDbContext> _options;
-        private readonly IConfiguration Configuration;
 
-        public InfrastructureModule(IConfiguration configuration) : this(CreateDbOptions(configuration), configuration)
+        public InfrastructureModule(IConfiguration configuration)
+            : this(CreateDbOptions(configuration ?? throw new ArgumentNullException(nameof(configuration))))
         {
-
         }
 
-        public InfrastructureModule(DbContextOptions<HubDbContext> options, IConfiguration configuration)
+        public InfrastructureModule(DbContextOptions<HubDbContext> options)
         {
-            Configuration = configuration;
+            ArgumentNullException.ThrowIfNull(options);
             _options = options;
         }
 

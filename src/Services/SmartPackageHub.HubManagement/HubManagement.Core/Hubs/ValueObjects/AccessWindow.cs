@@ -15,7 +15,7 @@ namespace HubManagement.Core.Hubs.ValueObjects
         public static AccessWindow Create(DateTime validFrom, DateTime validTo)
         {
             if (validTo <= validFrom)
-                throw new ArgumentException("End time must be after start time.");
+                throw new ArgumentException("End time must be after start time.", nameof(validTo));
             return new AccessWindow(validFrom, validTo);
         }
         public bool IsValidAt(DateTime time) => time >= ValidFrom && time <= ValidTo;

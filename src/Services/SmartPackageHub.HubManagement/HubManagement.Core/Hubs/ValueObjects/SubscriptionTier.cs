@@ -20,12 +20,12 @@ namespace HubManagement.Core.Hubs.ValueObjects
             if (string.IsNullOrWhiteSpace(tierName))
                 throw new ArgumentException("Tier name cannot be empty.", nameof(tierName));
 
-            return tierName.Trim().ToLower() switch
+            return tierName.Trim().ToUpperInvariant() switch
             {
-                "free" => Free,
-                "silver" => Silver,
-                "gold" => Gold,
-                _ => throw new ArgumentException($"Unsupported subscription tier: {tierName}")
+                "FREE" => Free,
+                "SILVER" => Silver,
+                "GOLD" => Gold,
+                _ => throw new ArgumentException($"Unsupported subscription tier: {tierName}", nameof(tierName))
             };
         }
 

@@ -20,7 +20,7 @@ namespace HubManagement.Core.Hubs.Entities
 
         public long ByteSize { get; set; }
         public DateTime CapturedAt { get; private set; } = DateTime.UtcNow;
-        public PackageIntake? Intake { get; private set; }
+        public PackageIntake? Intake { get; }
 
         private PackageImage() { }
         private PackageImage(Guid packageId, Guid intakeId, string kind, string storageKey, string sha256Hash, DateTime capturedAt)

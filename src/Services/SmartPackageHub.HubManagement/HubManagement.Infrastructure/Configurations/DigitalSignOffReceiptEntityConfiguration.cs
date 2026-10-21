@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class DigitalSignOffReceiptEntityConfiguration : IEntityTypeConfiguration<DigitalSignOffReceipt>
+    internal sealed class DigitalSignOffReceiptEntityConfiguration : IEntityTypeConfiguration<DigitalSignOffReceipt>
     {
         public void Configure(EntityTypeBuilder<DigitalSignOffReceipt> builder)
         {

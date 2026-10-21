@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class OTPLogEntityConfiguration : IEntityTypeConfiguration<OTPLog>
+    internal sealed class OtpLogEntityConfiguration : IEntityTypeConfiguration<OtpLog>
     {
-        public void Configure(EntityTypeBuilder<OTPLog> builder)
+        public void Configure(EntityTypeBuilder<OtpLog> builder)
         {
-            builder.ToTable("OTPLogs");
+            builder.ToTable("OtpLogs");
             builder.HasKey(e => e.Id);
 
             builder.Property(e => e.SocietyId).IsRequired();

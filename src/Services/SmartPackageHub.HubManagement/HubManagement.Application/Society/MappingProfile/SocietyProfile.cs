@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using HubManagement.Application.Societies.DTOs;
 using HubManagement.Core.Hubs.Entities;
 
@@ -8,7 +8,7 @@ namespace HubManagement.Application.Socities.MappingProfile
     {
         public SocietyProfile()
         {
-            CreateMap<Society, SocietyDTO>()
+            CreateMap<Society, SocietyDto>()
                 .ForMember(dest => dest.Name,
                             e => e.MapFrom(src => src.Name))
                 .ForMember(dest => dest.ContactEmail,

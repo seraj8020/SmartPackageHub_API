@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class CourierAgentEntityConfiguration : IEntityTypeConfiguration<CourierAgent>
+    internal sealed class CourierAgentEntityConfiguration : IEntityTypeConfiguration<CourierAgent>
     {
         public void Configure(EntityTypeBuilder<CourierAgent> builder)
         {

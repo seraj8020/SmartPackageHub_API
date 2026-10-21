@@ -8,13 +8,18 @@ namespace SmartPackageHub.Domains.Extensions
     public static class ValidationExtensions
     {
         private static readonly HashSet<string> AllowedCurrency = ["USD", "EUR"];
+        private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
+        private const RegexOptions ValidationRegexOptions = RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture;
+        private static readonly Regex EmailRegex = new(@"^([\w\.\-]+)@([\w\-]+)((\.(\w){2,3})+)$", ValidationRegexOptions, RegexTimeout);
+        private static readonly Regex PhoneRegex = new(@"^[+]?[(]?[+]?[0-9]{1,4}[)]?[-\s./0-9]{9,12}$", ValidationRegexOptions, RegexTimeout);
+        private static readonly Regex MobileRegex = new(@"^(?:\+|00)?(\(\d{1,3}\)|\d{1,3})?([1-9]\d{9})$", ValidationRegexOptions, RegexTimeout);
 
         public static T NotBeNull<T>(
             [NotNull] this T? argument,
             [CallerArgumentExpression("argument")] string? argumentName = null
         )
         {
-            if (argument == null)
+            if (argument is null)
             {
                 throw new ValidationException(message: $"{argumentName} cannot be null or empty.");
             }
@@ -24,7 +29,7 @@ namespace SmartPackageHub.Domains.Extensions
 
         public static T NotBeNull<T>([NotNull] this T? argument, System.Exception exception)
         {
-            if (argument == null)
+            if (argument is null)
             {
                 throw exception;
             }
@@ -37,35 +42,10 @@ namespace SmartPackageHub.Domains.Extensions
             [CallerArgumentExpression("argument")] string? argumentName = null
         )
         {
+            ArgumentNullException.ThrowIfNull(argument);
             if (argument.Length == 0)
             {
                 throw new ValidationException($"{argumentName} cannot be null or empty.");
-            }
-
-            return argument;
-        }
-
-        public static string NotBeEmptyOrNull(
-            [NotNull] this string? argument,
-            [CallerArgumentExpression("argument")] string? argumentName = null
-        )
-        {
-            if (string.IsNullOrEmpty(argument))
-            {
-                throw new ValidationException($"{argumentName} cannot be null or empty.");
-            }
-
-            return argument;
-        }
-
-        public static string NotBeNullOrWhiteSpace(
-            [NotNull] this string? argument,
-            [CallerArgumentExpression("argument")] string? argumentName = null
-        )
-        {
-            if (string.IsNullOrWhiteSpace(argument))
-            {
-                throw new ValidationException($"{argumentName} cannot be null or white space.");
             }
 
             return argument;
@@ -95,6 +75,80 @@ namespace SmartPackageHub.Domains.Extensions
             }
 
             return argument.Value.NotBeEmpty(argumentName);
+        }
+
+        public static TEnum NotBeEmpty<TEnum>(
+            [NotNull] this TEnum enumValue,
+            [CallerArgumentExpression("enumValue")] string? argumentName = null
+        )
+            where TEnum : Enum
+        {
+            enumValue.NotBeNull(argumentName);
+
+            if (!Enum.IsDefined(typeof(TEnum), enumValue))
+            {
+                throw new ValidationException(
+                    $"The value of '{argumentName}' is not valid for enum of '{typeof(TEnum).Name}'."
+                );
+            }
+
+            return enumValue;
+        }
+
+        public static void NotBeEmpty(
+            this DateTime dateTime,
+            [CallerArgumentExpression("dateTime")] string? argumentName = null
+        )
+        {
+            var isEmpty = dateTime == DateTime.MinValue;
+            if (isEmpty)
+            {
+                throw new ValidationException(
+                    $"The value of '{argumentName}' cannot be the default value of '{dateTime}'."
+                );
+            }
+        }
+
+        public static string NotBeEmptyOrNull(
+            [NotNull] this string? argument,
+            [CallerArgumentExpression("argument")] string? argumentName = null
+        )
+        {
+            if (string.IsNullOrEmpty(argument))
+            {
+                throw new ValidationException($"{argumentName} cannot be null or empty.");
+            }
+
+            return argument;
+        }
+
+        public static TEnum NotBeEmptyOrNull<TEnum>(
+            [NotNull] this TEnum? enumValue,
+            [CallerArgumentExpression("enumValue")] string argumentName = ""
+        )
+            where TEnum : Enum
+        {
+            if (enumValue is null)
+            {
+                throw new ValidationException(message: $"{argumentName} cannot be null or empty.");
+            }
+
+            enumValue.NotBeEmpty(argumentName);
+
+            return enumValue;
+        }
+
+        public static string NotBeNullOrWhiteSpace(
+            [NotNull] this string? argument,
+            [CallerArgumentExpression("argument")] string? argumentName = null
+        )
+        {
+            if (string.IsNullOrWhiteSpace(argument))
+            {
+                throw new ValidationException($"{argumentName} cannot be null or white space.");
+            }
+
+            return argument;
         }
 
         public static int NotBeNegativeOrZero(
@@ -149,19 +203,6 @@ namespace SmartPackageHub.Domains.Extensions
             return argument.Value.NotBeNegativeOrZero(argumentName);
         }
 
-        public static decimal NotBeNegative(
-            this decimal argument,
-            [CallerArgumentExpression("argument")] string? argumentName = null
-        )
-        {
-            if (argument < 0)
-            {
-                throw new ValidationException($"{argumentName} cannot be negative.");
-            }
-
-            return argument;
-        }
-
         public static decimal NotBeNegativeOrZero(
             this decimal argument,
             [CallerArgumentExpression("argument")] string? argumentName = null
@@ -214,14 +255,26 @@ namespace SmartPackageHub.Domains.Extensions
             return argument.Value.NotBeNegativeOrZero(argumentName);
         }
 
+        public static decimal NotBeNegative(
+            this decimal argument,
+            [CallerArgumentExpression("argument")] string? argumentName = null
+        )
+        {
+            if (argument < 0)
+            {
+                throw new ValidationException($"{argumentName} cannot be negative.");
+            }
+
+            return argument;
+        }
+
         public static string NotBeInvalidEmail(
             this string email,
             [CallerArgumentExpression("email")] string? argumentName = null
         )
         {
-            // Use Regex to validate email format
-            var regex = new Regex(@"^([\w\.\-]+)@([\w\-]+)((\.(\w){2,3})+)$");
-            if (!regex.IsMatch(email))
+            ArgumentNullException.ThrowIfNull(email);
+            if (!EmailRegex.IsMatch(email))
             {
                 throw new ValidationException($"{argumentName} is not a valid email address.");
             }
@@ -234,11 +287,8 @@ namespace SmartPackageHub.Domains.Extensions
             [CallerArgumentExpression("phoneNumber")] string? argumentName = null
         )
         {
-            // Use Regex to validate phone number format
-            // valid phones: +10---------- , (+10)----------
-            var regex = new Regex(@"^[+]?[(]?[+]?[0-9]{1,4}[)]?[-\s./0-9]{9,12}$");
-
-            if (!regex.IsMatch(phoneNumber))
+            ArgumentNullException.ThrowIfNull(phoneNumber);
+            if (!PhoneRegex.IsMatch(phoneNumber))
             {
                 throw new ValidationException($"{argumentName} is not a valid phone number.");
             }
@@ -251,10 +301,8 @@ namespace SmartPackageHub.Domains.Extensions
             [CallerArgumentExpression("mobileNumber")] string? argumentName = null
         )
         {
-            // Use Regex to validate mobile number format
-            var regex = new Regex(@"^(?:\+|00)?(\(\d{1,3}\)|\d{1,3})?([1-9]\d{9})$");
-
-            if (!regex.IsMatch(mobileNumber))
+            ArgumentNullException.ThrowIfNull(mobileNumber);
+            if (!MobileRegex.IsMatch(mobileNumber))
             {
                 throw new ValidationException($"{argumentName} is not a valid mobile number.");
             }
@@ -267,6 +315,7 @@ namespace SmartPackageHub.Domains.Extensions
             [CallerArgumentExpression("currency")] string? argumentName = null
         )
         {
+            ArgumentNullException.ThrowIfNull(currency);
             currency = currency.ToUpperInvariant();
             if (!AllowedCurrency.Contains(currency))
             {
@@ -274,55 +323,6 @@ namespace SmartPackageHub.Domains.Extensions
             }
 
             return currency;
-        }
-
-        public static TEnum NotBeEmptyOrNull<TEnum>(
-            [NotNull] this TEnum? enumValue,
-            [CallerArgumentExpression("enumValue")] string argumentName = ""
-        )
-            where TEnum : Enum
-        {
-            if (enumValue is null)
-            {
-                throw new ValidationException(message: $"{argumentName} cannot be null or empty.");
-            }
-
-            enumValue.NotBeEmpty(argumentName);
-
-            return enumValue;
-        }
-
-        public static TEnum NotBeEmpty<TEnum>(
-            [NotNull] this TEnum enumValue,
-            [CallerArgumentExpression("enumValue")] string? argumentName = null
-        )
-            where TEnum : Enum
-        {
-            enumValue.NotBeNull(argumentName);
-
-            // returns `true` if `enumValue` corresponds to one of the defined values in `TEnum`
-            if (!Enum.IsDefined(typeof(TEnum), enumValue))
-            {
-                throw new ValidationException(
-                    $"The value of '{argumentName}' is not valid for enum of '{typeof(TEnum).Name}'."
-                );
-            }
-
-            return enumValue;
-        }
-
-        public static void NotBeEmpty(
-            this DateTime dateTime,
-            [CallerArgumentExpression("dateTime")] string? argumentName = null
-        )
-        {
-            var isEmpty = dateTime == DateTime.MinValue;
-            if (isEmpty)
-            {
-                throw new ValidationException(
-                    $"The value of '{argumentName}' cannot be the default value of '{dateTime}'."
-                );
-            }
         }
     }
 }

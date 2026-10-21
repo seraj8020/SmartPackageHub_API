@@ -1,8 +1,9 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Globalization;
 using Newtonsoft.Json;
 
-public static class JsonSeedDataLoader
+namespace SmartPackageHub.HubManagement.Api;
+internal static class JsonSeedDataLoader
 {
     private static readonly JsonSerializerSettings SeedSettings = new()
     {
@@ -38,20 +39,20 @@ public static class JsonSeedDataLoader
         catch (Exception ex)
         {
             Console.WriteLine($"An unexpected error occurred while reading {filePath}: {ex.Message}");
-            return new List<T>();
+            throw; // Preserves the stack trace and rethrows the exception
         }
     }
 
-    public static Dictionary<string, List<object>> LoadMultipleSeedData(string directoryPath, Dictionary<string, Type> fileToTypeMap)
+    public static IDictionary<string, List<object>> LoadMultipleSeedData(string directoryPath, IDictionary<string, Type> fileToTypeMap)
     {
-        var allSeedData = new Dictionary<string, List<object>>();
+        var allSeedData = new Dictionary<string, List<object>>(StringComparer.OrdinalIgnoreCase);
 
         if (!Directory.Exists(directoryPath))
         {
             Console.WriteLine($"Warning: Seed data directory not found at {directoryPath}");
             return allSeedData;
         }
-
+        ArgumentNullException.ThrowIfNull(fileToTypeMap);
         foreach (var entry in fileToTypeMap)
         {
             string fileName = entry.Key;
@@ -86,11 +87,14 @@ public static class JsonSeedDataLoader
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An unexpected error occurred while reading {filePath}: {ex.Message}");
+                Console.WriteLine($"Unexpected error processing seed data file {filePath}: {ex.Message}");
+                throw; // Preserves the stack trace and rethrows the exception
             }
         }
         return allSeedData;
     }
+
+
 
     // Seed exports use PostgreSQL boolean literals ("t" / "f") instead of JSON true/false.
     private sealed class PostgresBoolConverter : JsonConverter<bool>

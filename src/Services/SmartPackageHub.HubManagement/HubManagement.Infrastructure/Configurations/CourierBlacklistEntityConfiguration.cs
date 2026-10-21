@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class CourierBlacklistEntityConfiguration : IEntityTypeConfiguration<CourierBlacklist>
+    internal sealed class CourierBlacklistEntityConfiguration : IEntityTypeConfiguration<CourierBlacklist>
     {
         public void Configure(EntityTypeBuilder<CourierBlacklist> builder)
         {

@@ -29,7 +29,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
 
         public async Task<T?> GetByIdAsync(Guid id)
         {
-            return await _entitySet.FindAsync(id);
+            return await _entitySet.FindAsync(id).ConfigureAwait(false);
         }
 
         public void Insert(T entity)
@@ -37,7 +37,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
             _entitySet.Add(entity);
         }
 
-        public void Insert(List<T> entities)
+        public void Insert(IReadOnlyList<T> entities)
         {
             _entitySet.AddRange(entities);
         }
@@ -59,8 +59,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
 
         public void Update(T item)
         {
-            if (item == null)
-                throw new ArgumentNullException(nameof(item));
+            ArgumentNullException.ThrowIfNull(item);
 
             var entry = _context.Entry(item);
             if (entry.State == EntityState.Detached)
@@ -77,7 +76,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
 
         public virtual async Task<int> BulkUpdateAsync(Expression<Func<T, bool>> predicate, Expression<Func<T, T>> updatePredicate)
         {
-            return await _context.Set<T>().Where(predicate).UpdateAsync(updatePredicate);
+            return await _context.Set<T>().Where(predicate).UpdateAsync(updatePredicate).ConfigureAwait(false);
         }
     }
 }

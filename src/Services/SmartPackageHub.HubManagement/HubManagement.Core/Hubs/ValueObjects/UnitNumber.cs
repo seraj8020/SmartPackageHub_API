@@ -5,6 +5,8 @@ namespace HubManagement.Core.Hubs.ValueObjects
 {
     public sealed class UnitNumber : ValueObject
     {
+        private static readonly Regex UnitPattern = new(@"^[a-zA-Z0-9\s-]+$", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture, TimeSpan.FromMilliseconds(250));
+
         public string Value { get;  private set; }
 
         // Rules: Non-empty, alphanumeric room definitions (e.g., "Apartment 4B")
@@ -18,7 +20,7 @@ namespace HubManagement.Core.Hubs.ValueObjects
                 throw new ArgumentException("Unit number cannot be empty.", nameof(value));
 
             var trimmedValue = value.Trim();
-            if (!Regex.IsMatch(trimmedValue, @"^[a-zA-Z0-9\s-]+$"))
+            if (!UnitPattern.IsMatch(trimmedValue))
                 throw new ArgumentException("Unit number contains invalid characters.", nameof(value));
             return new UnitNumber(trimmedValue);
             

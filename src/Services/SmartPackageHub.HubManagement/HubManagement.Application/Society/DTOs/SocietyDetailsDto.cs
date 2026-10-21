@@ -17,6 +17,7 @@ namespace HubManagement.Application.Societies.DTOs
 
         public static SocietyDetailsDto From(Society society)
         {
+            ArgumentNullException.ThrowIfNull(society);
             var street = society.Address.Street;
             var city = society.Address.City;
             var state = society.Address.State;
@@ -38,8 +39,5 @@ namespace HubManagement.Application.Societies.DTOs
             };
         }
     }
-
-    public sealed record SocietyCommandResult(bool Found, bool Succeeded, string Message, SocietyDetailsDto? Society);
-
-    public sealed record DeleteCommandResult(bool Found);
+    
 }

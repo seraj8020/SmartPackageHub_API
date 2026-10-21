@@ -2,16 +2,12 @@ using HubManagement.Application.Societies.Commands;
 using HubManagement.Application.Societies.DTOs;
 using HubManagement.Application.Societies.Queries;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartPackageHub.Common.Types;
 using SmartPackageHub.Infrastructures.ActionResults;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {
-    /// <summary>
-    /// 
-    /// </summary>
     [ApiController]
     [Route("api/v{version:apiVersion}/societies")]
     public class SocietiesController : ControllerBase
@@ -27,19 +23,18 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(typeof(List<SocietyDetailsDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult> GetAll()
         {
-            var societies = await _mediator.Send(new GetSocietiesQuery());
+            var societies = await _mediator.Send(new GetSocietiesQuery()).ConfigureAwait(false);
             return Ok(societies);
         }
 
         [HttpGet("getsocietybyid/{societyid}")]
         [MapToApiVersion(ApiVersions.V2)]
-        [Authorize(Roles = "Accountant")]
-        [ProducesResponseType(typeof(SocietyDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(SocietyDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Envelope), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(Envelope), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetSocietyById(Guid societyid)
         {
-            var result = await _mediator.Send(new GetSocietyByIdQuery(societyid));
+            var result = await _mediator.Send(new GetSocietyByIdQuery(societyid)).ConfigureAwait(false);
             return Ok(result);
         }
 
@@ -49,7 +44,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> Get(Guid id)
         {
-            var society = await _mediator.Send(new GetSocietyDetailsQuery(id));
+            var society = await _mediator.Send(new GetSocietyBySocietyIdQuery(id)).ConfigureAwait(false);
             if (society == null)
                 return NotFound();
 
@@ -62,7 +57,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> Create([FromBody] CreateSocietyRequest request)
         {
-            var result = await _mediator.Send(new CreateSocietyCommand(request.Name, request.Address, request.ContactEmail, request.Phone));
+            ArgumentNullException.ThrowIfNull(request);
+            var result = await _mediator.Send(new CreateSocietyCommand(request.Name, request.Address, request.ContactEmail, request.Phone)).ConfigureAwait(false);
             if (!result.Succeeded)
                 return BadRequest(new { Message = result.Message });
 
@@ -76,7 +72,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> Update(Guid id, [FromBody] UpdateSocietyRequest request)
         {
-            var result = await _mediator.Send(new UpdateSocietyCommand(id, request.Name, request.Address, request.ContactEmail, request.Phone));
+            ArgumentNullException.ThrowIfNull(request);
+            var result = await _mediator.Send(new UpdateSocietyCommand(id, request.Name, request.Address, request.ContactEmail, request.Phone)).ConfigureAwait(false);
             if (!result.Found)
                 return NotFound();
             if (!result.Succeeded)
@@ -91,7 +88,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> Delete(Guid id)
         {
-            var result = await _mediator.Send(new DeleteSocietyCommand(id));
+            var result = await _mediator.Send(new DeleteSocietyCommand(id)).ConfigureAwait(false);
             if (!result.Found)
                 return NotFound();
 

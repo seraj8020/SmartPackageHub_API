@@ -25,18 +25,17 @@ namespace HubManagement.Core.Hubs.Entities
         }
         public static Membership Create(Guid residentId, Guid societyId, SubscriptionTier tier, ValidityPeriod period, string status, bool isAutoRenewEnabled)
         {
-            if(tier == null)
-                throw new ArgumentNullException(nameof(tier));
-            if(period == null)
-                throw new ArgumentNullException(nameof(period));
+           
+            ArgumentNullException.ThrowIfNull(tier);
+            ArgumentNullException.ThrowIfNull(period);
             var memberShip = new Membership(residentId, societyId, tier, period, status, isAutoRenewEnabled);
             return memberShip;
         }
         // Domain Behavior: Upgrade Tier
         public void UpgradeTier(SubscriptionTier newTier, ValidityPeriod newPeriod)
         {
-            if (newTier == null) throw new ArgumentNullException(nameof(newTier));
-            if (newPeriod == null) throw new ArgumentNullException(nameof(newPeriod));
+            ArgumentNullException.ThrowIfNull(newTier);
+            ArgumentNullException.ThrowIfNull(newPeriod);
 
             // Business logic/rule validation can go here
             Tier = newTier;

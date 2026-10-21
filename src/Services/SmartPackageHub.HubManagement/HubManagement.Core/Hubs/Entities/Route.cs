@@ -47,6 +47,7 @@ namespace HubManagement.Core.Hubs.Entities
 
         public void OptimizeRoute(IEnumerable<Guid> orderedStopIds)
         {
+            ArgumentNullException.ThrowIfNull(orderedStopIds);
             int order = 0;
             foreach (var stopId in orderedStopIds)
             {

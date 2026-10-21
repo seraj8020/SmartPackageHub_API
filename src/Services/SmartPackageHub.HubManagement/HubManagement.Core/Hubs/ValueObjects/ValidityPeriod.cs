@@ -15,7 +15,7 @@ namespace HubManagement.Core.Hubs.ValueObjects
         public static ValidityPeriod Create(DateTime startDate, DateTime endDate)
         {
             if (endDate <= startDate)
-                throw new ArgumentException("End date must be after the start date.");
+                throw new ArgumentException("End date must be after the start date.", nameof(endDate));
             return new ValidityPeriod(startDate, endDate);
 
         }

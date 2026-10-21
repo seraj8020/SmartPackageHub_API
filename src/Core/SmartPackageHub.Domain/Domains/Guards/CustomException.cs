@@ -4,12 +4,22 @@ namespace SmartPackageHub.Domains.Abstractions.Guards
 {
     public class CustomException : Exception
     {
-        protected CustomException(
-            string message,
-            int statusCode = StatusCodes.Status500InternalServerError,
-            System.Exception? innerException = null,
-            params string[] errors
-        )
+        public CustomException()
+            : this("An error occurred.", StatusCodes.Status500InternalServerError, null)
+        {
+        }
+
+        public CustomException(string message)
+            : this(message, StatusCodes.Status500InternalServerError, null)
+        {
+        }
+
+        public CustomException(string message, Exception innerException)
+            : this(message, StatusCodes.Status500InternalServerError, innerException)
+        {
+        }
+
+        protected CustomException(string message, int statusCode, Exception? innerException, params string[] errors)
             : base(message, innerException)
         {
             ErrorMessages = errors;
@@ -20,7 +30,6 @@ namespace SmartPackageHub.Domains.Abstractions.Guards
 
         public int StatusCode { get; protected set; }
 
-        // Will use in the problem detail `title` field.
         public override string ToString()
         {
             return GetType().FullName ?? GetType().Name;

@@ -1,4 +1,4 @@
-﻿using HubManagement.Application.HubResidents.Commands;
+using HubManagement.Application.HubResidents.Commands;
 using HubManagement.Application.HubResidents.DTOs;
 using HubManagement.Application.HubResidents.Queries;
 using MediatR;
@@ -27,19 +27,19 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(typeof(Envelope), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> AddResident([FromBody] AddResidentCommand command)
         {
-            var result = await _mediator.Send(command);
+            var result = await _mediator.Send(command).ConfigureAwait(false);
             return Ok(result);
         }
 
         [HttpGet("getresidentbyid/{residentid}")]
         [MapToApiVersion(ApiVersions.V2)]
         [Authorize(Roles = "Staff")]
-        [ProducesResponseType(typeof(ResidentDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResidentDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(Envelope), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(Envelope), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetResidentById(Guid residentid)
         {
-            var result = await _mediator.Send(new GetResidentByIdQuery(residentid));
+            var result = await _mediator.Send(new GetResidentByIdQuery(residentid)).ConfigureAwait(false);
             return Ok(result);
         }
 
@@ -49,7 +49,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetPackages(Guid id)
         {
-            var packages = await _mediator.Send(new GetResidentPackagesQuery(id));
+            var packages = await _mediator.Send(new GetResidentPackagesQuery(id)).ConfigureAwait(false);
             if (packages == null)
                 return NotFound();
 
@@ -63,7 +63,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> RequestOtp(Guid id)
         {
-            var result = await _mediator.Send(new RequestResidentOtpCommand(id));
+            var result = await _mediator.Send(new RequestResidentOtpCommand(id)).ConfigureAwait(false);
             if (!result.ResidentFound)
                 return NotFound();
             if (result.Otp == null)
@@ -79,7 +79,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> VerifyOtp(Guid id, [FromBody] VerifyOtpRequest request)
         {
-            var result = await _mediator.Send(new VerifyResidentOtpCommand(id, request?.Code ?? string.Empty));
+            var result = await _mediator.Send(new VerifyResidentOtpCommand(id, request?.Code ?? string.Empty)).ConfigureAwait(false);
             if (!result.ResidentFound)
                 return NotFound();
             if (!result.Succeeded)
@@ -94,7 +94,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetHistory(Guid id)
         {
-            var history = await _mediator.Send(new GetResidentDeliveryHistoryQuery(id));
+            var history = await _mediator.Send(new GetResidentDeliveryHistoryQuery(id)).ConfigureAwait(false);
             if (history == null)
                 return NotFound();
 

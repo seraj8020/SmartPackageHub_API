@@ -23,7 +23,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> Parse([FromBody] ParseLabelRequest request)
         {
-            var parsed = await _mediator.Send(new ParseLabelQuery(request?.Text));
+            var parsed = await _mediator.Send(new ParseLabelQuery(request?.Text)).ConfigureAwait(false);
             if (parsed == null)
                 return BadRequest(new { Message = "Text is required" });
 
@@ -35,7 +35,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(typeof(MatchResponse), StatusCodes.Status200OK)]
         public async Task<ActionResult> Match([FromQuery] string? tower, [FromQuery] string? flat, [FromQuery] string? name)
         {
-            return Ok(await _mediator.Send(new MatchResidentsQuery(tower, flat, name)));
+            return Ok(await _mediator.Send(new MatchResidentsQuery(tower, flat, name)).ConfigureAwait(false));
         }
 
         [HttpGet("residents")]
@@ -43,7 +43,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(typeof(List<ResidentMatchDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult> Residents([FromQuery] string? q)
         {
-            return Ok(await _mediator.Send(new SearchResidentsQuery(q)));
+            return Ok(await _mediator.Send(new SearchResidentsQuery(q)).ConfigureAwait(false));
         }
 
         [HttpGet("shelf")]
@@ -52,7 +52,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> Shelf([FromQuery] Guid? societyId)
         {
-            var shelf = await _mediator.Send(new SuggestShelfQuery(societyId));
+            var shelf = await _mediator.Send(new SuggestShelfQuery(societyId)).ConfigureAwait(false);
             if (shelf == null)
                 return NotFound(new { Message = "No shelf is available" });
 
@@ -67,7 +67,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> Confirm([FromBody] ConfirmIntakeRequest request)
         {
-            var result = await _mediator.Send(new ConfirmIntakeCommand(request ?? new ConfirmIntakeRequest()));
+            var result = await _mediator.Send(new ConfirmIntakeCommand(request ?? new ConfirmIntakeRequest())).ConfigureAwait(false);
             if (result.StatusCode == 400)
                 return BadRequest(new { Message = result.Error });
             if (result.StatusCode == 404)
@@ -88,13 +88,18 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             if (string.IsNullOrWhiteSpace(clientPhotoId) || file == null || file.Length == 0)
                 return BadRequest(new { Message = "A photo id and image are required" });
 
-            var type = (file.ContentType ?? string.Empty).ToLowerInvariant();
+            var type = (file.ContentType ?? string.Empty).ToUpperInvariant();
             if (type is not ("image/jpeg" or "image/jpg" or "image/png" or "image/webp"))
                 return BadRequest(new { Message = "Parcel photo must be a JPEG, PNG, or WebP" });
 
             using var buffer = new MemoryStream();
-            await file.CopyToAsync(buffer);
-            var result = await _mediator.Send(new SaveParcelPhotoCommand(clientPhotoId, buffer.ToArray(), type == "image/jpg" ? "image/jpeg" : type));
+            await file.CopyToAsync(buffer).ConfigureAwait(false);
+            // Get a zero-allocation ReadOnlyMemory<byte> pointing to the internal buffer
+            ReadOnlyMemory<byte> memoryData = buffer.TryGetBuffer(out var segment)
+                ? segment.AsMemory(0, (int)buffer.Length)
+                : buffer.GetBuffer().AsMemory(0, (int)buffer.Length);
+
+            var result = await _mediator.Send(new SaveParcelPhotoCommand(clientPhotoId, memoryData, string.Equals(type, "image/jpg", StringComparison.Ordinal) ? "image/jpeg" : type)).ConfigureAwait(false);
             if (!result.Succeeded)
                 return BadRequest(new { Message = result.Error });
 
@@ -108,8 +113,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> Damage(Guid id, [FromBody] DamageIntakeRequest request)
         {
-            var result = await _mediator.Send(new SaveDamageCommand(id, request ?? new DamageIntakeRequest()));
-            if (!result.Ok && result.Error == "Intake not found")
+            var result = await _mediator.Send(new SaveDamageCommand(id, request ?? new DamageIntakeRequest())).ConfigureAwait(false);
+            if (!result.Ok && string.Equals(result.Error, "Intake not found", StringComparison.Ordinal))
                 return NotFound(new { Message = result.Error });
             if (!result.Ok)
                 return BadRequest(new { Message = result.Error });

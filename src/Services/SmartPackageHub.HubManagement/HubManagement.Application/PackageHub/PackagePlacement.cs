@@ -17,7 +17,7 @@ namespace HubManagement.Application.PackageHub
             Resident? resident = null;
             if (residentId is Guid requestedResident && requestedResident != Guid.Empty)
             {
-                resident = await residents.GetByIdAsync(requestedResident);
+                resident = await residents.GetByIdAsync(requestedResident).ConfigureAwait(false);
                 if (resident == null)
                     return Placement.Fail(false, "Resident was not found.");
             }
@@ -29,7 +29,7 @@ namespace HubManagement.Application.PackageHub
             }
             else if (societyId is Guid requestedSociety && requestedSociety != Guid.Empty)
             {
-                var society = await societies.GetByIdAsync(requestedSociety);
+                var society = await societies.GetByIdAsync(requestedSociety).ConfigureAwait(false);
                 if (society == null)
                     return Placement.Fail(false, "Society was not found.");
                 resolvedSociety = society.Id;
@@ -46,7 +46,7 @@ namespace HubManagement.Application.PackageHub
             Guid resolvedStaff;
             if (staffUserId is Guid requestedStaff && requestedStaff != Guid.Empty)
             {
-                var staff = await users.GetByIdAsync(requestedStaff);
+                var staff = await users.GetByIdAsync(requestedStaff).ConfigureAwait(false);
                 if (staff == null)
                     return Placement.Fail(false, "Staff user was not found.");
                 resolvedStaff = staff.Id;
@@ -64,12 +64,5 @@ namespace HubManagement.Application.PackageHub
         }
     }
 
-    internal sealed record Placement(bool Found, bool Succeeded, string Message, Resident? Resident, Guid SocietyId, Guid StaffUserId)
-    {
-        public static Placement Ok(Resident? resident, Guid societyId, Guid staffUserId) =>
-            new(true, true, string.Empty, resident, societyId, staffUserId);
-
-        public static Placement Fail(bool found, string message) =>
-            new(found, false, message, null, Guid.Empty, Guid.Empty);
-    }
+    
 }

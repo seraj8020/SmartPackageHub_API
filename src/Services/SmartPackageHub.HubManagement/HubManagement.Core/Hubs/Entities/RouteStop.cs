@@ -24,7 +24,7 @@ namespace HubManagement.Core.Hubs.Entities
             if (string.IsNullOrWhiteSpace(buildingName))
                 throw new ArgumentNullException(nameof(buildingName));
             if (sequenceOrder < 0)
-                throw new ArgumentException("Sequence must be non-negative.");
+                throw new ArgumentException("Sequence must be non-negative.", nameof(sequenceOrder));
             var routeStop = new RouteStop(routeId, buildingName, packageId, sequenceOrder);
             return routeStop;
         }

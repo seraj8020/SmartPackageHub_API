@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class ResidentEntityConfiguration : IEntityTypeConfiguration<Resident>
+    internal sealed class ResidentEntityConfiguration : IEntityTypeConfiguration<Resident>
     {
         public void Configure(EntityTypeBuilder<Resident> builder)
         {

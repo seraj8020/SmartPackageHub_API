@@ -11,7 +11,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         {
             var aggregateRoots = context.ChangeTracker
                 .Entries<EntityBase>()
-                .Where(x => x.Entity.DomainEvents != null && x.Entity.DomainEvents.Any())
+                .Where(x => x.Entity.DomainEvents != null && x.Entity.DomainEvents.Count > 0)
                 .Select(e => e.Entity)
                 .ToList();
 
@@ -19,7 +19,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
                 .SelectMany(x => x.DomainEvents)
                 .ToList();
 
-            await mediator.DispatchDomainEventsAsync(domainEvents);
+            await mediator.DispatchDomainEventsAsync(domainEvents).ConfigureAwait(false);
 
             ClearDomainEvents(aggregateRoots);
         }
@@ -28,7 +28,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         {
             foreach (var domainEvent in domainEvents)
             {
-                await mediator.Publish(domainEvent);
+                await mediator.Publish(domainEvent).ConfigureAwait(false);
             }
         }
 

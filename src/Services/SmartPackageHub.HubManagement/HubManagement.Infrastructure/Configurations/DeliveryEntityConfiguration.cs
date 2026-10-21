@@ -5,7 +5,7 @@ using ValueObjects = HubManagement.Core.Hubs.ValueObjects;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class DeliveryEntityConfiguration : IEntityTypeConfiguration<Delivery>
+    internal sealed class DeliveryEntityConfiguration : IEntityTypeConfiguration<Delivery>
     {
         public void Configure(EntityTypeBuilder<Delivery> builder)
         {
@@ -53,7 +53,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
                 .HasForeignKey(e => e.ResidentId)
                 .IsRequired();
 
-            builder.HasOne<OTPLog>()
+            builder.HasOne<OtpLog>()
                 .WithMany()
                 .HasForeignKey(e => e.OtpLogId)
                 .IsRequired(false);

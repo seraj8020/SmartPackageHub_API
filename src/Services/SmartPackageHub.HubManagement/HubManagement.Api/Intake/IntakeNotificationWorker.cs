@@ -4,14 +4,19 @@ using MediatR;
 
 namespace SmartPackageHub.HubManagement.Api.Intake
 {
-    public sealed class IntakeNotificationWorker : BackgroundService
+    internal sealed class IntakeNotificationWorker : BackgroundService
     {
-        private readonly IntakeNotificationQueue _queue;
+        private static readonly Action<ILogger, Guid, Exception?> LogIntakeNotificationFailed =
+            LoggerMessage.Define<Guid>(
+                LogLevel.Information,
+                new EventId(1, nameof(IntakeNotificationWorker)),
+                "Intake notification failed for {IntakeId}");
+        private readonly IntakeNotificationChannel _queue;
         private readonly IServiceScopeFactory _scopes;
         private readonly ILogger<IntakeNotificationWorker> _logger;
 
         public IntakeNotificationWorker(
-            IntakeNotificationQueue queue,
+            IntakeNotificationChannel queue,
             IServiceScopeFactory scopes,
             ILogger<IntakeNotificationWorker> logger)
         {
@@ -22,17 +27,17 @@ namespace SmartPackageHub.HubManagement.Api.Intake
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            await foreach (var intakeId in _queue.ReadAllAsync(stoppingToken))
+            await foreach (var intakeId in _queue.ReadAllAsync(stoppingToken).ConfigureAwait(false))
             {
                 try
                 {
                     using var scope = _scopes.CreateScope();
                     var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                    await mediator.Send(new DispatchIntakeNotificationCommand(intakeId), stoppingToken);
+                    await mediator.Send(new DispatchIntakeNotificationCommand(intakeId), stoppingToken).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _logger.LogError(ex, "Intake notification failed for {IntakeId}", intakeId);
+                    LogIntakeNotificationFailed(_logger, intakeId,null);
                 }
             }
         }

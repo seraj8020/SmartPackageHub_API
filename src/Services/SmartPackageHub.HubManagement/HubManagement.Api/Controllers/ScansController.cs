@@ -25,7 +25,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> ScanAndReceive([FromBody] ScanReceiveRequest request)
         {
-            var result = await _mediator.Send(new ScanReceiveCommand(request ?? new ScanReceiveRequest()));
+            var result = await _mediator.Send(new ScanReceiveCommand(request ?? new ScanReceiveRequest())).ConfigureAwait(false);
             if (result.Conflict)
                 return Conflict(new { Message = result.Message });
             if (!result.Found)
@@ -55,7 +55,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> ScanAndHandover([FromBody] ScanHandoverRequest request)
         {
-            var result = await _mediator.Send(new ScanHandoverCommand(request ?? new ScanHandoverRequest()));
+            var result = await _mediator.Send(new ScanHandoverCommand(request ?? new ScanHandoverRequest())).ConfigureAwait(false);
             if (!result.Found)
                 return NotFound(new { Message = result.Message });
             if (!result.Succeeded)
@@ -79,7 +79,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> Parse([FromQuery] string? vendor, [FromQuery] string? code)
         {
-            var parsed = await _mediator.Send(new ParseScanQuery(vendor, code));
+            var parsed = await _mediator.Send(new ParseScanQuery(vendor, code)).ConfigureAwait(false);
             if (parsed == null)
                 return BadRequest();
 

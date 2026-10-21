@@ -1,5 +1,6 @@
 using SmartPackageHub.Domains.Abstractions.Entities;
 using System.ComponentModel.DataAnnotations;
+using System.Xml.Linq;
 
 namespace HubManagement.Core.Hubs.Entities
 {
@@ -106,9 +107,7 @@ namespace HubManagement.Core.Hubs.Entities
 
         public void AddPackage(Package package)
         {
-            if (package == null)
-                throw new ArgumentNullException(nameof(package));
-
+            ArgumentNullException.ThrowIfNull(package);
             _packages.Add(package);
             TotalPackagesCount = _packages.Count;
         }

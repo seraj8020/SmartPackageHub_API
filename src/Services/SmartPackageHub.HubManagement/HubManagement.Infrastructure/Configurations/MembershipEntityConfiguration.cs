@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class MembershipEntityConfiguration : IEntityTypeConfiguration<Membership>
+    internal sealed class MembershipEntityConfiguration : IEntityTypeConfiguration<Membership>
     {
         public void Configure(EntityTypeBuilder<Membership> builder)
         {

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class AuditLogsEntityConfiguration : IEntityTypeConfiguration<AuditLog>
+    internal sealed class AuditLogsEntityConfiguration : IEntityTypeConfiguration<AuditLog>
     {
         public void Configure(EntityTypeBuilder<AuditLog> builder)
         {

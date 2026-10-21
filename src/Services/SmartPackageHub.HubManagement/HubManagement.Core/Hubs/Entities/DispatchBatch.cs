@@ -8,7 +8,7 @@ namespace HubManagement.Core.Hubs.Entities
         public Guid SocietyId { get; private set; }
         public Guid RunnerUserId { get; private set; }
         public string TowerWing { get; private set; } = null!;
-        public int? Floor { get; private set; }
+        public int? Floor { get; }
         public UnitNumber FlatNumber { get; private set; } = null!;
         public string? Status { get; private set; }
         public DateTime CreatedAt { get; private set; }

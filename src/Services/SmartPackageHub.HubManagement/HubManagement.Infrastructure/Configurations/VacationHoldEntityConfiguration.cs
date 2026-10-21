@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class VacationHoldEntityConfiguration : IEntityTypeConfiguration<VacationHold>
+    internal sealed class VacationHoldEntityConfiguration : IEntityTypeConfiguration<VacationHold>
     {
         public void Configure(EntityTypeBuilder<VacationHold> builder)
         {

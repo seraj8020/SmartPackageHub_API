@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class NotificationEntityConfiguration : IEntityTypeConfiguration<Notification>
+    internal sealed class NotificationEntityConfiguration : IEntityTypeConfiguration<Notification>
     {
         public void Configure(EntityTypeBuilder<Notification> builder)
         {

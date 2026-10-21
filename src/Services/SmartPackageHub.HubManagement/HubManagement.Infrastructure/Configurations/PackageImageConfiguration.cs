@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class PackageImageConfiguration : IEntityTypeConfiguration<PackageImage>
+    internal sealed class PackageImageConfiguration : IEntityTypeConfiguration<PackageImage>
     {
         public void Configure(EntityTypeBuilder<PackageImage> builder)
         {

@@ -7,6 +7,7 @@ namespace HubManagement.Application.Intake
     {
         public static ResidentMatchDto ToDto(Resident resident)
         {
+            ArgumentNullException.ThrowIfNull(resident);
             var flat = resident.Unit?.Value;
             var tower = resident.TowerWing;
             var unit = string.IsNullOrWhiteSpace(tower) ? flat ?? string.Empty : $"{tower}-{flat}";
@@ -17,7 +18,7 @@ namespace HubManagement.Application.Intake
                 Name = resident.FullName,
                 Tower = tower,
                 FlatNumber = flat,
-                AvatarUrl = resident.AvatarUrl,
+                AvatarUrl = Uri.TryCreate(resident.AvatarUrl, UriKind.Absolute, out Uri? result)? result: null,
                 IsActive = resident.IsActive,
                 PhoneNumber = resident.PhoneNumber,
                 Unit = unit
@@ -29,16 +30,19 @@ namespace HubManagement.Application.Intake
             if (string.IsNullOrWhiteSpace(wanted) || string.IsNullOrWhiteSpace(residentTower))
                 return false;
 
-            if (string.Equals(residentTower.Trim(), wanted.Trim(), StringComparison.OrdinalIgnoreCase))
+            // Created a reusable reference to the equality comparer
+            var comparer = StringComparer.OrdinalIgnoreCase;
+
+            if (comparer.Equals(residentTower.Trim(), wanted.Trim()))
                 return true;
 
             var cleanedResident = LabelTextParser.CleanTower(residentTower);
             var cleanedWanted = LabelTextParser.CleanTower(wanted) ?? wanted.Trim();
-            if (cleanedResident != null && string.Equals(cleanedResident, cleanedWanted, StringComparison.OrdinalIgnoreCase))
+            if (cleanedResident != null && comparer.Equals(cleanedResident, cleanedWanted))
                 return true;
 
             var last = residentTower.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
-            return last != null && string.Equals(last, cleanedWanted, StringComparison.OrdinalIgnoreCase);
+            return last != null && comparer.Equals(last, cleanedWanted);
         }
 
         public static bool FlatEquals(string? residentFlat, string? wanted)
@@ -46,34 +50,42 @@ namespace HubManagement.Application.Intake
             if (string.IsNullOrWhiteSpace(wanted) || string.IsNullOrWhiteSpace(residentFlat))
                 return false;
 
-            if (string.Equals(residentFlat.Trim(), wanted.Trim(), StringComparison.OrdinalIgnoreCase))
+            var comparer = StringComparer.OrdinalIgnoreCase;
+
+            if (comparer.Equals(residentFlat.Trim(), wanted.Trim()))
                 return true;
 
             var cleanedResident = LabelTextParser.CleanFlat(residentFlat);
             var cleanedWanted = LabelTextParser.CleanFlat(wanted) ?? wanted.Trim();
-            return cleanedResident != null && string.Equals(cleanedResident, cleanedWanted, StringComparison.OrdinalIgnoreCase);
+            return cleanedResident != null && comparer.Equals(cleanedResident, cleanedWanted);
         }
 
         public static List<Resident> ByTowerAndFlat(IEnumerable<Resident> residents, string tower, string flat) =>
             residents
                 .Where(resident => TowerEquals(resident.TowerWing, tower) && FlatEquals(resident.Unit?.Value, flat))
                 .OrderByDescending(resident => resident.IsActive)
-                .ThenBy(resident => resident.FullName)
+                .ThenBy(resident => resident.FullName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-
+       
         public static List<Resident> Search(IEnumerable<Resident> residents, string? query)
         {
-            var term = query?.Trim().ToLowerInvariant() ?? string.Empty;
-            var rows = residents.OrderBy(resident => resident.FullName);
-            if (term.Length == 0)
-                return rows.Take(8).ToList();
+            // If query is null or whitespace, we can avoid further processing
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return residents.OrderBy(resident => resident.FullName, StringComparer.OrdinalIgnoreCase)
+                                .Take(8)
+                                .ToList();
+            }
+
+            var term = query.Trim();
+            var rows = residents.OrderBy(resident => resident.FullName, StringComparer.OrdinalIgnoreCase);
 
             return rows.Where(resident =>
-                    (resident.FullName ?? string.Empty).ToLowerInvariant().Contains(term) ||
-                    (resident.Unit?.Value ?? string.Empty).ToLowerInvariant().Contains(term) ||
-                    (resident.TowerWing ?? string.Empty).ToLowerInvariant().Contains(term) ||
-                    (resident.PhoneNumber ?? string.Empty).Contains(term) ||
-                    $"{resident.TowerWing}-{resident.Unit?.Value}".ToLowerInvariant().Contains(term))
+                    (resident.FullName != null && resident.FullName.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (resident.Unit?.Value != null && resident.Unit.Value.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (resident.TowerWing != null && resident.TowerWing.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (resident.PhoneNumber != null && resident.PhoneNumber.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    ($"{resident.TowerWing}-{resident.Unit?.Value}").Contains(term, StringComparison.OrdinalIgnoreCase))
                 .Take(8)
                 .ToList();
         }

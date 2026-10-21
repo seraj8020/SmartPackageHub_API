@@ -33,10 +33,8 @@ namespace HubManagement.Core.Hubs.Entities
         // Factory method for creating new notifications
         public static Notification Create(Guid societyId, Guid residentId, Guid packageId, NotificationChannel channel, MessageContent content)
         {
-            if (channel == null)
-                throw new ArgumentNullException(nameof(channel));
-            if (content == null)
-                throw new ArgumentNullException(nameof(content));
+            ArgumentNullException.ThrowIfNull(channel);
+            ArgumentNullException.ThrowIfNull(content);
             return new Notification(societyId, residentId, packageId, channel, content);
         }
 

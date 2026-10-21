@@ -13,7 +13,7 @@ namespace HubManagement.Core.Hubs.ValueObjects
         public static AccessCode Create(string tokenHash)
         {
             if (string.IsNullOrWhiteSpace(tokenHash))
-                throw new ArgumentException("Token hash cannot be empty.");
+                throw new ArgumentException("Token hash cannot be empty.", nameof(tokenHash));
             return new AccessCode(tokenHash);
         }
         protected override IEnumerable<object> GetEqualityComponents()

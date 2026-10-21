@@ -1,7 +1,8 @@
 namespace SmartPackageHub.Common.Messages
 {
-    //Marker
+#pragma warning disable CA1040 // Marker interface for event messages.
     public interface IEvent : IMessage
     {
     }
+#pragma warning restore CA1040
 }

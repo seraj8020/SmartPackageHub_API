@@ -25,12 +25,10 @@ namespace HubManagement.Core.Hubs.Entities
         public string CourierAwb { get; private set; } = null!;
         public string? CourierPartner { get; private set; }
         public string RecipientName { get; private set; } = null!;
-        //public string? ContactPhone { get; private set; }
         public string TowerWing { get; private set; } = null!;
         public UnitNumber FlatNumber { get; private set; } = null!;
         public PackageStatus Status { get; private set; }
         public bool IsColdStorage { get; private set; }
-        //public bool IsDamaged { get; private set; }
         public bool IsCod { get; private set; }
         public decimal? CodAmount { get; private set; }
         public PackageIntake PackageIntake { get; private set; } = null!;
@@ -79,12 +77,10 @@ namespace HubManagement.Core.Hubs.Entities
             this.CourierAwb = courierAwb;
             this.Category = category;
             this.RecipientName = recipientName;
-            //this.ContactPhone = contactPhone;
             this.TowerWing = towerWing;
             this.FlatNumber = UnitNumber.Create(flatNumber);
             this.Status = status;
             this.IsColdStorage = isColdStorage;
-            //this.IsDamaged = isDamaged;
             this.IsCod = isCod;
             this.CodAmount = codAmount;
             this.RecievedAt = receivedAt;
@@ -170,11 +166,6 @@ namespace HubManagement.Core.Hubs.Entities
         {
             VacationHoldId = holdId;
         }
-
-       // public void MarkAsDamaged()
-        //{
-            //IsDamaged = true;
-        //}
 
         // Domain Behavior: Adding an image to the tracking package
         public void AttachEvidenceImage(string kind = "Evidence")

@@ -298,7 +298,7 @@ dotnet_diagnostic.IDE0059.severity = warning
 
 # CA1012: Abstract types should not have public constructors
 dotnet_diagnostic.CA1012.severity = warning
-
+dotnet_diagnostic.CA1515.severity = none
 # CA1822: Make member static
 dotnet_diagnostic.CA1812.severity = warning
 

@@ -32,7 +32,6 @@ namespace BankingApp.AccountManagement.Infrastructure.AutofacModules
                 .AsSelf();
 
             // Register Automapper profiles
-           // var config = new MapperConfiguration(cfg => { cfg.AddMaps(ThisAssembly); });
             var config = new MapperConfiguration(cfg =>
             {
                 cfg.AddMaps(ThisAssembly);

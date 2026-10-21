@@ -14,6 +14,7 @@ namespace HubManagement.Application.HubUsers.DTOs
 
         public static UserDetailsDto From(User user)
         {
+            ArgumentNullException.ThrowIfNull(user);
             var role = user.Role.Type;
             return new UserDetailsDto
             {
@@ -27,5 +28,5 @@ namespace HubManagement.Application.HubUsers.DTOs
         }
     }
 
-    public sealed record UserCommandResult(bool Found, bool Conflict, bool Succeeded, string Message, UserDetailsDto? User);
+    
 }

@@ -11,7 +11,7 @@ namespace SmartPackageHub.Common.Cache
 
         public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
         {
-            var bytes = await cache.GetAsync(key, cancellationToken);
+            var bytes = await cache.GetAsync(key, cancellationToken).ConfigureAwait(false);
             return bytes is null ? default : Deserialize<T>(bytes);
         }
 
@@ -21,12 +21,12 @@ namespace SmartPackageHub.Common.Cache
 
             if (expiration is null)
             {
-                await cache.SetAsync(key, bytes, cancellationToken);
+                await cache.SetAsync(key, bytes, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
             var options = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = expiration };
-            await cache.SetAsync(key, bytes, options, cancellationToken);
+            await cache.SetAsync(key, bytes, options, cancellationToken).ConfigureAwait(false);
         }
 
         private static T Deserialize<T>(byte[] bytes)

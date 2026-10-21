@@ -20,7 +20,7 @@ namespace HubManagement.Core.Hubs.ValueObjects
         public static PackageDimensions Create(double weight, double height, double width, double length)
         {
             if (weight <= 0 || height <= 0 || width <= 0 || length <= 0)
-                throw new ArgumentException("Dimensions and weight must be greater than zero.");
+                throw new ArgumentException("Dimensions and weight must be greater than zero.", nameof(weight));
             return new PackageDimensions(weight, height, width, length);
 
         }

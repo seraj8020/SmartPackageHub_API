@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class DispatchBatchEntityConfiguration : IEntityTypeConfiguration<DispatchBatch>
+    internal sealed class DispatchBatchEntityConfiguration : IEntityTypeConfiguration<DispatchBatch>
     {
         public void Configure(EntityTypeBuilder<DispatchBatch> builder)
         {

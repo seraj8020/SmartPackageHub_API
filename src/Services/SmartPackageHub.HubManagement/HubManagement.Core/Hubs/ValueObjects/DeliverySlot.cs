@@ -17,7 +17,7 @@ namespace HubManagement.Core.Hubs.ValueObjects
         public static DeliverySlot Create(DateTime startTime, DateTime endTime, string status = "booked")
         {
             if (startTime >= endTime)
-                throw new ArgumentException("Start time must be before end time.");
+                throw new ArgumentException("Start time must be before end time.", nameof(startTime));
             return new DeliverySlot(startTime, endTime, status);
         }
 

@@ -16,17 +16,24 @@ namespace HubManagement.Application.Intake
             return trimmed.Length <= max ? trimmed : trimmed[..max];
         }
 
+        private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
+
+        private static readonly Regex UnitRegex = new(
+            @"^(?<tower>[A-Za-z0-9]{1,4})\s*[-/]\s*(?<flat>\d{2,4})$",
+            RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            RegexTimeout);
+
         public static void SplitUnit(ref string? tower, ref string? flat)
         {
             if (!string.IsNullOrWhiteSpace(tower) || string.IsNullOrWhiteSpace(flat))
                 return;
 
-            var match = Regex.Match(flat!.Trim(), @"^([A-Za-z0-9]{1,4})\s*[-/]\s*(\d{2,4})$");
+            var match = UnitRegex.Match(flat!.Trim());
             if (!match.Success)
                 return;
 
-            tower = match.Groups[1].Value;
-            flat = match.Groups[2].Value;
+            tower = match.Groups["tower"].Value;
+            flat = match.Groups["flat"].Value;
         }
     }
 }

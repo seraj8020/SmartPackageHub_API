@@ -1,8 +1,7 @@
-﻿
-namespace SmartPackageHub.Domains.Abstractions.Entities
+﻿namespace SmartPackageHub.Domains.Abstractions.Entities
 {
     public class Entity<T>
     {
-        public T Id { get; protected set; }
+        public T Id { get; protected set; } = default!;
     }
 }

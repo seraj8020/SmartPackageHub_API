@@ -5,50 +5,60 @@ namespace HubManagement.Application.Intake
 {
     public static class LabelTextParser
     {
+        private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
+
         private static readonly (string Name, Regex Pattern)[] Couriers =
         {
-            ("Amazon", new Regex(@"amazon|amzl|\bamz\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
-            ("Flipkart", new Regex(@"flipkart|ekart", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
-            ("Delhivery", new Regex(@"delhivery", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
-            ("DTDC", new Regex(@"\bdtdc\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
-            ("BlueDart", new Regex(@"bluedart|blue\s*dart", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
-            ("Xpressbees", new Regex(@"xpressbees", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
-            ("Shadowfax", new Regex(@"shadowfax", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
-            ("Ecom Express", new Regex(@"ecom\s*express", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
-            ("Meesho", new Regex(@"meesho", RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+            ("Amazon", new Regex(@"amazon|amzl|\bamz\b", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture, RegexTimeout)),
+            ("Flipkart", new Regex(@"flipkart|ekart", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture, RegexTimeout)),
+            ("Delhivery", new Regex(@"delhivery", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture, RegexTimeout)),
+            ("DTDC", new Regex(@"\bdtdc\b", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture, RegexTimeout)),
+            ("BlueDart", new Regex(@"bluedart|blue\s*dart", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture, RegexTimeout)),
+            ("Xpressbees", new Regex(@"xpressbees", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture, RegexTimeout)),
+            ("Shadowfax", new Regex(@"shadowfax", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture, RegexTimeout)),
+            ("Ecom Express", new Regex(@"ecom\s*express", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture, RegexTimeout)),
+            ("Meesho", new Regex(@"meesho", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture, RegexTimeout)),
         };
 
         private static readonly Regex LabeledAwb = new(
-            @"(?:awb|air\s*way\s*bill|airway\s*bill|tracking(?:\s*(?:id|no|number))?|docket|waybill)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9\-]{5,30})",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            @"(?:awb|air\s*way\s*bill|airway\s*bill|tracking(?:\s*(?:id|no|number))?|docket|waybill)\s*[:#\-]?\s*(?<awb>[A-Z0-9][A-Z0-9\-]{5,30})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            RegexTimeout);
 
         private static readonly Regex PrefixedAwb = new(
-            @"\b((?:TBA|AMZ|FMPP|DL)[A-Z0-9]{8,20})\b",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            @"\b(?<awb>(?:TBA|AMZ|FMPP|DL)[A-Z0-9]{8,20})\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            RegexTimeout);
 
         private static readonly Regex TowerThenFlat = new(
-            @"tower\s*[-:]?\s*([A-Za-z0-9]{1,4})\s*[,/\-]?\s*flat(?:\s*(?:no\.?|number|#))?\s*[:\-]?\s*([0-9]{2,4})",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            @"tower\s*[-:]?\s*(?<tower>[A-Za-z0-9]{1,4})\s*[,/\-]?\s*flat(?:\s*(?:no\.?|number|#))?\s*[:\-]?\s*(?<flat>[0-9]{2,4})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            RegexTimeout);
 
         private static readonly Regex FlatThenTower = new(
-            @"flat(?:\s*(?:no\.?|number|#))?\s*[:\-]?\s*([0-9]{2,4})\s*[,/\-]?\s*tower\s*[-:]?\s*([A-Za-z0-9]{1,4})",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            @"flat(?:\s*(?:no\.?|number|#))?\s*[:\-]?\s*(?<flat>[0-9]{2,4})\s*[,/\-]?\s*tower\s*[-:]?\s*(?<tower>[A-Za-z0-9]{1,4})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            RegexTimeout);
 
         private static readonly Regex UnitCode = new(
-            @"\b([A-Za-z])\s*[-/]\s*([0-9]{3,4})\b",
-            RegexOptions.Compiled);
+            @"\b(?<tower>[A-Za-z])\s*[-/]\s*(?<flat>[0-9]{3,4})\b",
+            RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            RegexTimeout);
 
         private static readonly Regex TowerOnly = new(
-            @"\b(?:tower|twr|block|blk)\s*[-:]?\s*([A-Za-z0-9]{1,4})\b",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            @"\b(?:tower|twr|block|blk)\s*[-:]?\s*(?<tower>[A-Za-z0-9]{1,4})\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            RegexTimeout);
 
         private static readonly Regex FlatOnly = new(
-            @"\bflat(?:\s*(?:no\.?|number|#))?\s*[:\-]?\s*([0-9]{3,4})\b",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            @"\bflat(?:\s*(?:no\.?|number|#))?\s*[:\-]?\s*(?<flat>[0-9]{3,4})\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            RegexTimeout);
 
         private static readonly Regex Recipient = new(
-            @"(?:deliver(?:y)?\s*to|ship\s*to|recipient|customer|attn)\s*[:\-]?\s*([A-Za-z][^\n\r]{1,40})",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            @"(?:deliver(?:y)?\s*to|ship\s*to|recipient|customer|attn)\s*[:\-]?\s*(?<name>[A-Za-z][^\n\r]{1,40})",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            RegexTimeout);
 
         public static ParsedLabelDto Parse(string? raw)
         {
@@ -62,24 +72,24 @@ namespace HubManagement.Application.Intake
             var towerFlat = TowerThenFlat.Match(text);
             if (towerFlat.Success)
             {
-                tower = CleanTower(towerFlat.Groups[1].Value);
-                flat = towerFlat.Groups[2].Value;
+                tower = CleanTower(towerFlat.Groups["tower"].Value);
+                flat = towerFlat.Groups["flat"].Value;
             }
             else
             {
                 var flatTower = FlatThenTower.Match(text);
                 if (flatTower.Success)
                 {
-                    flat = flatTower.Groups[1].Value;
-                    tower = CleanTower(flatTower.Groups[2].Value);
+                    flat = flatTower.Groups["flat"].Value;
+                    tower = CleanTower(flatTower.Groups["tower"].Value);
                 }
                 else
                 {
                     var unit = UnitCode.Match(text);
                     if (unit.Success)
                     {
-                        tower = CleanTower(unit.Groups[1].Value);
-                        flat = unit.Groups[2].Value;
+                        tower = CleanTower(unit.Groups["tower"].Value);
+                        flat = unit.Groups["flat"].Value;
                     }
                 }
             }
@@ -88,14 +98,14 @@ namespace HubManagement.Application.Intake
             {
                 var only = TowerOnly.Match(text);
                 if (only.Success)
-                    tower = CleanTower(only.Groups[1].Value);
+                    tower = CleanTower(only.Groups["tower"].Value);
             }
 
             if (flat == null)
             {
                 var only = FlatOnly.Match(text);
                 if (only.Success)
-                    flat = only.Groups[1].Value;
+                    flat = only.Groups["flat"].Value;
             }
 
             return new ParsedLabelDto
@@ -113,8 +123,8 @@ namespace HubManagement.Application.Intake
             if (string.IsNullOrWhiteSpace(value))
                 return null;
 
-            var cleaned = Regex.Replace(value.Trim(), @"^(tower|twr|block|blk)\s*", "", RegexOptions.IgnoreCase).Trim().ToUpperInvariant();
-            return Regex.IsMatch(cleaned, @"^[A-Z0-9]{1,4}$") ? cleaned : null;
+            var cleaned = Regex.Replace(value.Trim(), @"^(?:tower|twr|block|blk)\s*", "", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture, RegexTimeout).Trim().ToUpperInvariant();
+            return Regex.IsMatch(cleaned, @"^[A-Z0-9]{1,4}$", RegexOptions.ExplicitCapture, RegexTimeout) ? cleaned : null;
         }
 
         public static string? CleanFlat(string? value)
@@ -123,11 +133,11 @@ namespace HubManagement.Application.Intake
                 return null;
 
             var trimmed = value.Trim();
-            var unit = Regex.Match(trimmed, @"^([A-Za-z])\s*[-/]?\s*(\d{3,4})$");
+            var unit = Regex.Match(trimmed, @"^(?<tower>[A-Za-z])\s*[-/]?\s*(?<flat>\d{3,4})$", RegexOptions.ExplicitCapture, RegexTimeout);
             if (unit.Success)
-                return unit.Groups[2].Value;
+                return unit.Groups["flat"].Value;
 
-            var digits = Regex.Match(trimmed, @"\d{2,4}");
+            var digits = Regex.Match(trimmed, @"\d{2,4}", RegexOptions.ExplicitCapture, RegexTimeout);
             return digits.Success ? digits.Value : null;
         }
 
@@ -146,23 +156,23 @@ namespace HubManagement.Application.Intake
         {
             var labeled = LabeledAwb.Match(text);
             if (labeled.Success)
-                return CleanToken(labeled.Groups[1].Value);
+                return CleanToken(labeled.Groups["awb"].Value);
 
             var prefixed = PrefixedAwb.Match(text);
             if (prefixed.Success)
-                return CleanToken(prefixed.Groups[1].Value);
+                return CleanToken(prefixed.Groups["awb"].Value);
 
             foreach (var line in text.Split('\n'))
             {
-                if (Regex.IsMatch(line, @"pin|pincode|phone|mobile|tel", RegexOptions.IgnoreCase))
+                if (Regex.IsMatch(line, @"pin|pincode|phone|mobile|tel", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture, RegexTimeout))
                     continue;
 
-                var token = Regex.Match(line, @"\b([A-Z0-9]{10,22})\b", RegexOptions.IgnoreCase);
+                var token = Regex.Match(line, @"\b(?<token>[A-Z0-9]{10,22})\b", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture, RegexTimeout);
                 if (!token.Success)
                     continue;
 
-                var value = token.Groups[1].Value;
-                if (Regex.IsMatch(value, @"^\d{6}$") || Regex.IsMatch(value, @"^\d{10}$"))
+                var value = token.Groups["token"].Value;
+                if (Regex.IsMatch(value, @"^\d{6}$", RegexOptions.ExplicitCapture, RegexTimeout) || Regex.IsMatch(value, @"^\d{10}$", RegexOptions.ExplicitCapture, RegexTimeout))
                     continue;
 
                 return value.ToUpperInvariant();
@@ -177,11 +187,11 @@ namespace HubManagement.Application.Intake
             if (!match.Success)
                 return null;
 
-            var line = match.Groups[1].Value.Split(',')[0].Trim();
-            if (Regex.IsMatch(line, @"^(tower|flat|block|unit)\b", RegexOptions.IgnoreCase))
+            var line = match.Groups["name"].Value.Split(',')[0].Trim();
+            if (Regex.IsMatch(line, @"^(?:tower|flat|block|unit)\b", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture, RegexTimeout))
                 return null;
 
-            var words = Regex.Matches(line, @"[A-Za-z][A-Za-z.'-]*");
+            var words = Regex.Matches(line, @"[A-Za-z][A-Za-z.'-]*", RegexOptions.ExplicitCapture, RegexTimeout);
             if (words.Count == 0)
                 return null;
 

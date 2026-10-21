@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class RouteStopEntityConfiguration : IEntityTypeConfiguration<RouteStop>
+    internal sealed class RouteStopEntityConfiguration : IEntityTypeConfiguration<RouteStop>
     {
         public void Configure(EntityTypeBuilder<RouteStop> builder)
         {

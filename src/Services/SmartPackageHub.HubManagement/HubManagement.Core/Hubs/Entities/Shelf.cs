@@ -12,7 +12,7 @@ namespace HubManagement.Core.Hubs.Entities
         public string Code { get; private set; } = null!; //shelf code unique within a society
         public string TowerOrWing { get; private set; } = null!;
         public bool IsColdStorage { get; private set; }
-        public int Capacity { get; private set; } = 0;
+        public int Capacity { get; private set; }
         public ShelfLocation? Location { get; private set; } // Holds the Value Object
 
         private Shelf() { }

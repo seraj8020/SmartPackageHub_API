@@ -23,11 +23,11 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
             // Right BEFORE committing data (EF SaveChanges) into the DB will make a single transaction including  
             // side effects from the domain event handlers which are using the same DbContext with "InstancePerLifetimeScope" or "scoped" lifetime
             // Integration Events will be stored in the IntegrationEventOutbox ready to be published later
-            await DispatchEventsAsync();
+            await DispatchEventsAsync().ConfigureAwait(false);
 
             // After executing this line all the changes (from any Command Handler and Domain Event Handlers) 
             // performed through the DbContext will be committed
-            await _context.SaveChangesAsync(cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             return true;
         }
@@ -37,9 +37,9 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
             var processedDomainEvents = new List<DomainEvent>();
             var unprocessedDomainEvents = GetDomainEvents();
             // this is needed incase another DomainEvent is published from a DomainEventHandler
-            while (unprocessedDomainEvents.Any())
+            while (unprocessedDomainEvents.Count > 0)
             {
-                await DispatchDomainEventsAsync(unprocessedDomainEvents);
+                await DispatchDomainEventsAsync(unprocessedDomainEvents).ConfigureAwait(false);
                 processedDomainEvents.AddRange(unprocessedDomainEvents);
                 unprocessedDomainEvents = GetDomainEvents()
                                             .Where(e => !processedDomainEvents.Contains(e))
@@ -61,7 +61,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
         {
             return _context.ChangeTracker
                 .Entries<EntityBase>()
-                .Where(x => x.Entity.DomainEvents != null && x.Entity.DomainEvents.Any())
+                .Where(x => x.Entity.DomainEvents != null && x.Entity.DomainEvents.Count > 0)
                 .Select(e => e.Entity)
                 .ToList();
         }
@@ -70,7 +70,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
         {
             foreach (var domainEvent in domainEvents)
             {
-                await _mediator.Publish(domainEvent);
+                await _mediator.Publish(domainEvent).ConfigureAwait(false);
             }
         }
 

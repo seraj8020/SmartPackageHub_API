@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class AnalyticsDailyEntityConfiguration : IEntityTypeConfiguration<AnalyticsDaily>
+    internal sealed class AnalyticsDailyEntityConfiguration : IEntityTypeConfiguration<AnalyticsDaily>
     {
         public void Configure(EntityTypeBuilder<AnalyticsDaily> builder)
         {

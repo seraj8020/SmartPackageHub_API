@@ -52,7 +52,7 @@
           "dependencies": {
             "AutoMapper": {
               "target": "Package",
-              "version": "[13.0.1, )"
+              "version": "[15.1.3, )"
             },
             "FluentValidation": {
               "target": "Package",

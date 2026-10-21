@@ -8,8 +8,7 @@ namespace SmartPackageHub.Common.Extension
         public static IServiceCollection AddCoreInfrastructure(this IServiceCollection services,
         IConfiguration configuration)
         {
-            if (configuration is null)
-                throw new ArgumentNullException(nameof(configuration));
+            ArgumentNullException.ThrowIfNull(configuration);
             services.AddRedis(configuration)
                 .AddHttpContextAccessor()
                 //.AddJwt(configuration)

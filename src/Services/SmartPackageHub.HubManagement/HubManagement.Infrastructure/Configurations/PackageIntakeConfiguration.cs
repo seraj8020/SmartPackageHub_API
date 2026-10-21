@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class PackageIntakeConfiguration : IEntityTypeConfiguration<PackageIntake>
+    internal sealed class PackageIntakeConfiguration : IEntityTypeConfiguration<PackageIntake>
     {
         public void Configure(EntityTypeBuilder<PackageIntake> builder)
         {

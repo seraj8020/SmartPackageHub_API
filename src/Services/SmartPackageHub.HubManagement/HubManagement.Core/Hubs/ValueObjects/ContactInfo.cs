@@ -12,7 +12,7 @@ namespace HubManagement.Core.Hubs.ValueObjects
         }
         public static ContactInfo Create(string email)
         {
-            if (string.IsNullOrWhiteSpace(email)) throw new ArgumentException("Email is required.");
+            if (string.IsNullOrWhiteSpace(email)) throw new ArgumentException("Email is required.", nameof(email));
             return new ContactInfo(email);
         }
 

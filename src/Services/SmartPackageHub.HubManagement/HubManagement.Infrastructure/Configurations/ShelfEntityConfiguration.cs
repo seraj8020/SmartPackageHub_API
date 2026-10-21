@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class ShelfEntityConfiguration : IEntityTypeConfiguration<Shelf>
+    internal sealed class ShelfEntityConfiguration : IEntityTypeConfiguration<Shelf>
     {
         public void Configure(EntityTypeBuilder<Shelf> builder)
         {

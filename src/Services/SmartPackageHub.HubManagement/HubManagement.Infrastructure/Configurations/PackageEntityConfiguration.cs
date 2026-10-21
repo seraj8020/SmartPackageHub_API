@@ -4,13 +4,24 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class PackageEntityConfiguration : IEntityTypeConfiguration<Package>
+    internal sealed class PackageEntityConfiguration : IEntityTypeConfiguration<Package>
     {
         public void Configure(EntityTypeBuilder<Package> builder)
         {
+            ConfigureTableAndKeys(builder);
+            ConfigureProperties(builder);
+            ConfigureOwnedTypes(builder);
+            ConfigureRelationships(builder);
+        }
+
+        private static void ConfigureTableAndKeys(EntityTypeBuilder<Package> builder)
+        {
             builder.ToTable("Packages");
             builder.HasKey(e => e.Id);
+        }
 
+        private static void ConfigureProperties(EntityTypeBuilder<Package> builder)
+        {
             builder.Property(e => e.PkgNumber).HasMaxLength(100);
             builder.Property(e => e.SocietyId).IsRequired();
             builder.Property(e => e.ResidentId);
@@ -21,15 +32,16 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(p => p.Category).HasMaxLength(100);
             builder.Property(p => p.CourierPartner).HasMaxLength(100);
             builder.Property(p => p.RecipientName).HasMaxLength(150);
-           //builder.Property(p => p.ContactPhone).HasMaxLength(50);
             builder.Property(p => p.TowerWing).HasMaxLength(100);
             builder.Property(p => p.Status).HasConversion<string>().IsRequired().HasMaxLength(50);
             builder.Property(p => p.IsColdStorage).IsRequired();
-           // builder.Property(p => p.IsDamaged).IsRequired();
             builder.Property(p => p.IsCod).IsRequired();
             builder.Property(p => p.CodAmount).HasPrecision(18, 2);
             builder.Property(p => p.RecievedAt).IsRequired();
+        }
 
+        private static void ConfigureOwnedTypes(EntityTypeBuilder<Package> builder)
+        {
             builder.OwnsOne(e => e.SphTrackingNumber, trackingBuilder =>
             {
                 trackingBuilder.Property(t => t.Value).HasColumnName("SphTrackingNumber").IsRequired().HasMaxLength(100);
@@ -47,8 +59,10 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             {
                 flatBuilder.Property(f => f.Value).HasColumnName("FlatNumber").HasMaxLength(50);
             });
+        }
 
-            // Foreign Key Relationships
+        private static void ConfigureRelationships(EntityTypeBuilder<Package> builder)
+        {
             builder.HasOne<Society>()
                 .WithMany()
                 .HasForeignKey(e => e.SocietyId)

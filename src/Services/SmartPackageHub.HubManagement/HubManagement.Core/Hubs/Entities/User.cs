@@ -14,18 +14,19 @@ namespace HubManagement.Core.Hubs.Entities
 
         private readonly List<UserSociety> _societies = new();
         public IReadOnlyCollection<UserSociety> Societies => _societies.AsReadOnly();
-        private User() { }
+
         public static User Create(string username, ContactInfo contactInfo, Role role, string status = "Active")
         {
             if (string.IsNullOrWhiteSpace(username))
-                throw new ArgumentException("Username required.");
-            if (contactInfo == null)
-                throw new ArgumentNullException(nameof(contactInfo));
-            if (role == null)
-                throw new ArgumentNullException(nameof(role));
+                throw new ArgumentException("Username required.", nameof(username));
+            ArgumentNullException.ThrowIfNull(contactInfo);
+            ArgumentNullException.ThrowIfNull(role);
 
             return new User(username, contactInfo, role, status);
         }
+
+        private User() { }
+
         private User(string username, ContactInfo contactInfo, Role role, string status = "Active")
         {
             Username = username;

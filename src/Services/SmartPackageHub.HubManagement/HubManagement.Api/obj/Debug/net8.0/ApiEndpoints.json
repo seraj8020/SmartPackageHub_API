@@ -537,7 +537,7 @@
     ],
     "ReturnTypes": [
       {
-        "Type": "HubManagement.Application.HubResidents.DTOs.ResidentDTO",
+        "Type": "HubManagement.Application.HubResidents.DTOs.ResidentDto",
         "MediaTypes": [
           "text/plain",
           "application/json",
@@ -880,7 +880,7 @@
     ],
     "ReturnTypes": [
       {
-        "Type": "HubManagement.Application.Societies.DTOs.SocietyDTO",
+        "Type": "HubManagement.Application.Societies.DTOs.SocietyDto",
         "MediaTypes": [
           "text/plain",
           "application/json",

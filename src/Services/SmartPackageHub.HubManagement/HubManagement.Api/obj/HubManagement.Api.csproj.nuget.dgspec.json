@@ -56,7 +56,7 @@
           "dependencies": {
             "AutoMapper": {
               "target": "Package",
-              "version": "[13.0.1, )"
+              "version": "[15.1.3, )"
             },
             "Autofac": {
               "target": "Package",
@@ -447,7 +447,7 @@
           "dependencies": {
             "AutoMapper": {
               "target": "Package",
-              "version": "[13.0.1, )"
+              "version": "[15.1.3, )"
             },
             "MassTransit.RabbitMQ": {
               "target": "Package",
@@ -475,7 +475,7 @@
             },
             "Microsoft.IdentityModel.Tokens": {
               "target": "Package",
-              "version": "[8.0.1, )"
+              "version": "[8.14.0, )"
             },
             "MongoDB.Driver": {
               "target": "Package",
@@ -487,7 +487,7 @@
             },
             "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
               "target": "Package",
-              "version": "[1.8.1, )"
+              "version": "[1.15.3, )"
             },
             "OpenTelemetry.Extensions.Hosting": {
               "target": "Package",
@@ -910,7 +910,7 @@
           "dependencies": {
             "AutoMapper": {
               "target": "Package",
-              "version": "[13.0.1, )"
+              "version": "[15.1.3, )"
             },
             "FluentValidation": {
               "target": "Package",
@@ -1764,7 +1764,7 @@
             },
             "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
               "target": "Package",
-              "version": "[1.8.1, )"
+              "version": "[1.15.3, )"
             },
             "OpenTelemetry.Extensions.Hosting": {
               "target": "Package",
@@ -2323,7 +2323,7 @@
           "dependencies": {
             "AutoMapper": {
               "target": "Package",
-              "version": "[13.0.1, )"
+              "version": "[15.1.3, )"
             },
             "Autofac": {
               "target": "Package",

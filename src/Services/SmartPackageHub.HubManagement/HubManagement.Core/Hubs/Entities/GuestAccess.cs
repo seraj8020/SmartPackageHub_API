@@ -9,13 +9,11 @@ namespace HubManagement.Core.Hubs.Entities
         public Guid SocietyId { get; private set; }
         public string GuestName { get; private set; } = null!;
         public AccessWindow Window { get; private set; } = null!;
-        //public AccessCode Code { get; private set; }
         public string? PhoneNo { get; private set; }
 
         private GuestAccess() { }
         private GuestAccess(Guid residentId, Guid societyId, string guestName, string phoneNo, AccessWindow window)
         {
-            //GuestId = Id;
             ResidentId = residentId;
             SocietyId = societyId;
             GuestName = guestName;

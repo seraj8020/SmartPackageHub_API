@@ -27,7 +27,7 @@ namespace SmartPackageHub.Common.Extension
                             })
                         });
 
-                        await context.Response.WriteAsync(result);
+                        await context.Response.WriteAsync(result).ConfigureAwait(false);
                     }
                 });
             });

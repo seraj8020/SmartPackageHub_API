@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using HubManagement.Core.Hubs.ValueObjects;
@@ -6,30 +6,34 @@ using Microsoft.EntityFrameworkCore;
 using SmartPackageHub.Domains.Abstractions.Entities;
 using SmartPackageHub.Domains.Abstractions.Models;
 using SmartPackageHub.HubManagement.Infrastructure;
+using HubManagement.Api.SeedDataModel;
 
-public static class WebApplicationExtension
+namespace SmartPackageHub.HubManagement.Api;
+internal static class DataSeeder
 {
-    public static WebApplication Seed(this WebApplication webApp, Dictionary<string, List<object>> allData)
+    public static WebApplication Seed(this WebApplication webApp,  IDictionary<string, List<object>> allData)
     {
+        ArgumentNullException.ThrowIfNull(webApp);
+        ArgumentNullException.ThrowIfNull(allData);
         using var serviceScope = webApp.Services.CreateScope();
         var context = serviceScope.ServiceProvider.GetRequiredService<HubDbContext>();
         context.Database.Migrate();
-
-        var intakes = Items<PackageIntakeSeed>(allData, "PackageIntakes");
+        Dictionary<string, List<object>> newData = (Dictionary<string, List<object>>)allData;
+        var intakes = Items<PackageIntakeSeed>(newData, "PackageIntakes");
         var added = false;
-        added |= AddMissing(context, BuildSocieties(Items<SocietySeed>(allData, "Societies")), context.Societies, s => s.Id);
-        added |= AddMissing(context, BuildUsers(Items<UserSeed>(allData, "Users")), context.Users, u => u.Id);
-        added |= AddMissing(context, BuildUserSocieties(Items<UserSocietySeed>(allData, "UserSocieties")), context.UsersSocieties, link => link.Id);
-        added |= AddMissing(context, BuildResidents(Items<ResidentSeed>(allData, "Residents")), context.Residents, r => r.Id);
-        added |= AddMissing(context, BuildMemberships(Items<MembershipSeed>(allData, "Memberships")), context.Memberships, m => m.Id);
-        added |= AddMissing(context, BuildShelves(Items<ShelfSeed>(allData, "Shelves")), context.Shelves, s => s.Id);
-        added |= AddMissing(context, BuildCourierAgents(Items<CourierAgentSeed>(allData, "CourierAgents")), context.CourierAgents, a => a.Id);
-        added |= AddMissing(context, BuildSecureBags(Items<SecureBagSeed>(allData, "SecureBags")), context.SecureBags, b => b.Id);
-        added |= AddMissing(context, BuildReceipts(Items<DigitalSignOffReceiptSeed>(allData, "DigitalSignOffReceipts")), context.DigitalSignOffReceipts, r => r.Id);
-        added |= AddMissing(context, BuildPackages(Items<PackageSeed>(allData, "Packages"), intakes), context.Packages, p => p.Id);
-        added |= AddMissing(context, BuildImages(Items<PackageImageSeed>(allData, "PackageImages")), context.PackageImages, i => i.Id);
-        added |= AddMissing(context, BuildAnalytics(Items<AnalyticsDailySeed>(allData, "AnalyticsDailies")), context.AnalyticsDailies, a => a.Id);
-        added |= AddMissing(context, BuildDeliveries(Items<DeliverySeed>(allData, "Deliveries")), context.Deliveries, d => d.Id);
+        added |= AddMissing(context, BuildSocieties(Items<SocietySeed>(newData, "Societies")), context.Societies, s => s.Id);
+        added |= AddMissing(context, BuildUsers(Items<UserSeed>(newData, "Users")), context.Users, u => u.Id);
+        added |= AddMissing(context, BuildUserSocieties(Items<UserSocietySeed>(newData, "UserSocieties")), context.UsersSocieties, link => link.Id);
+        added |= AddMissing(context, BuildResidents(Items<ResidentSeed>(newData, "Residents")), context.Residents, r => r.Id);
+        added |= AddMissing(context, BuildMemberships(Items<MembershipSeed>(newData, "Memberships")), context.Memberships, m => m.Id);
+        added |= AddMissing(context, BuildShelves(Items<ShelfSeed>(newData, "Shelves")), context.Shelves, s => s.Id);
+        added |= AddMissing(context, BuildCourierAgents(Items<CourierAgentSeed>(newData, "CourierAgents")), context.CourierAgents, a => a.Id);
+        added |= AddMissing(context, BuildSecureBags(Items<SecureBagSeed>(newData, "SecureBags")), context.SecureBags, b => b.Id);
+        added |= AddMissing(context, BuildReceipts(Items<DigitalSignOffReceiptSeed>(newData, "DigitalSignOffReceipts")), context.DigitalSignOffReceipts, r => r.Id);
+        added |= AddMissing(context, BuildPackages(Items<PackageSeed>(newData, "Packages"), intakes), context.Packages, p => p.Id);
+        added |= AddMissing(context, BuildImages(Items<PackageImageSeed>(newData, "PackageImages")), context.PackageImages, i => i.Id);
+        added |= AddMissing(context, BuildAnalytics(Items<AnalyticsDailySeed>(newData, "AnalyticsDailies")), context.AnalyticsDailies, a => a.Id);
+        added |= AddMissing(context, BuildDeliveries(Items<DeliverySeed>(newData, "Deliveries")), context.Deliveries, d => d.Id);
 
         if (added)
         {
@@ -38,7 +42,8 @@ public static class WebApplicationExtension
         }
         else
         {
-            Console.WriteLine("Seed data already present.");
+            var count = 0;
+            Console.WriteLine($"Seed data already present.{count} rows inserted.");
         }
 
         return webApp;
@@ -75,24 +80,29 @@ public static class WebApplicationExtension
             AssignId(link, seed.Id);
             return link;
         }).ToList();
-
+   
     private static List<Resident> BuildResidents(List<ResidentSeed> seeds) =>
-        seeds.Select(seed =>
-        {
-            var resident = Resident.Create(
-                seed.SocietyId,
-                seed.UserId,
-                seed.FullName,
-                seed.PhoneNumber,
-                seed.TowerWing,
-                seed.UnitNumber,
-                seed.IsMember,
-                seed.AvatarUrl ?? string.Empty,
-                seed.IsActive);
-            AssignId(resident, seed.Id);
-            return resident;
-        }).ToList();
+    seeds.Select(seed =>
+    {
+        // Safely parse the URL string to a System.Uri object
+        Uri? avatarUri = Uri.TryCreate(seed.AvatarUrl, UriKind.Absolute, out var parsedUri)
+            ? parsedUri
+            : null;
 
+        var resident = Resident.Create(
+            seed.SocietyId,
+            seed.UserId,
+            seed.FullName,
+            seed.PhoneNumber,
+            seed.TowerWing,
+            seed.UnitNumber,
+            seed.IsMember,
+            avatarUri, // Now passing the Uri object instead of a string
+            seed.IsActive);
+
+        AssignId(resident, seed.Id);
+        return resident;
+    }).ToList();
     private static List<Membership> BuildMemberships(List<MembershipSeed> seeds) =>
         seeds.Select(seed =>
         {

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class GuestAccessEntityConfiguration : IEntityTypeConfiguration<GuestAccess>
+    internal sealed class GuestAccessEntityConfiguration : IEntityTypeConfiguration<GuestAccess>
     {
         public void Configure(EntityTypeBuilder<GuestAccess> builder)
         {

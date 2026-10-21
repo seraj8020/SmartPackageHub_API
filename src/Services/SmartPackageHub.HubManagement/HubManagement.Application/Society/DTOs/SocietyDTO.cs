@@ -1,7 +1,7 @@
-﻿
+
 namespace HubManagement.Application.Societies.DTOs
 {
-    public class SocietyDTO
+    public class SocietyDto
     {
         public string Name { get; set; } = null!;
         public string? Street { get; set; }
@@ -10,7 +10,6 @@ namespace HubManagement.Application.Societies.DTOs
         public string? ZipCode { get; set; }
         public string? Country { get; set; }
         public string? ContactEmail { get; set; }
-        public string? Phone { get; private set; }
-        
+        public string? Phone { get; set; }
     }
 }

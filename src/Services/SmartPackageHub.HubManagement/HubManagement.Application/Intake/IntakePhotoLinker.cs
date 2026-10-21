@@ -13,7 +13,7 @@ namespace HubManagement.Application.Intake
             Guid? packageId,
             CancellationToken cancellationToken)
         {
-            var saved = await photos.FindAsync(clientPhotoId, cancellationToken);
+            var saved = await photos.FindAsync(clientPhotoId, cancellationToken).ConfigureAwait(false) ;
             if (saved == null)
                 return (false, false);
 
@@ -26,7 +26,7 @@ namespace HubManagement.Application.Intake
             }
             else
             {
-                var link = await photos.ReadLinkAsync(clientPhotoId, cancellationToken);
+                var link = await photos.ReadLinkAsync(clientPhotoId, cancellationToken).ConfigureAwait(false);
                 if (link == null)
                     return (false, false);
 
@@ -45,7 +45,7 @@ namespace HubManagement.Application.Intake
                 inserted = true;
             }
 
-            await photos.WriteLinkAsync(clientPhotoId, resolvedIntake, resolvedPackage, cancellationToken);
+            await photos.WriteLinkAsync(clientPhotoId, resolvedIntake, resolvedPackage, cancellationToken).ConfigureAwait(false);
             return (true, inserted);
         }
     }

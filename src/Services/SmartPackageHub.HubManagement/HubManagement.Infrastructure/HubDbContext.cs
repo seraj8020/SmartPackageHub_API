@@ -31,7 +31,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         public DbSet<Delivery> Deliveries { get; set; }
         public DbSet<Membership> Memberships { get; set; }
         public DbSet<Notification> Notifications { get; set; }
-        public DbSet<OTPLog> OTPLogs { get; set; }
+        public DbSet<OtpLog> OTPLogs { get; set; }
         public DbSet<AnalyticsDaily> AnalyticsDailies { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<DispatchBatch> DispatchBatches { get; set; }
@@ -44,6 +44,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
+            ArgumentNullException.ThrowIfNull(optionsBuilder);
             if (_env != null && _env.IsDevelopment())
             {
                 // used to print activity when debugging
@@ -53,6 +54,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            ArgumentNullException.ThrowIfNull(modelBuilder);
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnalyticsDailyEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AuditLogsEntityConfiguration).Assembly);
@@ -62,7 +64,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(GuestAccessEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(MembershipEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(NotificationEntityConfiguration).Assembly);
-            modelBuilder.ApplyConfigurationsFromAssembly(typeof(OTPLogEntityConfiguration).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(OtpLogEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageIntakeConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageImageConfiguration).Assembly);

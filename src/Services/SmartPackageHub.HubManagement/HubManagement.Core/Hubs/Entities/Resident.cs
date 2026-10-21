@@ -13,7 +13,9 @@ namespace HubManagement.Core.Hubs.Entities
         public string? TowerWing { get; private set; }
         public UnitNumber? Unit { get; private set; } //flat number
         public bool IsMember { get; private set; }
+#pragma warning disable CA1056 // Stored as text in the residents table, including relative paths.
         public string? AvatarUrl { get; private set; }
+#pragma warning restore CA1056
         public bool IsActive { get; private set; }
 
         private readonly List<VacationHold> _vacationHolds = new();
@@ -26,7 +28,7 @@ namespace HubManagement.Core.Hubs.Entities
 
         private Resident() { }
 
-        private Resident(Guid societyId, Guid userId, string fullname, string phoneNo, string towerWing, string unitNumber, bool isMember, string picUrl, bool isActive)
+        private Resident(Guid societyId, Guid userId, string fullname, string phoneNo, string towerWing, string unitNumber, bool isMember, Uri picUrl, bool isActive)
         {
             this.SocietyId = societyId;
             this.UserId = userId;
@@ -35,12 +37,14 @@ namespace HubManagement.Core.Hubs.Entities
             this.TowerWing = towerWing;
             this.Unit = UnitNumber.Create(unitNumber);
             this.IsMember = isMember;
-            this.AvatarUrl = picUrl;
+            this.AvatarUrl = picUrl.ToString();
             this.IsActive = isActive;
         }
 
-        public static Resident Create(Guid societyId, Guid userId, string fullname, string phoneNo, string towerWing, string unitNumber, bool isMember, string picUrl, bool isActive)
+#pragma warning disable CA1054 // The avatar value is persisted as text and may be a relative path.
+        public static Resident Create(Guid societyId, Guid userId, string fullname, string phoneNo, string towerWing, string unitNumber, bool isMember, Uri? picUrl, bool isActive)
         {
+            ArgumentNullException.ThrowIfNull(picUrl);
             if (string.IsNullOrWhiteSpace(fullname))
                 throw new ArgumentException("Name cannot be empty.", nameof(fullname));
             if (string.IsNullOrWhiteSpace(phoneNo))
@@ -49,10 +53,9 @@ namespace HubManagement.Core.Hubs.Entities
                 throw new ArgumentException("Tower or wing cannot be empty.", nameof(towerWing));
             if (string.IsNullOrWhiteSpace(unitNumber))
                 throw new ArgumentException("Flat number cannot be empty.", nameof(unitNumber));
-
-            var resident = new Resident(societyId, userId, fullname.Trim(), phoneNo.Trim(), towerWing.Trim(), unitNumber, isMember, picUrl, isActive);
-            return resident;
+            return new Resident(societyId, userId, fullname.Trim(), phoneNo.Trim(), towerWing.Trim(), unitNumber, isMember, picUrl, isActive);
         }
+#pragma warning restore CA1054
         // Domain Logic: Business rule constraint implementation
         public void ScheduleVacationHold(Guid societyId, Guid holdId, DateTime fromDate, DateTime toDate, bool isActive)
         {
@@ -80,8 +83,7 @@ namespace HubManagement.Core.Hubs.Entities
 
         public void AddMembership(Membership membership)
         {
-            if (membership == null)
-                throw new ArgumentNullException(nameof(membership));
+            ArgumentNullException.ThrowIfNull(membership);
 
             _memberships.Add(membership);
             IsMember = true;
@@ -89,7 +91,7 @@ namespace HubManagement.Core.Hubs.Entities
 
         public bool HasActiveSubscription(DateTime currentTime)
         {
-            return _memberships.Any(m => m.Status == "Active" && m.IsMembershipValid(currentTime));
+            return _memberships.Any(m => string.Equals(m.Status, "Active", StringComparison.Ordinal) && m.IsMembershipValid(currentTime));
         }
     }
 }

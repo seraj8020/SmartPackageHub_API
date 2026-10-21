@@ -1,4 +1,4 @@
-﻿using HubManagement.Application.PackageHub.Commands;
+using HubManagement.Application.PackageHub.Commands;
 using HubManagement.Application.PackageHub.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -24,7 +24,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> Create([FromBody] CreatePackageRequest request)
         {
-            var result = await _mediator.Send(new CreatePackageCommand(request ?? new CreatePackageRequest()));
+            var result = await _mediator.Send(new CreatePackageCommand(request ?? new CreatePackageRequest())).ConfigureAwait(false);
             if (result.Conflict)
                 return Conflict(new { Message = result.Message });
             if (!result.Found)

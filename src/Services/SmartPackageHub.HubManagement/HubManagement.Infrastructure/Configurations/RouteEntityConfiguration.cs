@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class RouteEntityConfiguration : IEntityTypeConfiguration<Route>
+    internal sealed class RouteEntityConfiguration : IEntityTypeConfiguration<Route>
     {
         public void Configure(EntityTypeBuilder<Route> builder)
         {

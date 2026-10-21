@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
-    internal class UserSocietyEntityConfiguration : IEntityTypeConfiguration<UserSociety>
+    internal sealed class UserSocietyEntityConfiguration : IEntityTypeConfiguration<UserSociety>
     {
         public void Configure(EntityTypeBuilder<UserSociety> builder)
         {

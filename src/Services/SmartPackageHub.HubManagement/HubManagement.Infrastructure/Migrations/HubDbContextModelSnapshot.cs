@@ -422,7 +422,7 @@ namespace HubManagement.Infrastructure.Migrations
                     b.ToTable("Notifications", (string)null);
                 });
 
-            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.OTPLog", b =>
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.OtpLog", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -452,7 +452,7 @@ namespace HubManagement.Infrastructure.Migrations
 
                     b.HasIndex("SocietyId");
 
-                    b.ToTable("OTPLogs", (string)null);
+                    b.ToTable("OtpLogs", (string)null);
                 });
 
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.Package", b =>
@@ -996,7 +996,7 @@ namespace HubManagement.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("HubManagement.Core.Hubs.Entities.OTPLog", null)
+                    b.HasOne("HubManagement.Core.Hubs.Entities.OtpLog", null)
                         .WithMany()
                         .HasForeignKey("OtpLogId");
 
@@ -1301,7 +1301,7 @@ namespace HubManagement.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.OTPLog", b =>
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.OtpLog", b =>
                 {
                     b.HasOne("HubManagement.Core.Hubs.Entities.Package", null)
                         .WithMany()
@@ -1323,24 +1323,24 @@ namespace HubManagement.Infrastructure.Migrations
 
                     b.OwnsOne("HubManagement.Core.Hubs.ValueObjects.ExpiryTime", "Expiry", b1 =>
                         {
-                            b1.Property<Guid>("OTPLogId")
+                            b1.Property<Guid>("OtpLogId")
                                 .HasColumnType("uuid");
 
                             b1.Property<DateTime>("Value")
                                 .HasColumnType("timestamp with time zone")
                                 .HasColumnName("ExpiryTime");
 
-                            b1.HasKey("OTPLogId");
+                            b1.HasKey("OtpLogId");
 
-                            b1.ToTable("OTPLogs");
+                            b1.ToTable("OtpLogs");
 
                             b1.WithOwner()
-                                .HasForeignKey("OTPLogId");
+                                .HasForeignKey("OtpLogId");
                         });
 
                     b.OwnsOne("HubManagement.Core.Hubs.ValueObjects.OtpToken", "Token", b1 =>
                         {
-                            b1.Property<Guid>("OTPLogId")
+                            b1.Property<Guid>("OtpLogId")
                                 .HasColumnType("uuid");
 
                             b1.Property<string>("Value")
@@ -1349,12 +1349,12 @@ namespace HubManagement.Infrastructure.Migrations
                                 .HasColumnType("character varying(50)")
                                 .HasColumnName("Token");
 
-                            b1.HasKey("OTPLogId");
+                            b1.HasKey("OtpLogId");
 
-                            b1.ToTable("OTPLogs");
+                            b1.ToTable("OtpLogs");
 
                             b1.WithOwner()
-                                .HasForeignKey("OTPLogId");
+                                .HasForeignKey("OtpLogId");
                         });
 
                     b.Navigation("Expiry");

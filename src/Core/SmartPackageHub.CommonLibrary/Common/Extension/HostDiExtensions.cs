@@ -14,22 +14,24 @@ namespace SmartPackageHub.Common.Extension
 
         public static IServiceCollection AddWebHostInfrastructure(this IServiceCollection services, IConfiguration configuration, string serviceName)
         {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(configuration);
             services
-                .AddHostOpenTelemetry(serviceName);
+                .AddHostOpenTelemetry(configuration, serviceName);
             return services;
         }
 
         public static void AddHostLogging(this WebApplicationBuilder builder)
         {
+            ArgumentNullException.ThrowIfNull(builder);
             builder.Host.UseSerilog((context, loggerConfig) => loggerConfig.ReadFrom.Configuration(context.Configuration));
         }
         public static IServiceCollection AddRedis(this IServiceCollection services, IConfiguration configuration)
         {
-            if (configuration is null)
-                throw new ArgumentNullException(nameof(configuration));
+            ArgumentNullException.ThrowIfNull(configuration);
             var redisConnectionString = configuration
             .GetValue<string>("RedisConnectionString:Redis")
-            ?? throw new ArgumentNullException("RedisConnectionString:Redis section was not found");
+            ?? throw new InvalidOperationException("RedisConnectionString:Redis section was not found");
 
             ConfigurationOptions option = new ConfigurationOptions
             {
@@ -51,7 +53,7 @@ namespace SmartPackageHub.Common.Extension
 
             return services;
         }
-        private static IServiceCollection AddHostOpenTelemetry(this IServiceCollection services, string serviceName)
+        private static IServiceCollection AddHostOpenTelemetry(this IServiceCollection services, IConfiguration configuration, string serviceName)
         {
             services
                 .AddOpenTelemetry()
@@ -66,7 +68,11 @@ namespace SmartPackageHub.Common.Extension
                         .AddSource("MongoDB.Driver.Core.Extensions.DiagnosticSources")
                         .AddSource("MailKit");
 
-                    tracing.AddOtlpExporter(x => { x.Endpoint = new Uri("http://seq:5341"); });
+                    var otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+                    if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var endpoint))
+                    {
+                        tracing.AddOtlpExporter(options => options.Endpoint = endpoint);
+                    }
                 });
 
             return services;

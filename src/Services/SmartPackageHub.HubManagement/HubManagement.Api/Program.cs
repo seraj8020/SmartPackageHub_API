@@ -10,14 +10,14 @@ using BankingApp.AccountManagement.Infrastructure.AutofacModules;
 using SmartPackageHub.HubManagement.Infrastructure.AutofacModules;
 using HubManagement.Application.Intake;
 using SmartPackageHub.HubManagement.Api.Intake;
-
+using SmartPackageHub.HubManagement.Api;
+using HubManagement.Api.SeedDataModel;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 // Add services to the container.
 builder.AddHostLogging();
 services.AddWebHostInfrastructure(builder.Configuration, "HubManagementService");
-//services.Configure<PolyConfigSettings>(builder.Configuration.GetSection("PolyConfiguraionSettings"));
 services.AddApiVersioning(ApiVersions.V2);
 services.AddControllers().AddJsonOptions(options =>
 {
@@ -34,7 +34,7 @@ services.AddHttpContextAccessor();
 services.AddAuthorization();
 var connectionString = builder.Configuration["DbContextSettings:ConnectionString"];
 services.AddDbContext<HubDbContext>(opts => { opts.UseNpgsql(connectionString); });
-services.AddSingleton<IntakeNotificationQueue>();
+services.AddSingleton<IntakeNotificationChannel>();
 services.AddSingleton<IParcelPhotoStore, LocalBlobPhotoStore>();
 services.AddHostedService<IntakeNotificationWorker>();
 
@@ -47,7 +47,7 @@ builder.Services.AddHealthChecks()
     .AddNpgSql(connectionString);
 #endif
 
-var corsOriginUrl = builder.Configuration["CorsOrigin"] ?? throw new ArgumentNullException("CorsOrigin section was not found");
+var corsOriginUrl = builder.Configuration["CorsOrigin"] ?? throw new InvalidOperationException("CorsOrigin section was not found");
 services
    .AddCors(options =>
    {
@@ -78,7 +78,7 @@ if (!Directory.Exists(seedDataDirectory))
     seedDataDirectory = Path.Combine(Directory.GetCurrentDirectory(), "SeedData");
 }
 
-var seedFileTypes = new Dictionary<string, Type>
+var  seedFileTypes = new Dictionary<string, Type>(StringComparer.Ordinal)
 {
     ["Societies.json"] = typeof(SocietySeed),
     ["Users.json"] = typeof(UserSeed),
@@ -95,6 +95,8 @@ var seedFileTypes = new Dictionary<string, Type>
     ["AnalyticsDailies.json"] = typeof(AnalyticsDailySeed),
     ["Deliveries.json"] = typeof(DeliverySeed)
 };
+
+
 try
 {
     app.Seed(JsonSeedDataLoader.LoadMultipleSeedData(seedDataDirectory, seedFileTypes));
@@ -102,11 +104,11 @@ try
 catch (Exception ex)
 {
     Console.WriteLine($"Seed data was not applied: {ex.Message}");
-    if (args.Contains("--seed-only"))
+    if (args.Contains("--seed-only", StringComparer.OrdinalIgnoreCase))
         throw;
 }
 
-if (args.Contains("--seed-only"))
+if (args.Contains("--seed-only", StringComparer.OrdinalIgnoreCase))
     return;
 
 
@@ -126,15 +128,12 @@ app.UseCors(options =>
            .WithExposedHeaders("Content-Disposition");
 });
 //This is Required when we are doing ssl communication
-//app.UseHttpsRedirection();
 app.UseRouting();
-//app.UseAuthentication();
-//app.UseAccessTokenValidator();
 app.UseAuthorization();
 app.MapHealthChecks("healthz");
 app.MapHealthChecks("liveness", new HealthCheckOptions
 {
-    Predicate = r => r.Name.Contains("self")
+    Predicate = r => r.Name.Contains("self", StringComparison.Ordinal)
 });
 app.MapControllers();
-app.Run();
+await app.RunAsync().ConfigureAwait(false);

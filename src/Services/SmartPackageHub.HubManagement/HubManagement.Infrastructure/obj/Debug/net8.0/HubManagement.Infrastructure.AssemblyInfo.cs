@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HubManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ce5b2e202e77797dbed4ac7f62520c0c742f782b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+723abd33c5e28ea79d77fddf10512d2d63515924")]
 [assembly: System.Reflection.AssemblyProductAttribute("HubManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HubManagement.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

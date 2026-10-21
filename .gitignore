@@ -1,0 +1,11 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/obj/Debug/net7.0/SmartPackageHub_API.AssemblyInfo.cs
+/obj/Debug/net7.0/SmartPackageHub_API.GeneratedMSBuildEditorConfig.editorconfig
+/obj/project.nuget.cache
+/obj/project.assets.json
+/obj/SmartPackageHub_API.csproj.nuget.dgspec.json
+/obj/SmartPackageHub_API.csproj.nuget.g.props
+/obj/SmartPackageHub_API.csproj.nuget.g.targets

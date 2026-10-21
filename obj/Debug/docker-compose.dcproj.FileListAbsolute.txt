@@ -149,3 +149,4 @@ C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem\obj\Debug\docker-comp
 C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem\obj\Debug\docker-c.35A3FFBA.Up2Date
 E:\NewRepoBankingApp\BankingSystem\obj\Debug\docker-compose.dcproj.CoreCompileInputs.cache
 d:\BankingSystem\obj\Debug\docker-compose.dcproj.CoreCompileInputs.cache
+D:\SmartPackageHub\SmartPackageHub_API\obj\Debug\docker-compose.dcproj.CoreCompileInputs.cache

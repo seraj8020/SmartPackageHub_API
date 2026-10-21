@@ -1,208 +1,10 @@
-name: dockercompose8662810416780737247
+name: dockercompose1762540363792679676
 services:
-  banking-accountmanagement:
-    build:
-      context: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem
-      dockerfile: src/Services/BankingApp.AccountManagement/Dockerfile
-    container_name: banking-accountmanagement
-    depends_on:
-      keycloak:
-        condition: service_healthy
-        required: true
-      postgres:
-        condition: service_healthy
-        required: true
-      rabbitmq:
-        condition: service_healthy
-        required: true
-      redis:
-        condition: service_healthy
-        required: true
-      seq:
-        condition: service_healthy
-        required: true
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:80
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - curl --fail http://banking-accountmanagement:80/health || exit 1
-      timeout: 30s
-      interval: 40s
-      retries: 3
-      start_period: 1m0s
-      start_interval: 30s
-    image: banking-accountmanagement
-    networks:
-      backend: null
-    ports:
-      - mode: ingress
-        target: 80
-        published: "5210"
-        protocol: tcp
-    restart: always
-  banking-apigateway:
-    build:
-      context: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem
-      dockerfile: src/Crosscutting/BankingApp.ApiGateway/Dockerfile
-    container_name: banking-apigateway
-    depends_on:
-      banking-accountmanagement:
-        condition: service_started
-        required: true
-      banking-customermanagement:
-        condition: service_started
-        required: true
-      banking-identityserver:
-        condition: service_started
-        required: true
-      banking-loanmanagement:
-        condition: service_started
-        required: true
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:80
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - curl --fail http://banking-apigateway:80/health || exit 1
-      timeout: 30s
-      interval: 10s
-      retries: 5
-      start_period: 1m0s
-      start_interval: 5s
-    image: banking-apigateway
-    networks:
-      backend: null
-    ports:
-      - mode: ingress
-        target: 80
-        published: "5000"
-        protocol: tcp
-    restart: always
-  banking-customermanagement:
-    build:
-      context: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem
-      dockerfile: src/Services/BankingApp.CustomerManagement/Dockerfile
-    container_name: banking-customermanagement
-    depends_on:
-      keycloak:
-        condition: service_healthy
-        required: true
-      postgres:
-        condition: service_healthy
-        required: true
-      rabbitmq:
-        condition: service_healthy
-        required: true
-      redis:
-        condition: service_healthy
-        required: true
-      seq:
-        condition: service_healthy
-        required: true
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:80
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - curl --fail http://banking-customermanagement:80/health || exit 1
-      timeout: 30s
-      interval: 40s
-      retries: 3
-      start_period: 1m0s
-      start_interval: 30s
-    image: banking-customermanagement
-    networks:
-      backend: null
-    ports:
-      - mode: ingress
-        target: 80
-        published: "5157"
-        protocol: tcp
-    restart: always
-  banking-identityserver:
-    build:
-      context: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem
-      dockerfile: src/Crosscutting/BankingDDD.IdentityServer/Identity/Dockerfile
-    container_name: banking-identityserver
-    depends_on:
-      keycloak:
-        condition: service_healthy
-        required: true
-      mongodb:
-        condition: service_healthy
-        required: true
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:80
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - curl --fail http://banking-identityserver:80/health || exit 1
-      timeout: 30s
-      interval: 40s
-      retries: 3
-      start_period: 1m0s
-      start_interval: 30s
-    image: banking-identityserver
-    networks:
-      backend: null
-    ports:
-      - mode: ingress
-        target: 80
-        published: "5263"
-        protocol: tcp
-    restart: always
-  banking-loanmanagement:
-    build:
-      context: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem
-      dockerfile: src/Services/BankingApp.LoanManagement/Dockerfile
-    container_name: banking-loanmanagement
-    depends_on:
-      keycloak:
-        condition: service_healthy
-        required: true
-      postgres:
-        condition: service_healthy
-        required: true
-      rabbitmq:
-        condition: service_healthy
-        required: true
-      redis:
-        condition: service_healthy
-        required: true
-      seq:
-        condition: service_healthy
-        required: true
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:80
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - curl --fail http://banking-loanmanagement:80/health || exit 1
-      timeout: 30s
-      interval: 40s
-      retries: 3
-      start_period: 1m0s
-      start_interval: 30s
-    image: banking-loanmanagement
-    networks:
-      backend: null
-    ports:
-      - mode: ingress
-        target: 80
-        published: "5273"
-        protocol: tcp
-    restart: always
   keycloak:
     build:
-      context: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem
+      context: D:\SmartPackageHub\SmartPackageHub_API
       dockerfile: ./KeyCloakDockerfile/Dockerfile
-    container_name: keycloak_identity
+    container_name: bankingkeycloak_identity
     depends_on:
       postgres:
         condition: service_healthy
@@ -216,12 +18,14 @@ services:
       KC_DB_URL_DATABASE: keycloak_db
       KC_DB_URL_HOST: postgres
       KC_DB_USERNAME: keycloak
-      KC_HOSTNAME: keycloak
-      KC_HOSTNAME_BACKCHANNEL: http://keycloak:8080
-      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "false"
-      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT_BACKCHANNEL: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_HTTP_ENABLED: "true"
-      KC_HTTP_PORT: "8080"
+      KC_LOG_LEVEL: info
+      KC_METRICS_ENABLED: "true"
+      KC_TRANSACTION_XA_ENABLED: "true"
+      QUARKUS_TRANSACTION_MANAGER_ENABLE_RECOVERY: "true"
     healthcheck:
       test:
         - CMD-SHELL
@@ -234,8 +38,8 @@ services:
       backend: null
     ports:
       - mode: ingress
-        target: 8080
-        published: "8080"
+        target: 8084
+        published: "8084"
         protocol: tcp
       - mode: ingress
         target: 9000
@@ -244,7 +48,7 @@ services:
     restart: always
     volumes:
       - type: bind
-        source: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem\data\import
+        source: D:\SmartPackageHub\SmartPackageHub_API\data\import
         target: /opt/keycloak/data/import
         bind:
           create_host_path: true
@@ -280,7 +84,7 @@ services:
         target: /data/db
         volume: {}
       - type: bind
-        source: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem\data\mongo\001_users.js
+        source: D:\SmartPackageHub\SmartPackageHub_API\data\mongo\001_users.js
         target: /docker-entrypoint-initdb.d/001_users.js
         read_only: true
         bind:
@@ -328,18 +132,18 @@ services:
       backend: null
     ports:
       - mode: ingress
-        target: 5432
-        published: "5432"
+        target: 5434
+        published: "5434"
         protocol: tcp
     restart: on-failure
     volumes:
       - type: bind
-        source: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem\db-data
+        source: D:\SmartPackageHub\SmartPackageHub_API\pgdata
         target: /var/lib/postgresql/data
         bind:
           create_host_path: true
       - type: bind
-        source: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem\postgres-init
+        source: D:\SmartPackageHub\SmartPackageHub_API\postgres-init
         target: /docker-entrypoint-initdb.d
         bind:
           create_host_path: true
@@ -425,7 +229,7 @@ services:
     restart: always
     volumes:
       - type: bind
-        source: C:\Users\DELL\source\repos\NewRepoBankingApp\BankingSystem\docker_data\seq
+        source: D:\SmartPackageHub\SmartPackageHub_API\docker_data\seq
         target: /data
         bind:
           create_host_path: true
@@ -453,17 +257,17 @@ networks:
       config:
         - subnet: 172.28.0.0/16
   default:
-    name: dockercompose8662810416780737247_default
+    name: dockercompose1762540363792679676_default
 volumes:
   mongo_config:
-    name: dockercompose8662810416780737247_mongo_config
+    name: dockercompose1762540363792679676_mongo_config
     driver: local
   mongodb_data:
-    name: dockercompose8662810416780737247_mongodb_data
+    name: dockercompose1762540363792679676_mongodb_data
     driver: local
   pgadmin_data:
-    name: dockercompose8662810416780737247_pgadmin_data
+    name: dockercompose1762540363792679676_pgadmin_data
   rabbitmq_data:
-    name: dockercompose8662810416780737247_rabbitmq_data
+    name: dockercompose1762540363792679676_rabbitmq_data
   redis_data:
-    name: dockercompose8662810416780737247_redis_data
+    name: dockercompose1762540363792679676_redis_data

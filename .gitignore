@@ -13,6 +13,8 @@
 [Ll]ogs/
 build/
 bld/
+**/bin/
+**/obj/
 
 ## Visual Studio cache / temporary files
 *.vsidx

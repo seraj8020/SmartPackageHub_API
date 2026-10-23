@@ -100,5 +100,17 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
 
             return Ok(history);
         }
+
+        [HttpPost("{id:guid}/vacationhold")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> SaveResidentVacationHold([FromRoute] Guid id, [FromBody] VacationHoldRequestDto request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var result = await _mediator.Send(new SaveResidentVacationHoldCommand(request.SocietyId, id,request.StartDate,request.EndDate, true)).ConfigureAwait(false);
+            return Ok(new { result });
+        }
     }
 }

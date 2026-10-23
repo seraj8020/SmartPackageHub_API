@@ -1,10 +1,10 @@
-﻿namespace HubManagement.Core.Hubs.Models
+namespace HubManagement.Core.Hubs.Models
 {
     public enum PackageStatus
     {
         Received,
         Shelved,
-        Dispatched,
+        Dispatched,//For Handover
         Delivered
     }
 }

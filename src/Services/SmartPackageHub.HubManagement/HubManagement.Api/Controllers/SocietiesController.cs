@@ -1,3 +1,4 @@
+using HubManagement.Application.HubResidents.DTOs;
 using HubManagement.Application.Societies.Commands;
 using HubManagement.Application.Societies.DTOs;
 using HubManagement.Application.Societies.Queries;
@@ -93,6 +94,45 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 return NotFound();
 
             return NoContent();
+        }
+
+        [HttpGet("{societyid:guid}/packages")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(List<ResidentPackageDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetIntakePackages(Guid societyid)
+        {
+            var packages = await _mediator.Send(new GetPackagesBySocietyIdQuery(societyid)).ConfigureAwait(false);
+            if (packages == null)
+                return NotFound();
+
+            return Ok(packages);
+        }
+
+        [HttpGet("{societyid:guid}/dispatchedpackages")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(List<ResidentPackageDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetDispatchedPackages(Guid societyid)
+        {
+            var packages = await _mediator.Send(new DispatchedPackagesQuery(societyid)).ConfigureAwait(false);
+            if (packages == null)
+                return NotFound();
+
+            return Ok(packages);
+        }
+
+        [HttpGet("{societyid:guid}/deliveredpackages")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(List<ResidentPackageDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetDeliveredPackages(Guid societyid)
+        {
+            var packages = await _mediator.Send(new DeliveredPackagesQuery(societyid)).ConfigureAwait(false);
+            if (packages == null)
+                return NotFound();
+
+            return Ok(packages);
         }
     }
 }

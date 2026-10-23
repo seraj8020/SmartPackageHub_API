@@ -34,5 +34,34 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
 
             return Ok(result.Package);
         }
+
+        [HttpPut("{packageId:guid}/dispatch")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult> DispatchPackages(Guid packageId)
+        {
+            var result = await _mediator.Send(new DispatchPackageCommand(packageId)).ConfigureAwait(false);
+            return Ok(result);
+        }
+
+        [HttpPost("{packageId:guid}/deliver")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult> DeliverPackages([FromRoute] Guid packageId, [FromBody] DeliverPackageRequest request)
+        {
+            var result = await _mediator.Send(new DeliverPackageCommand(packageId, request)).ConfigureAwait(false);
+            if (!result.Found)
+                return NotFound(new { Message = result.Message });
+            if (result.Conflict)
+                return Conflict(new { Message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { Message = result.Message });
+
+            return Ok(result);
+        }
     }
 }

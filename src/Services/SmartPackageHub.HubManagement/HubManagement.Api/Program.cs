@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Logging;
 using SmartPackageHub.Common.Types;
 using SmartPackageHub.HubManagement.Infrastructure;
 using BankingApp.AccountManagement.Infrastructure.AutofacModules;
@@ -17,7 +16,6 @@ using SmartPackageHub.Common.Services.FeatureFlags.Options;
 using SmartPackageHub.Common.Services.FeatureFlags.Services;
 using HubManagement.Workers;
 using HubManagement.Api.SeedDataModel;
-using Microsoft.AspNetCore.RateLimiting;
 using System.IO.Compression;
 using HubManagement.Application.Intake.Services;
 
@@ -65,7 +63,7 @@ services.AddDbContextPool<HubDbContext>(opts =>
     opts.UseNpgsql(connectionString);
     if (builder.Environment.IsDevelopment())
     {
-        opts.EnableSensitiveDataLogging();
+       // opts.EnableSensitiveDataLogging();
         opts.LogTo(Console.WriteLine, LogLevel.Information);
     }
 });

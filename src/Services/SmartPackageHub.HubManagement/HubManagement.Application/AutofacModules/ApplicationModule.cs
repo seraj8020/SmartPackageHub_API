@@ -1,6 +1,5 @@
 using Autofac;
 using AutoMapper;
-using MassTransit;
 using MediatR;
 using MediatR.NotificationPublishers;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -26,13 +25,6 @@ namespace BankingApp.AccountManagement.Infrastructure.AutofacModules
                 .AsClosedTypesOf(typeof(IRequestHandler<,>))
                 .AsSelf();
 
-            // Register MassTransit consumers (they implement IConsumer<>) as both interfaces and concrete self types
-            builder.RegisterAssemblyTypes(ThisAssembly)
-                .AsClosedTypesOf(typeof(IConsumer<>))
-                .AsSelf();
-
-            // Register Automapper profiles
-           // var config = new MapperConfiguration(cfg => { cfg.AddMaps(ThisAssembly); });
             var config = new MapperConfiguration(cfg =>
             {
                 cfg.AddMaps(ThisAssembly);

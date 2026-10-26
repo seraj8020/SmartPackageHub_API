@@ -63,10 +63,7 @@ namespace SmartPackageHub.Common.Extension
                     tracing
                         .AddAspNetCoreInstrumentation()
                         .AddHttpClientInstrumentation()
-                        .AddRedisInstrumentation()
-                        .AddSource(MassTransit.Logging.DiagnosticHeaders.DefaultListenerName)
-                        .AddSource("MongoDB.Driver.Core.Extensions.DiagnosticSources")
-                        .AddSource("MailKit");
+                        .AddRedisInstrumentation();
 
                     var otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
                     if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var endpoint))

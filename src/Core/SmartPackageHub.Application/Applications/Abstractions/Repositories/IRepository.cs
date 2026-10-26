@@ -12,7 +12,14 @@ namespace SmartPackageHub.Applications.Abstractions.Repositories
         void Delete(T entity);
         void Remove(IEnumerable<T> entitiesToRemove);
         Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>>? predicate = null);
+        /// <param name="noTracking">
+        /// Use true for read-only lists (faster, no change-tracker). Keep false when entities will be updated.
+        /// </param>
+        Task<List<T>> ListAsync(
+            Expression<Func<T, bool>>? predicate = null,
+            CancellationToken cancellationToken = default,
+            bool noTracking = false);
         void Update(T item);
-        IQueryable<T> FetchMulti(Expression<Func<T, bool>>? predicate = null);
+        IQueryable<T> FetchMulti(Expression<Func<T, bool>>? predicate = null, bool noTracking = false);
     }
 }

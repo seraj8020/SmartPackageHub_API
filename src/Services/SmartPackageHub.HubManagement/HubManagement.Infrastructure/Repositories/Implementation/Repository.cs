@@ -19,12 +19,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
 
         public IQueryable<T> GetAll(bool noTracking = true)
         {
-            var set = _entitySet;
-            if (noTracking)
-            {
-                return set.AsNoTracking();
-            }
-            return set;
+            return noTracking ? _entitySet.AsNoTracking() : _entitySet;
         }
 
         public async Task<T?> GetByIdAsync(Guid id)
@@ -54,7 +49,21 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
 
         public Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>>? predicate = null)
         {
-            return predicate == null ? _context.Set<T>().FirstOrDefaultAsync() : _context.Set<T>().FirstOrDefaultAsync(predicate);
+            // Tracking kept on: callers often mutate the result (OTP mark-used, package status).
+            return predicate == null
+                ? _entitySet.FirstOrDefaultAsync()
+                : _entitySet.FirstOrDefaultAsync(predicate);
+        }
+
+        public Task<List<T>> ListAsync(
+            Expression<Func<T, bool>>? predicate = null,
+            CancellationToken cancellationToken = default,
+            bool noTracking = false)
+        {
+            IQueryable<T> query = noTracking ? _entitySet.AsNoTracking() : _entitySet;
+            if (predicate != null)
+                query = query.Where(predicate);
+            return query.ToListAsync(cancellationToken);
         }
 
         public void Update(T item)
@@ -69,14 +78,15 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
             }
         }
 
-        public virtual IQueryable<T> FetchMulti(Expression<Func<T, bool>>? predicate = null)
+        public virtual IQueryable<T> FetchMulti(Expression<Func<T, bool>>? predicate = null, bool noTracking = false)
         {
-            return predicate == null ? _context.Set<T>() : _context.Set<T>().Where(predicate);
+            IQueryable<T> query = noTracking ? _entitySet.AsNoTracking() : _entitySet;
+            return predicate == null ? query : query.Where(predicate);
         }
 
         public virtual async Task<int> BulkUpdateAsync(Expression<Func<T, bool>> predicate, Expression<Func<T, T>> updatePredicate)
         {
-            return await _context.Set<T>().Where(predicate).UpdateAsync(updatePredicate).ConfigureAwait(false);
+            return await _entitySet.Where(predicate).UpdateAsync(updatePredicate).ConfigureAwait(false);
         }
     }
 }

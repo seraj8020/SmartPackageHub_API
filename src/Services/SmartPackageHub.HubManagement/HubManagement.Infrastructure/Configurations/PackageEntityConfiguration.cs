@@ -37,6 +37,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(p => p.IsColdStorage).IsRequired();
             builder.Property(p => p.IsCod).IsRequired();
             builder.Property(p => p.CodAmount).HasPrecision(18, 2);
+            builder.Property(p => p.CodApprovalStatus).HasConversion<string>().IsRequired().HasMaxLength(50);
             builder.Property(p => p.RecievedAt).IsRequired();
         }
 
@@ -95,6 +96,13 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.HasMany(p => p.Images)
                 .WithOne()
                 .HasForeignKey(pi => pi.PackageId);
+
+            // Hot staff list filters: society + status (+ received day for Receive).
+            builder.HasIndex(e => new { e.SocietyId, e.Status, e.RecievedAt })
+                .HasDatabaseName("IX_Packages_SocietyId_Status_RecievedAt");
+            // Resident inbox: resident + not-delivered.
+            builder.HasIndex(e => new { e.ResidentId, e.Status })
+                .HasDatabaseName("IX_Packages_ResidentId_Status");
         }
     }
 }

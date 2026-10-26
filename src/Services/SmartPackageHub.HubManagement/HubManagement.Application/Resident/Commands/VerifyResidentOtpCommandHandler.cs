@@ -1,5 +1,4 @@
 using HubManagement.Application.HubResidents.DTOs;
-using HubManagement.Application.Scans.Commands;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using Microsoft.Extensions.Logging;
@@ -46,18 +45,23 @@ namespace HubManagement.Application.HubResidents.Commands
             if (resident == null)
                 return new VerifyOtpResponse(false, false, "Resident was not found.");
 
-            var logs = _otpLogs
-                .FetchMulti(o => o.ResidentId == resident.Id && !o.IsUsed && o.Purpose == "Pickup")
-                .ToList();
+            var code = request.Code.Trim();
+            var utcNow = DateTime.UtcNow;
+            var matched = await _otpLogs.FirstOrDefaultAsync(log =>
+                log.ResidentId == resident.Id &&
+                log.Purpose == "Pickup" &&
+                !log.IsUsed &&
+                log.Token != null &&
+                log.Token.Value == code &&
+                log.Expiry != null &&
+                log.Expiry.Value > utcNow).ConfigureAwait(false);
 
-            OtpLog? matched = logs.FirstOrDefault(log => log.ValidateCollection(request.Code.Trim()));
-
-            if (matched == null)
+            if (matched == null || !matched.ValidateCollection(code))
                 return new VerifyOtpResponse(true, false, "Invalid or expired OTP.");
 
-            var pending = _packages
-                .FetchMulti(p => p.ResidentId == resident.Id && p.Status != PackageStatus.Delivered)
-                .ToList();
+            var pending = await _packages.ListAsync(
+                p => p.ResidentId == resident.Id && p.Status != PackageStatus.Delivered,
+                cancellationToken).ConfigureAwait(false);
 
             var deliveredAt = DateTime.UtcNow;
             foreach (var package in pending)

@@ -1,19 +1,25 @@
-using System.Globalization;
-using System.Security.Cryptography;
+using SmartPackageHub.Common.Services.FeatureFlags.Abstractions;
+using SmartPackageHub.Common.Services.FeatureFlags.Options;
+using SmartPackageHub.Common.Services.FeatureFlags.Services;
 using HubManagement.Application.Intake.DTOs;
-using HubManagement.Application.PackageHub;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
+using SmartPackageHub.Common.Services.Storage.Abstractions;
+using SmartPackageHub.Common.Services.Storage.DTOs;
+using SmartPackageHub.Common.Services.Storage.Services;
+using HubManagement.Application.Intake.Converters;
+using HubManagement.Application.Intake.Helpers;
+using HubManagement.Application.Intake.Services;
+using HubManagement.Application.PackageHub.DTOs;
+using HubManagement.Application.PackageHub.Services;
 
 namespace HubManagement.Application.Intake.Commands
 {
     public sealed class ConfirmIntakeCommandHandler : CreateCommandHandler<ConfirmIntakeCommand, IntakeStatusResult<ConfirmIntakeResponse>>
     {
-        private static readonly TimeSpan PickupOtpLifetime = TimeSpan.FromDays(7);
-
         private static readonly Action<ILogger, Guid, string?, Exception?> LogIntakeConfirmed =
             LoggerMessage.Define<Guid, string?>(
                 LogLevel.Information,
@@ -32,6 +38,7 @@ namespace HubManagement.Application.Intake.Commands
         private readonly IRepository<Notification> _notifications;
         private readonly IParcelPhotoStore _photos;
         private readonly IntakeNotificationChannel _queue;
+        private readonly IFeatureFlags _featureFlags;
         private readonly ILogger<ConfirmIntakeCommandHandler> _logger;
 
         public ConfirmIntakeCommandHandler(
@@ -47,6 +54,7 @@ namespace HubManagement.Application.Intake.Commands
             IRepository<Notification> notifications,
             IParcelPhotoStore photos,
             IntakeNotificationChannel queue,
+            IFeatureFlags featureFlags,
             ILogger<ConfirmIntakeCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
@@ -62,6 +70,7 @@ namespace HubManagement.Application.Intake.Commands
             _notifications = notifications;
             _photos = photos;
             _queue = queue;
+            _featureFlags = featureFlags;
             _logger = logger;
         }
 
@@ -95,14 +104,13 @@ namespace HubManagement.Application.Intake.Commands
                 return placementError;
             }
 
-            var shelf = ResolveShelf(request, placed!.SocietyId);
+            // Shelf allocation is a separate staff step after courier intake.
             var matchStatus = DetermineMatchStatus(request.MatchStatus, resolvedResident, ambiguous);
 
             return await PersistAndConfirmAsync(
                 request,
-                placed,
+                placed!,
                 resolvedResident,
-                shelf,
                 awb!,
                 courier,
                 name,
@@ -245,7 +253,11 @@ namespace HubManagement.Application.Intake.Commands
             var ambiguous = false;
             if (resident == null && tower != null && flat != null)
             {
-                var hits = ResidentMatcher.ByTowerAndFlat(_residents.GetAll().ToList(), tower, flat);
+                IEnumerable<Resident> directory = _residents.GetAll();
+                if (matchedSocietyId is Guid societyFilter && societyFilter != Guid.Empty)
+                    directory = directory.Where(row => row.SocietyId == societyFilter);
+
+                var hits = ResidentMatcher.ByTowerAndFlat(directory.ToList(), tower, flat);
                 if (hits.Count == 1)
                 {
                     resident = hits[0];
@@ -262,17 +274,6 @@ namespace HubManagement.Application.Intake.Commands
             }
 
             return (resident, matchedSocietyId, ambiguous, null);
-        }
-
-        private Shelf? ResolveShelf(ConfirmIntakeRequest request, Guid societyId)
-        {
-            var shelves = _shelves.GetAll().Where(shelf => shelf.SocietyId == societyId).ToList();
-            var requestedShelf = IntakeText.Clean(request.ShelfCode, 50);
-            var shelf = requestedShelf == null
-                ? null
-                : shelves.FirstOrDefault(item => string.Equals(item.Code, requestedShelf, StringComparison.OrdinalIgnoreCase));
-
-            return shelf ?? ShelfSuggester.Suggest(shelves, _packages.GetAll().Where(package => package.SocietyId == societyId).ToList(), societyId);
         }
 
         private static string DetermineMatchStatus(string? requestedStatus, Resident? resident, bool ambiguous)
@@ -295,7 +296,6 @@ namespace HubManagement.Application.Intake.Commands
             ConfirmIntakeRequest request,
             Placement placed,
             Resident? resident,
-            Shelf? shelf,
             string awb,
             string? courier,
             string? name,
@@ -307,25 +307,54 @@ namespace HubManagement.Application.Intake.Commands
         {
             var now = DateTime.UtcNow;
             var pkgNumber = $"PKG-{now:yyMMdd}-{Guid.NewGuid().ToString("N")[..4].ToUpperInvariant()}";
-            var description = string.IsNullOrWhiteSpace(name) ? "Label intake" : $"Intake for {IntakeText.Clean(name, 80)}";
+            if (request.IsCod && !_featureFlags.CashOnDelivery)
+            {
+                return new IntakeStatusResult<ConfirmIntakeResponse>(
+                    400,
+                    "Cash on delivery is disabled for this hub.",
+                    null);
+            }
+
+            if (request.IsCod && (request.CodAmount is null or <= 0))
+            {
+                return new IntakeStatusResult<ConfirmIntakeResponse>(
+                    400,
+                    "COD amount is required when cash on delivery is enabled.",
+                    null);
+            }
+
+            if (request.IsCod && resident == null)
+            {
+                return new IntakeStatusResult<ConfirmIntakeResponse>(
+                    400,
+                    "COD packages require a matched resident so they can approve the amount.",
+                    null);
+            }
+
+            // Default category when staff leaves it blank ? never "Intake for {name}".
+            var category = string.IsNullOrWhiteSpace(request.Category) ? "Miscellaneous" : request.Category.Trim();
+
+            // Always Received ? shelf + OTP happen later via AssignShelf.
             var package = HubPackageFactory.Create(
                 placed.SocietyId,
                 resident,
-                shelf?.Id,
+                shelfId: null,
                 placed.StaffUserId,
                 awb,
                 pkgNumber,
                 courier,
-                description,
+                description: category,
                 name,
                 tower ?? resident?.TowerWing,
                 flat ?? resident?.Unit?.Value,
-                shelf?.IsColdStorage ?? false);
-
-            if (shelf != null)
-            {
-                package.ShelfPackage();
-            }
+                request.IsColdStorage,
+                category: category,
+                weight: request.Weight,
+                length: request.Length,
+                width: request.Width,
+                height: request.Height,
+                isCod: request.IsCod,
+                codAmount: request.CodAmount);
 
             var agent = FindAgent(placed.SocietyId, courier);
             package.PackageIntake.RecordLabelScan(
@@ -339,19 +368,15 @@ namespace HubManagement.Application.Intake.Commands
                 request.IsDamaged,
                 IntakeText.Clean(request.DamageNote, 240));
 
-            string? otp = null;
             _packages.Insert(package);
-            if (resident != null)
-            {
-                otp = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
-                _otpLogs.Insert(OtpLog.Generate(resident.SocietyId, resident.Id, package.Id, otp, PickupOtpLifetime, "Pickup"));
-            }
 
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             await LinkPhotoAsync(IntakeText.Clean(request.ClientPhotoId, 80), package.PackageIntake.Id, package.Id, cancellationToken).ConfigureAwait(false);
-            _queue.Enqueue(package.PackageIntake.Id);
+            // Only COD needs an immediate resident notice (approve/reject). Pickup OTP waits for shelving.
+            if (request.IsCod)
+                _queue.Enqueue(package.PackageIntake.Id);
             LogIntakeConfirmed(_logger, package.PackageIntake.Id, awb, null);
-            return new IntakeStatusResult<ConfirmIntakeResponse>(200, null, await MapAsync(package.PackageIntake, package, otp).ConfigureAwait(false));
+            return new IntakeStatusResult<ConfirmIntakeResponse>(200, null, await MapAsync(package.PackageIntake, package, null).ConfigureAwait(false));
         }
 
         private CourierAgent? FindAgent(Guid societyId, string? courier)
@@ -394,8 +419,11 @@ namespace HubManagement.Application.Intake.Commands
                 .OrderByDescending(log => log.Expiry?.Value)
                 .Select(log => log.Token?.Value)
                 .FirstOrDefault();
+            var templateName = package.IsCod && package.CodApprovalStatus == CodApprovalStatus.Pending
+                ? "CodApprovalRequired"
+                : "IntakeReceived";
             var notified = _notifications.GetAll().Any(notification =>
-                notification.PackageId == package.Id && notification.Content.TemplateName == "IntakeReceived");
+                notification.PackageId == package.Id && notification.Content.TemplateName == templateName);
 
             return new ConfirmIntakeResponse
             {
@@ -405,8 +433,12 @@ namespace HubManagement.Application.Intake.Commands
                 Awb = package.CourierAwb,
                 Courier = package.CourierPartner,
                 ShelfCode = shelfCode,
+                Status = package.Status.ToString(),
+                IsCod = package.IsCod,
+                CodAmount = package.CodAmount,
+                CodApprovalStatus = package.CodApprovalStatus.ToString(),
                 PickupOtp = otp,
-                PickupQrPayload = $"SPH|{package.PkgNumber}|{otp}",
+                PickupQrPayload = string.IsNullOrEmpty(otp) ? string.Empty : $"SPH|{package.PkgNumber}|{otp}",
                 NotificationStatus = notified ? "Dispatched" : "Queued",
                 MatchStatus = intake.MatchStatus,
                 PhotoStored = _images.GetAll().Any(image => image.IntakeId == intake.Id),

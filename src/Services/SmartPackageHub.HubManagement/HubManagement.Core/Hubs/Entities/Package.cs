@@ -31,6 +31,7 @@ namespace HubManagement.Core.Hubs.Entities
         public bool IsColdStorage { get; private set; }
         public bool IsCod { get; private set; }
         public decimal? CodAmount { get; private set; }
+        public CodApprovalStatus CodApprovalStatus { get; private set; }
         public PackageIntake PackageIntake { get; private set; } = null!;
         public DateTime RecievedAt { get; private set; }
 
@@ -58,6 +59,7 @@ namespace HubManagement.Core.Hubs.Entities
             //bool isDamaged,
             bool isCod,
             decimal? codAmount,
+            CodApprovalStatus codApprovalStatus,
             DateTime receivedAt,
             Guid? secureBagId = null,
             Guid? digitalSignOffReceiptId = null,
@@ -83,6 +85,7 @@ namespace HubManagement.Core.Hubs.Entities
             this.IsColdStorage = isColdStorage;
             this.IsCod = isCod;
             this.CodAmount = codAmount;
+            this.CodApprovalStatus = codApprovalStatus;
             this.RecievedAt = receivedAt;
 
             // Generate the intake child entity implicitly upon creation
@@ -115,6 +118,7 @@ namespace HubManagement.Core.Hubs.Entities
             string? category = null)
         {
             var resolvedPkgNumber = string.IsNullOrWhiteSpace(pkgNumber) ? trackingNumber : pkgNumber;
+            var codApproval = isCod ? CodApprovalStatus.Pending : CodApprovalStatus.None;
             var package = new Package(
                 societyId,
                 residentId,
@@ -134,7 +138,8 @@ namespace HubManagement.Core.Hubs.Entities
                 isColdStorage,
                // isDamaged,
                 isCod,
-                codAmount,
+                isCod ? codAmount : null,
+                codApproval,
                 receivedAt,
                 secureBagId,
                 digitalSignOffReceiptId,
@@ -180,7 +185,30 @@ namespace HubManagement.Core.Hubs.Entities
             if (Status != PackageStatus.Received)
                 throw new InvalidOperationException("Only received packages can be shelved.");
 
+            if (IsCod && CodApprovalStatus != CodApprovalStatus.Approved)
+                throw new InvalidOperationException("COD packages require resident approval before shelving.");
+
             Status = PackageStatus.Shelved;
+        }
+
+        public void ApproveCod()
+        {
+            if (!IsCod)
+                throw new InvalidOperationException("Only COD packages can be approved.");
+            if (CodApprovalStatus != CodApprovalStatus.Pending)
+                throw new InvalidOperationException("COD approval is not pending for this package.");
+
+            CodApprovalStatus = CodApprovalStatus.Approved;
+        }
+
+        public void RejectCod()
+        {
+            if (!IsCod)
+                throw new InvalidOperationException("Only COD packages can be rejected.");
+            if (CodApprovalStatus != CodApprovalStatus.Pending)
+                throw new InvalidOperationException("COD approval is not pending for this package.");
+
+            CodApprovalStatus = CodApprovalStatus.Rejected;
         }
 
         public void DispatchPackage()

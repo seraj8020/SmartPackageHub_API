@@ -1,9 +1,11 @@
 using AutoMapper;
+using HubManagement.Application.DeliverySlots;
 using HubManagement.Application.Societies.DTOs;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using SmartPackageHub.Applications.Abstractions.Queries;
 using SmartPackageHub.Applications.Abstractions.Repositories;
+using HubManagement.Application.DeliverySlots.Helpers;
 
 namespace HubManagement.Application.Societies.Queries
 {
@@ -11,10 +13,20 @@ namespace HubManagement.Application.Societies.Queries
     {
         private readonly IRepository<Society> _societies;
         private readonly IRepository<Package> _packages;
-        public DispatchedPackagesQueryHandler(IMapper mapper, IRepository<Society> societies, IRepository<Package> packages) : base(mapper)
+        private readonly IRepository<Shelf> _shelves;
+        private readonly IRepository<DeliverySlot> _slots;
+
+        public DispatchedPackagesQueryHandler(
+            IMapper mapper,
+            IRepository<Society> societies,
+            IRepository<Package> packages,
+            IRepository<Shelf> shelves,
+            IRepository<DeliverySlot> slots) : base(mapper)
         {
             _societies = societies;
             _packages = packages;
+            _shelves = shelves;
+            _slots = slots;
         }
 
         protected override async Task<List<SocietyPackageDto>?> HandleAsync(DispatchedPackagesQuery request)
@@ -23,26 +35,39 @@ namespace HubManagement.Application.Societies.Queries
             var society = await _societies.GetByIdAsync(request.SocietyId).ConfigureAwait(false);
             if (society == null)
                 return null;
-            var today = DateTime.UtcNow.Date;
-            var tomorrow = today.AddDays(1);
-            var waiting = _packages
-                .FetchMulti(p => p.SocietyId == society.Id && p.Status == PackageStatus.Dispatched)
+
+            var waiting = await _packages.ListAsync(
+                p => p.SocietyId == society.Id && p.Status == PackageStatus.Dispatched,
+                noTracking: true).ConfigureAwait(false);
+
+            if (waiting.Count == 0)
+                return [];
+
+            var shelfIds = waiting
+                .Where(package => package.ShelfId.HasValue)
+                .Select(package => package.ShelfId!.Value)
+                .Distinct()
                 .ToList();
 
-            return waiting.Select(p => new SocietyPackageDto
+            var shelves = shelfIds.Count == 0
+                ? []
+                : await _shelves.ListAsync(shelf => shelfIds.Contains(shelf.Id), noTracking: true).ConfigureAwait(false);
+
+            var packageIds = waiting.Select(p => p.Id).ToList();
+            var slots = await _slots.ListAsync(
+                slot =>
+                    slot.SocietyId == society.Id &&
+                    slot.Status != DeliverySlotWindows.StatusCancelled &&
+                    packageIds.Contains(slot.PackageId),
+                noTracking: true).ConfigureAwait(false);
+
+            var shelfCodes = SocietyPackageMapper.BuildShelfCodeLookup(waiting, shelves);
+            var activeSlots = SocietyPackageMapper.BuildActiveSlotLookup(waiting, slots);
+
+            return waiting.Select(p =>
             {
-                Id = p.Id,
-                ResidentId = p.ResidentId,
-                StaffUserId = p.StaffUserId,
-                TrackingNumber = p.SphTrackingNumber.Value,
-                Description = p.Category,
-                ReceivedAt = p.RecievedAt,
-                Courier = p.CourierPartner,
-                Category = p.Category,
-                Weight = p.Dimensions.Weight,
-                PkgNumber = p.PkgNumber,
-                TowerWing = p.TowerWing,
-                FlatNumber = p.FlatNumber.Value
+                activeSlots.TryGetValue(p.Id, out var slot);
+                return SocietyPackageMapper.Map(p, shelfCodes, slot: slot);
             }).ToList();
         }
     }

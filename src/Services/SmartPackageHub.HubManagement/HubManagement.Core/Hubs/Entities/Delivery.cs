@@ -11,13 +11,21 @@ namespace HubManagement.Core.Hubs.Entities
         public Guid ResidentId { get; private set; }
         public Guid? OtpLogId { get; private set; }
         public Guid? BatchId { get; private set; }
-        public DeliverySlot Slot { get; private set; }
         public DeliveryStatus Status { get; private set; }
         public string Method { get; private set; } // CounterPickup, DoorDelivery
         public DateTime DeliveredAt { get; private set; }
         public string Notes { get; private set; }
 
-        public Delivery(Guid societyId, Guid packageId, Guid handedByUserId, Guid residentId, Guid? otpLogId, Guid? batchId, string method, DateTime deliveredAt, string notes)
+        public Delivery(
+            Guid societyId,
+            Guid packageId,
+            Guid handedByUserId,
+            Guid residentId,
+            Guid? otpLogId,
+            Guid? batchId,
+            string method,
+            DateTime deliveredAt,
+            string notes)
         {
             SocietyId = societyId;
             PackageId = packageId;
@@ -28,33 +36,35 @@ namespace HubManagement.Core.Hubs.Entities
             Method = method;
             DeliveredAt = deliveredAt;
             Notes = notes;
-            Slot = DeliverySlot.Create(DateTime.UtcNow, DateTime.UtcNow.AddHours(9));
-            Status = DeliveryStatus.Attempted; // Default initial status
+            Status = DeliveryStatus.Attempted;
         }
 
-        public static Delivery Create(Guid societyId, Guid packageId, Guid staffId, Guid residentId, Guid? otpLogId, Guid? batchId, string method, DateTime deliveredAt, string notes)
+        public static Delivery Create(
+            Guid societyId,
+            Guid packageId,
+            Guid staffId,
+            Guid residentId,
+            Guid? otpLogId,
+            Guid? batchId,
+            string method,
+            DateTime deliveredAt,
+            string notes)
         {
             if (packageId == Guid.Empty)
                 throw new ArgumentNullException(nameof(packageId));
             if (residentId == Guid.Empty)
                 throw new ArgumentNullException(nameof(residentId));
-            var delivery = new Delivery(societyId, packageId, staffId, residentId, otpLogId, batchId, method, deliveredAt, notes);
-            return delivery;
-        }
-
-        public void AssignSlot(DateTime start, DateTime end, string status = "booked")
-        {
-            Slot = DeliverySlot.Create(start, end, status);
+            return new Delivery(societyId, packageId, staffId, residentId, otpLogId, batchId, method, deliveredAt, notes);
         }
 
         public void CompleteDelivery()
         {
-            Status = ValueObjects.DeliveryStatus.Completed;
+            Status = DeliveryStatus.Completed;
         }
 
         public void RejectDelivery()
         {
-            Status = ValueObjects.DeliveryStatus.Rejected;
+            Status = DeliveryStatus.Rejected;
         }
     }
 }

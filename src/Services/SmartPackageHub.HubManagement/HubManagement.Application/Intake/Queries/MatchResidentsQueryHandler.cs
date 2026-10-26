@@ -3,6 +3,8 @@ using HubManagement.Application.Intake.DTOs;
 using HubManagement.Core.Hubs.Entities;
 using SmartPackageHub.Applications.Abstractions.Queries;
 using SmartPackageHub.Applications.Abstractions.Repositories;
+using HubManagement.Application.Intake.Converters;
+using HubManagement.Application.Intake.Helpers;
 
 namespace HubManagement.Application.Intake.Queries
 {
@@ -24,10 +26,14 @@ namespace HubManagement.Application.Intake.Queries
             tower = LabelTextParser.CleanTower(tower);
             flat = LabelTextParser.CleanFlat(flat);
 
-            var residents = _residents.GetAll().ToList();
+            IEnumerable<Resident> residents = _residents.GetAll();
+            if (request.SocietyId is Guid societyId && societyId != Guid.Empty)
+                residents = residents.Where(resident => resident.SocietyId == societyId);
+
+            var societyResidents = residents.ToList();
             if (tower != null && flat != null)
             {
-                var hits = ResidentMatcher.ByTowerAndFlat(residents, tower, flat).Take(8).ToList();
+                var hits = ResidentMatcher.ByTowerAndFlat(societyResidents, tower, flat).Take(8).ToList();
                 if (hits.Count == 1)
                     return Task.FromResult(new MatchResponse { Status = "matched", Matches = hits.Select(ResidentMatcher.ToDto).ToList() });
                 if (hits.Count > 1)
@@ -36,7 +42,7 @@ namespace HubManagement.Application.Intake.Queries
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                var byName = ResidentMatcher.Search(residents, request.Name.Trim());
+                var byName = ResidentMatcher.Search(societyResidents, request.Name.Trim());
                 if (byName.Count > 0)
                     return Task.FromResult(new MatchResponse { Status = "ambiguous", Matches = byName.Select(ResidentMatcher.ToDto).ToList() });
             }

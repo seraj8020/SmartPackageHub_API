@@ -42,6 +42,10 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
                 .WithMany()
                 .HasForeignKey(e => e.PackageId)
                 .IsRequired();
+
+            // Speeds deliver/verify OTP lookup: package + purpose + unused flag.
+            builder.HasIndex(e => new { e.PackageId, e.Purpose, e.IsUsed })
+                .HasDatabaseName("IX_OtpLogs_PackageId_Purpose_IsUsed");
         }
     }
 }

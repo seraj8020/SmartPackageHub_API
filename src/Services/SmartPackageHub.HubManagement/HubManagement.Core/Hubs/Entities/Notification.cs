@@ -14,11 +14,24 @@ namespace HubManagement.Core.Hubs.Entities
         public NotificationStatus Status { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public DateTime? SentAt { get; private set; }
+        public DateTime? DeliveredAt { get; private set; }
         public string? FailureReason { get; private set; }
+        public string? IdempotencyKey { get; private set; }
+        public string? ProviderRequestId { get; private set; }
+        public Guid? FallbackOfNotificationId { get; private set; }
+        public int SegmentCount { get; private set; }
 
-        // Encapsulated constructor
         private Notification() { }
-        private Notification(Guid societyId, Guid residentId, Guid packageId, NotificationChannel channel, MessageContent content)
+
+        private Notification(
+            Guid societyId,
+            Guid residentId,
+            Guid packageId,
+            NotificationChannel channel,
+            MessageContent content,
+            string? idempotencyKey,
+            Guid? fallbackOfNotificationId,
+            int segmentCount)
         {
             SocietyId = societyId;
             ResidentId = residentId;
@@ -28,17 +41,49 @@ namespace HubManagement.Core.Hubs.Entities
             Status = NotificationStatus.Pending;
             CreatedAt = DateTime.UtcNow;
             FailureReason = string.Empty;
+            IdempotencyKey = idempotencyKey;
+            FallbackOfNotificationId = fallbackOfNotificationId;
+            SegmentCount = segmentCount < 1 ? 1 : segmentCount;
         }
 
-        // Factory method for creating new notifications
-        public static Notification Create(Guid societyId, Guid residentId, Guid packageId, NotificationChannel channel, MessageContent content)
+        /// <summary>
+        /// pending notification with idempotency/segments/fallback link
+        /// </summary>
+        /// <param name="societyId"></param>
+        /// <param name="residentId"></param>
+        /// <param name="packageId"></param>
+        /// <param name="channel"></param>
+        /// <param name="content"></param>
+        /// <param name="idempotencyKey"></param>
+        /// <param name="fallbackOfNotificationId"></param>
+        /// <param name="segmentCount"></param>
+        /// <returns></returns>
+        public static Notification Create(
+            Guid societyId,
+            Guid residentId,
+            Guid packageId,
+            NotificationChannel channel,
+            MessageContent content,
+            string? idempotencyKey = null,
+            Guid? fallbackOfNotificationId = null,
+            int segmentCount = 1)
         {
             ArgumentNullException.ThrowIfNull(channel);
             ArgumentNullException.ThrowIfNull(content);
-            return new Notification(societyId, residentId, packageId, channel, content);
+            return new Notification(
+                societyId,
+                residentId,
+                packageId,
+                channel,
+                content,
+                idempotencyKey,
+                fallbackOfNotificationId,
+                segmentCount);
         }
 
-        // Domain Behaviors
+        /// <summary>
+        /// legacy “sent” without provider id
+        /// </summary>
         public void MarkAsSent()
         {
             Status = NotificationStatus.Sent;
@@ -46,6 +91,32 @@ namespace HubManagement.Core.Hubs.Entities
             FailureReason = string.Empty;
         }
 
+        /// <summary>
+        /// accepted by provider (ProviderRequestId)
+        /// </summary>
+        /// <param name="providerRequestId"></param>
+        public void MarkAsSubmitted(string providerRequestId)
+        {
+            ProviderRequestId = providerRequestId;
+            Status = NotificationStatus.Sent;
+            SentAt = DateTime.UtcNow;
+            FailureReason = string.Empty;
+        }
+
+        /// <summary>
+        /// webhook confirmed delivery
+        /// </summary>
+        public void MarkAsDelivered()
+        {
+            Status = NotificationStatus.Sent;
+            DeliveredAt = DateTime.UtcNow;
+            FailureReason = string.Empty;
+        }
+
+        /// <summary>
+        /// send or delivery failure
+        /// </summary>
+        /// <param name="reason"></param>
         public void MarkAsFailed(string reason)
         {
             Status = NotificationStatus.Failed;

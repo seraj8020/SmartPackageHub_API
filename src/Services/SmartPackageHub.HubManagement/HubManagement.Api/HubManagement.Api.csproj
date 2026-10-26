@@ -76,6 +76,7 @@
 	  <ProjectReference Include="..\HubManagement.Application\HubManagement.Application.csproj" />
 	  <ProjectReference Include="..\HubManagement.Core\HubManagement.Core.csproj" />
 	  <ProjectReference Include="..\HubManagement.Infrastructure\HubManagement.Infrastructure.csproj" />
+	  <ProjectReference Include="..\HubManagement.Workers\HubManagement.Workers.csproj" />
 	</ItemGroup>
 
 

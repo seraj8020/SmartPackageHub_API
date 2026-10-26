@@ -34,6 +34,7 @@ internal static class DataSeeder
         added |= AddMissing(context, BuildImages(Items<PackageImageSeed>(newData, "PackageImages")), context.PackageImages, i => i.Id);
         added |= AddMissing(context, BuildAnalytics(Items<AnalyticsDailySeed>(newData, "AnalyticsDailies")), context.AnalyticsDailies, a => a.Id);
         added |= AddMissing(context, BuildDeliveries(Items<DeliverySeed>(newData, "Deliveries")), context.Deliveries, d => d.Id);
+        added |= AddMissing(context, BuildDeliverySlots(Items<DeliverySlotSeed>(newData, "DeliverySlots")), context.DeliverySlots, s => s.Id);
 
         if (added)
         {
@@ -264,13 +265,27 @@ internal static class DataSeeder
                 seed.Method,
                 seed.DeliveredAt,
                 seed.Notes);
-            delivery.AssignSlot(seed.SlotStart, seed.SlotEnd, seed.SlotStatus);
             if (seed.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                 delivery.CompleteDelivery();
             else if (seed.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
                 delivery.RejectDelivery();
             AssignId(delivery, seed.Id);
             return delivery;
+        }).ToList();
+
+    private static List<DeliverySlot> BuildDeliverySlots(List<DeliverySlotSeed> seeds) =>
+        seeds.Select(seed =>
+        {
+            var slot = DeliverySlot.Create(
+                seed.SocietyId,
+                seed.ResidentId,
+                seed.PackageId,
+                seed.WindowStart,
+                seed.WindowEnd,
+                seed.Status,
+                seed.Notes);
+            AssignId(slot, seed.Id);
+            return slot;
         }).ToList();
 
     private static List<TEntity> Items<TEntity>(Dictionary<string, List<object>> allData, string key)

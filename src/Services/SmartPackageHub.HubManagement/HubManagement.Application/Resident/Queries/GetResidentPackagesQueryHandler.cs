@@ -63,31 +63,33 @@ namespace HubManagement.Application.HubResidents.Queries
                 .GroupBy(slot => slot.PackageId)
                 .ToDictionary(group => group.Key, group => group.OrderByDescending(slot => slot.WindowStart).First());
 
-            return waiting.Select(p =>
-            {
-                activeSlots.TryGetValue(p.Id, out var slot);
-                return new ResidentPackageDto
+            return waiting
+                .OrderByDescending(p => p.RecievedAt)
+                .Select(p =>
                 {
-                    Id = p.Id,
-                    TrackingNumber = p.SphTrackingNumber.Value,
-                    ReceivedAt = p.RecievedAt,
-                    Courier = p.CourierPartner,
-                    Category = p.Category,
-                    Weight = p.Dimensions.Weight,
-                    FlatNumber = p.FlatNumber.Value,
-                    PkgNumber = p.PkgNumber,
-                    Status = p.Status.ToString(),
-                    IsCod = p.IsCod,
-                    CodAmount = p.CodAmount,
-                    CodApprovalStatus = p.CodApprovalStatus.ToString(),
-                    DeliverySlotStatus = slot?.Status,
-                    DeliverySlotWindowStart = slot?.WindowStart,
-                    DeliverySlotWindowEnd = slot?.WindowEnd,
-                    DeliverySlotLabel = slot == null
-                        ? null
-                        : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
-                };
-            }).ToList();
+                    activeSlots.TryGetValue(p.Id, out var slot);
+                    return new ResidentPackageDto
+                    {
+                        Id = p.Id,
+                        TrackingNumber = p.SphTrackingNumber.Value,
+                        ReceivedAt = p.RecievedAt,
+                        Courier = p.CourierPartner,
+                        Category = p.Category,
+                        Weight = p.Dimensions.Weight,
+                        FlatNumber = p.FlatNumber.Value,
+                        PkgNumber = p.PkgNumber,
+                        Status = p.Status.ToString(),
+                        IsCod = p.IsCod,
+                        CodAmount = p.CodAmount,
+                        CodApprovalStatus = p.CodApprovalStatus.ToString(),
+                        DeliverySlotStatus = slot?.Status,
+                        DeliverySlotWindowStart = slot?.WindowStart,
+                        DeliverySlotWindowEnd = slot?.WindowEnd,
+                        DeliverySlotLabel = slot == null
+                            ? null
+                            : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
+                    };
+                }).ToList();
         }
     }
 }

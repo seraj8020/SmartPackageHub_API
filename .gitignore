@@ -59,3 +59,7 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 .DS_Store
+
+## Local scratch / runtime blob storage (do not commit)
+.tmp/
+**/HubManagement.Api/App_Data/

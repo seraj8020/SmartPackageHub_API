@@ -37,14 +37,19 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
 
         [HttpPost("addresident")]
         [MapToApiVersion(ApiVersions.V2)]
-        //[Authorize(Roles = "Resident")]
-        [ProducesResponseType(typeof(CreatedResultEnvelope), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(Envelope), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Envelope), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> AddResident([FromBody] AddResidentCommand command)
         {
+            ArgumentNullException.ThrowIfNull(command);
             var result = await _mediator.Send(command).ConfigureAwait(false);
-            return Ok(result);
+            if (result.Conflict)
+                return Conflict(new { Message = result.Message });
+            if (!result.Succeeded || result.Id is null)
+                return BadRequest(new { Message = result.Message });
+
+            return Ok(new { id = result.Id.Value, Id = result.Id.Value, Message = result.Message });
         }
 
         [HttpGet("getresidentbyid/{residentid}")]

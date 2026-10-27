@@ -13,5 +13,11 @@ namespace SmartPackageHub.Common.Services.FeatureFlags.Options
         /// When false, COD intake/approve/reject are disabled and COD UI is hidden.
         /// </summary>
         public bool CashOnDelivery { get; set; } = true;
+
+        /// <summary>
+        /// When true, resident login OTP is sent via the configured SMS provider (Fast2SMS).
+        /// When false, OTP is generated (or Auth:FixedLoginOtp) and returned in the API response — no SMS cost.
+        /// </summary>
+        public bool SmsOtp { get; set; } = true;
     }
 }

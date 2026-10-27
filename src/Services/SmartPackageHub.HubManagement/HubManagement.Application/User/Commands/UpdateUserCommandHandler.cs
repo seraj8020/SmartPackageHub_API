@@ -54,6 +54,9 @@ namespace HubManagement.Application.HubUsers.Commands
             if (!string.IsNullOrWhiteSpace(request.Status))
                 user.ChangeStatus(request.Status);
 
+            if (request.PhoneNumber is not null)
+                user.SetPhoneNumber(request.PhoneNumber);
+
             static Role? ResolveUpdatedRole(string? role, bool? isAdmin, RoleType current)
             {
                 if (!string.IsNullOrWhiteSpace(role))

@@ -53,6 +53,7 @@ services.Configure<GzipCompressionProviderOptions>(options =>
 var headers = new[] { "X-Operation", "X-Resource", "X-Total-Count" };
 services.AddEndpointsApiExplorer();
 services.AddRedis(builder.Configuration);
+services.AddMemoryCache();
 services.AddHttpContextAccessor();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -94,6 +95,8 @@ services.AddRateLimiter(options =>
             }));
 });
 services.Configure<FeatureFlagsOptions>(builder.Configuration.GetSection(FeatureFlagsOptions.SectionName));
+services.Configure<HubManagement.Application.Auth.Options.AuthOptions>(
+    builder.Configuration.GetSection(HubManagement.Application.Auth.Options.AuthOptions.SectionName));
 services.AddSingleton<IFeatureFlags, FeatureFlagsService>();
 
 services.AddSwaggerDocs();

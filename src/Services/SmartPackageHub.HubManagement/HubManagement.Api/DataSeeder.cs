@@ -1,4 +1,5 @@
 using System.Reflection;
+using HubManagement.Application.Auth.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using HubManagement.Core.Hubs.ValueObjects;
@@ -47,7 +48,33 @@ internal static class DataSeeder
             Console.WriteLine($"Seed data already present.{count} rows inserted.");
         }
 
+        EnsureStaffPasswords(context);
         return webApp;
+    }
+
+    /// <summary>
+    /// Seeds a known local password for staff/admin users that have no PasswordHash yet.
+    /// Default: Staff@123 (change in production).
+    /// </summary>
+    private static void EnsureStaffPasswords(HubDbContext context)
+    {
+        const string defaultPassword = "Staff@123";
+        var updated = false;
+        foreach (var user in context.Users.ToList())
+        {
+            if (!string.IsNullOrWhiteSpace(user.PasswordHash))
+                continue;
+            if (user.Role.Type is not (RoleType.Staff or RoleType.Admin or RoleType.Courier))
+                continue;
+            user.SetPasswordHash(PasswordHasher.Hash(defaultPassword));
+            updated = true;
+        }
+
+        if (updated)
+        {
+            context.SaveChanges();
+            Console.WriteLine("Staff/admin seed passwords applied (default Staff@123).");
+        }
     }
 
     private static List<Society> BuildSocieties(List<SocietySeed> seeds) =>
@@ -69,7 +96,8 @@ internal static class DataSeeder
                 seed.Username,
                 ContactInfo.Create(seed.Email),
                 Role.Create(Enum.Parse<RoleType>(seed.Role, ignoreCase: true)),
-                seed.Status);
+                seed.Status,
+                phoneNumber: seed.PhoneNumber);
             AssignId(user, seed.Id);
             return user;
         }).ToList();

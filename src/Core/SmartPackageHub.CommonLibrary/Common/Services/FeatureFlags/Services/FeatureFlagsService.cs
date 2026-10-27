@@ -16,6 +16,8 @@ namespace SmartPackageHub.Common.Services.FeatureFlags.Services
 
         public bool CashOnDelivery => _options.CurrentValue.CashOnDelivery;
 
+        public bool SmsOtp => _options.CurrentValue.SmsOtp;
+
         public bool IsEnabled(string featureName)
         {
             if (string.IsNullOrWhiteSpace(featureName))
@@ -24,6 +26,7 @@ namespace SmartPackageHub.Common.Services.FeatureFlags.Services
             return featureName.Trim().ToUpperInvariant() switch
             {
                 "CASHONDELIVERY" or "COD" or "CASH_ON_DELIVERY" => CashOnDelivery,
+                "SMSOTP" or "SMS_OTP" or "LOGINOTP_SMS" or "SENDLOGINOTPSMS" => SmsOtp,
                 _ => false
             };
         }
@@ -31,7 +34,8 @@ namespace SmartPackageHub.Common.Services.FeatureFlags.Services
         public IReadOnlyDictionary<string, bool> GetAll() =>
             new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
             {
-                ["CashOnDelivery"] = CashOnDelivery
+                ["CashOnDelivery"] = CashOnDelivery,
+                ["SmsOtp"] = SmsOtp
             };
     }
 }

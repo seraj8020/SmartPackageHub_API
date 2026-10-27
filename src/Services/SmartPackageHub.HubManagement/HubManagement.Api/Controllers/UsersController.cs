@@ -46,7 +46,14 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> Create([FromBody] CreateUserRequest request)
         {
-            var result = await _mediator.Send(new CreateUserCommand(request.Username, request.Email, request.Role, request.IsAdmin, request.Status)).ConfigureAwait(false);
+            var result = await _mediator.Send(new CreateUserCommand(
+                request.Username,
+                request.Email,
+                request.Role,
+                request.IsAdmin,
+                request.Status,
+                request.Password,
+                request.PhoneNumber)).ConfigureAwait(false);
             if (result.Conflict)
                 return Conflict(new { Message = result.Message });
             if (!result.Succeeded)
@@ -63,7 +70,13 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> Update(Guid id, [FromBody] UpdateUserRequest request)
         {
-            var result = await _mediator.Send(new UpdateUserCommand(id, request.Email, request.Role, request.IsAdmin, request.Status)).ConfigureAwait(false);
+            var result = await _mediator.Send(new UpdateUserCommand(
+                id,
+                request.Email,
+                request.Role,
+                request.IsAdmin,
+                request.Status,
+                request.PhoneNumber)).ConfigureAwait(false);
             if (!result.Found)
                 return NotFound();
             if (result.Conflict)

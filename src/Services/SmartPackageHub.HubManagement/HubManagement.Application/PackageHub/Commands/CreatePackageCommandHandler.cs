@@ -3,6 +3,7 @@ using HubManagement.Core.Hubs.Entities;
 using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
+using HubManagement.Application.PackageHub.Services;
 
 namespace HubManagement.Application.PackageHub.Commands
 {

@@ -19,7 +19,19 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(p => p.Status).HasConversion<string>().IsRequired().HasMaxLength(50);
             builder.Property(p => p.CreatedAt).IsRequired();
             builder.Property(p => p.SentAt);
+            builder.Property(p => p.DeliveredAt);
             builder.Property(p => p.FailureReason).HasMaxLength(500);
+            builder.Property(p => p.IdempotencyKey).HasMaxLength(120);
+            builder.Property(p => p.ProviderRequestId).HasMaxLength(120);
+            builder.Property(p => p.FallbackOfNotificationId);
+            builder.Property(p => p.SegmentCount).IsRequired().HasDefaultValue(1);
+
+            builder.HasIndex(p => p.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("\"IdempotencyKey\" IS NOT NULL")
+                .HasDatabaseName("IX_Notifications_IdempotencyKey");
+            builder.HasIndex(p => p.ProviderRequestId)
+                .HasDatabaseName("IX_Notifications_ProviderRequestId");
 
             builder.OwnsOne(e => e.Channel, channelBuilder =>
             {

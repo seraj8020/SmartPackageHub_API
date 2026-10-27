@@ -28,7 +28,7 @@ namespace HubManagement.Core.Hubs.Entities
 
         private Resident() { }
 
-        private Resident(Guid societyId, Guid userId, string fullname, string phoneNo, string towerWing, string unitNumber, bool isMember, Uri picUrl, bool isActive)
+        private Resident(Guid societyId, Guid userId, string fullname, string phoneNo, string towerWing, string unitNumber, bool isMember, string? avatarUrl, bool isActive)
         {
             this.SocietyId = societyId;
             this.UserId = userId;
@@ -37,14 +37,13 @@ namespace HubManagement.Core.Hubs.Entities
             this.TowerWing = towerWing;
             this.Unit = UnitNumber.Create(unitNumber);
             this.IsMember = isMember;
-            this.AvatarUrl = picUrl.ToString();
+            this.AvatarUrl = avatarUrl;
             this.IsActive = isActive;
         }
 
 #pragma warning disable CA1054 // The avatar value is persisted as text and may be a relative path.
         public static Resident Create(Guid societyId, Guid userId, string fullname, string phoneNo, string towerWing, string unitNumber, bool isMember, Uri? picUrl, bool isActive)
         {
-            ArgumentNullException.ThrowIfNull(picUrl);
             if (string.IsNullOrWhiteSpace(fullname))
                 throw new ArgumentException("Name cannot be empty.", nameof(fullname));
             if (string.IsNullOrWhiteSpace(phoneNo))
@@ -53,7 +52,22 @@ namespace HubManagement.Core.Hubs.Entities
                 throw new ArgumentException("Tower or wing cannot be empty.", nameof(towerWing));
             if (string.IsNullOrWhiteSpace(unitNumber))
                 throw new ArgumentException("Flat number cannot be empty.", nameof(unitNumber));
-            return new Resident(societyId, userId, fullname.Trim(), phoneNo.Trim(), towerWing.Trim(), unitNumber, isMember, picUrl, isActive);
+            var avatar = picUrl is null || string.IsNullOrWhiteSpace(picUrl.OriginalString)
+                ? string.Empty
+                : picUrl.ToString();
+            return new Resident(societyId, userId, fullname.Trim(), phoneNo.Trim(), towerWing.Trim(), unitNumber, isMember, avatar, isActive);
+        }
+
+        public static Resident Create(Guid societyId, Guid userId, string fullname, string phoneNo, string towerWing, string unitNumber, bool isMember, string? avatarUrl, bool isActive)
+        {
+            Uri? uri = null;
+            if (!string.IsNullOrWhiteSpace(avatarUrl) &&
+                Uri.TryCreate(avatarUrl, UriKind.RelativeOrAbsolute, out var parsed))
+            {
+                uri = parsed;
+            }
+
+            return Create(societyId, userId, fullname, phoneNo, towerWing, unitNumber, isMember, uri, isActive);
         }
 #pragma warning restore CA1054
         // Domain Logic: Business rule constraint implementation

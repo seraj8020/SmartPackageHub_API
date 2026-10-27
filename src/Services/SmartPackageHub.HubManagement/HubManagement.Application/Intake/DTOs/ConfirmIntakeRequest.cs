@@ -20,5 +20,13 @@ namespace HubManagement.Application.Intake.DTOs
         public int? OcrElapsedMs { get; set; }
         public bool IsDamaged { get; set; }
         public string? DamageNote { get; set; }
+        public string? Category { get; set; }
+        public bool IsColdStorage { get; set; }
+        public double? Weight { get; set; }
+        public double? Length { get; set; }
+        public double? Width { get; set; }
+        public double? Height { get; set; }
+        public bool IsCod { get; set; }
+        public decimal? CodAmount { get; set; }
     }
 }

@@ -50,5 +50,10 @@ namespace HubManagement.Core.Hubs.Entities
 
             return false;
         }
+
+        public void MarkUsed()
+        {
+            IsUsed = true;
+        }
     }
 }

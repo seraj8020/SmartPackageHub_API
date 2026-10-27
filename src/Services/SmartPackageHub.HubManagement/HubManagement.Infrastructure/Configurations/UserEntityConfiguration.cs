@@ -14,6 +14,8 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 
             builder.Property(e => e.Username).IsRequired().HasMaxLength(100);
             builder.Property(e => e.Status).IsRequired().HasMaxLength(50);
+            builder.Property(e => e.PasswordHash).HasMaxLength(500);
+            builder.Property(e => e.PhoneNumber).HasMaxLength(50);
 
             builder.OwnsOne(e => e.ContactInfo, contactBuilder =>
             {

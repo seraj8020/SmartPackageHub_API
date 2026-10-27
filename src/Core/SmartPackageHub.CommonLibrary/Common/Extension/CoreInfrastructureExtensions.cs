@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SmartPackageHub.Common.Services.Storage.Abstractions;
+using SmartPackageHub.Common.Services.Storage.Services;
 
 namespace SmartPackageHub.Common.Extension
 {
@@ -11,9 +13,17 @@ namespace SmartPackageHub.Common.Extension
             ArgumentNullException.ThrowIfNull(configuration);
             services.AddRedis(configuration)
                 .AddHttpContextAccessor()
-                //.AddJwt(configuration)
-                //.ConfigureTokenRequester(configuration)
-                .AddSwaggerDocs();
+                .AddSwaggerDocs()
+                .AddLocalParcelPhotoStore();
+            return services;
+        }
+
+        /// <summary>
+        /// Local App_Data blob store for parcel / damage photos.
+        /// </summary>
+        public static IServiceCollection AddLocalParcelPhotoStore(this IServiceCollection services)
+        {
+            services.AddSingleton<IParcelPhotoStore, LocalBlobPhotoStore>();
             return services;
         }
     }

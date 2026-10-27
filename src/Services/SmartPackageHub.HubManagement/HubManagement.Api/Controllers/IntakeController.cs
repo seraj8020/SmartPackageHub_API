@@ -33,17 +33,21 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [HttpGet("match")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(MatchResponse), StatusCodes.Status200OK)]
-        public async Task<ActionResult> Match([FromQuery] string? tower, [FromQuery] string? flat, [FromQuery] string? name)
+        public async Task<ActionResult> Match(
+            [FromQuery] string? tower,
+            [FromQuery] string? flat,
+            [FromQuery] string? name,
+            [FromQuery] Guid? societyId)
         {
-            return Ok(await _mediator.Send(new MatchResidentsQuery(tower, flat, name)).ConfigureAwait(false));
+            return Ok(await _mediator.Send(new MatchResidentsQuery(tower, flat, name, societyId)).ConfigureAwait(false));
         }
 
         [HttpGet("residents")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(List<ResidentMatchDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult> Residents([FromQuery] string? q)
+        public async Task<ActionResult> Residents([FromQuery] string? q, [FromQuery] Guid? societyId)
         {
-            return Ok(await _mediator.Send(new SearchResidentsQuery(q)).ConfigureAwait(false));
+            return Ok(await _mediator.Send(new SearchResidentsQuery(q, societyId)).ConfigureAwait(false));
         }
 
         [HttpGet("shelf")]

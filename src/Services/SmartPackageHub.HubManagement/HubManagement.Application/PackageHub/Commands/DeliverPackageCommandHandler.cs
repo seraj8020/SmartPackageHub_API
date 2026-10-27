@@ -46,40 +46,47 @@ namespace HubManagement.Application.PackageHub.Commands
                 return new PackageCommandResult(false, false, false, "Package not found.", null);
             if (package.Status != PackageStatus.Dispatched)
                 return new PackageCommandResult(true, true, false, "Package must be dispatched before delivery.", null);
-            if (request.SocietyId != package.SocietyId ||
-                request.ResidentId != package.ResidentId ||
-                request.StaffUserId != package.StaffUserId)
+            if (package.ResidentId is not Guid packageResidentId || packageResidentId == Guid.Empty)
+                return new PackageCommandResult(true, false, false, "Package has no resident assigned.", null);
+
+            // Prefer package truth; only reject when client explicitly sends a mismatched override.
+            if (request.SocietyId is Guid societyId && societyId != Guid.Empty && societyId != package.SocietyId)
+                return new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null);
+            if (request.ResidentId is Guid residentId && residentId != Guid.Empty && residentId != packageResidentId)
+                return new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null);
+            if (request.StaffUserId is Guid staffUserId && staffUserId != Guid.Empty && staffUserId != package.StaffUserId)
                 return new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null);
 
-            var otpLogs = _otpLogs
-                .FetchMulti(log =>
-                    log.PackageId == package.Id &&
-                    log.ResidentId == request.ResidentId &&
-                    log.SocietyId == request.SocietyId &&
-                    log.Purpose == "Pickup" &&
-                    !log.IsUsed)
-                .ToList();
-            var otpLog = otpLogs.FirstOrDefault(log => log.ValidateCollection(request.Token.Trim()));
-            if (otpLog == null)
+            var token = request.Token.Trim();
+            var utcNow = DateTime.UtcNow;
+            var otpLog = await _otpLogs.FirstOrDefaultAsync(log =>
+                log.PackageId == package.Id &&
+                log.Purpose == "Pickup" &&
+                !log.IsUsed &&
+                log.Token != null &&
+                log.Token.Value == token &&
+                log.Expiry != null &&
+                log.Expiry.Value > utcNow).ConfigureAwait(false);
+
+            if (otpLog == null || !otpLog.ValidateCollection(token))
                 return new PackageCommandResult(true, false, false, "Invalid, expired, or already-used OTP.", null);
 
             package.DeliverPackage();
-            //Create a new Delivery entity with all the required details and mark it as delivered
             var delivery = Delivery.Create(
-                request.SocietyId,
+                package.SocietyId,
                 command.packageId,
-                request.StaffUserId,
-                request.ResidentId,
+                package.StaffUserId,
+                packageResidentId,
                 otpLog.Id,
                 request.BatchId,
                 string.IsNullOrWhiteSpace(request.Method) ? "CounterPickup" : request.Method,
-                DateTime.UtcNow,
+                utcNow,
                 request.Notes ?? $"Handed to '{package.RecipientName}' at Flat Number '{package.FlatNumber}'");
             delivery.CompleteDelivery();
             _deliveries.Insert(delivery);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogPackageDelivered(_logger, package.Id, null);
-            return new PackageCommandResult(true, false, true, "Package delivered.", PackageDetailsDto.From(package));
+            return new PackageCommandResult(true, false, true, "Package delivered.", null);
         }
     }
 }

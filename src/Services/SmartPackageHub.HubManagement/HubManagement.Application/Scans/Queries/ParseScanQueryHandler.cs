@@ -1,6 +1,7 @@
 using AutoMapper;
 using HubManagement.Application.Scans.DTOs;
 using SmartPackageHub.Applications.Abstractions.Queries;
+using HubManagement.Application.Scans.Helpers;
 
 namespace HubManagement.Application.Scans.Queries
 {

@@ -1,9 +1,17 @@
 using HubManagement.Application.HubResidents.Commands;
 using HubManagement.Application.HubResidents.DTOs;
 using HubManagement.Application.HubResidents.Queries;
+using SmartPackageHub.Common.Services.Messaging.Abstractions;
+using SmartPackageHub.Common.Services.Messaging.Encoding;
+using SmartPackageHub.Common.Services.Messaging.Guards;
+using SmartPackageHub.Common.Services.Messaging.Options;
+using SmartPackageHub.Common.Services.Messaging.Services;
+using HubManagement.Core.Hubs.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using SmartPackageHub.Applications.Abstractions.Repositories;
 using SmartPackageHub.Common.Types;
 using SmartPackageHub.Infrastructures.ActionResults;
 
@@ -14,21 +22,34 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
     public class ResidentsController : ControllerBase
     {
         readonly IMediator _mediator;
-        public ResidentsController(IMediator mediator)
+        readonly ISmsPumpingGuard _smsPumpingGuard;
+        readonly IRepository<Resident> _residents;
+
+        public ResidentsController(
+            IMediator mediator,
+            ISmsPumpingGuard smsPumpingGuard,
+            IRepository<Resident> residents)
         {
             _mediator = mediator;
+            _smsPumpingGuard = smsPumpingGuard;
+            _residents = residents;
         }
 
         [HttpPost("addresident")]
         [MapToApiVersion(ApiVersions.V2)]
-        //[Authorize(Roles = "Resident")]
-        [ProducesResponseType(typeof(CreatedResultEnvelope), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(Envelope), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(Envelope), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> AddResident([FromBody] AddResidentCommand command)
         {
+            ArgumentNullException.ThrowIfNull(command);
             var result = await _mediator.Send(command).ConfigureAwait(false);
-            return Ok(result);
+            if (result.Conflict)
+                return Conflict(new { Message = result.Message });
+            if (!result.Succeeded || result.Id is null)
+                return BadRequest(new { Message = result.Message });
+
+            return Ok(new { id = result.Id.Value, Id = result.Id.Value, Message = result.Message });
         }
 
         [HttpGet("getresidentbyid/{residentid}")]
@@ -58,18 +79,49 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
 
         [HttpPost("{id:guid}/otp")]
         [MapToApiVersion(ApiVersions.V2)]
+        [EnableRateLimiting("otp-sms")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> RequestOtp(Guid id)
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        public async Task<ActionResult> RequestOtp(Guid id, [FromBody] RequestOtpBody? body, CancellationToken cancellationToken)
         {
-            var result = await _mediator.Send(new RequestResidentOtpCommand(id)).ConfigureAwait(false);
+            var resident = await _residents.GetByIdAsync(id).ConfigureAwait(false);
+            if (resident is null)
+                return NotFound();
+
+            var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var phone = resident.PhoneNumber ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                var pumping = await _smsPumpingGuard.CheckAsync(
+                    clientIp,
+                    phone,
+                    body?.RecaptchaToken,
+                    cancellationToken).ConfigureAwait(false);
+                if (!pumping.Allowed)
+                    return BadRequest(new { Message = pumping.Reason });
+            }
+
+            var result = await _mediator.Send(
+                new RequestResidentOtpCommand(id, clientIp, body?.RecaptchaToken),
+                cancellationToken).ConfigureAwait(false);
+
             if (!result.ResidentFound)
                 return NotFound();
             if (result.Otp == null)
                 return BadRequest(new { Message = result.Message });
 
-            return Ok(new { Id = result.ResidentId, Otp = result.Otp, Message = result.Message });
+            if (result.SmsQueued && !string.IsNullOrWhiteSpace(phone))
+                await _smsPumpingGuard.RecordSuccessAsync(clientIp, phone, cancellationToken).ConfigureAwait(false);
+
+            return Ok(new
+            {
+                Id = result.ResidentId,
+                Otp = result.Otp,
+                Message = result.Message,
+                SmsQueued = result.SmsQueued
+            });
         }
 
         [HttpPost("{id:guid}/verify-otp")]
@@ -112,5 +164,10 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             var result = await _mediator.Send(new SaveResidentVacationHoldCommand(request.SocietyId, id,request.StartDate,request.EndDate, true)).ConfigureAwait(false);
             return Ok(new { result });
         }
+    }
+
+    public sealed class RequestOtpBody
+    {
+        public string? RecaptchaToken { get; set; }
     }
 }

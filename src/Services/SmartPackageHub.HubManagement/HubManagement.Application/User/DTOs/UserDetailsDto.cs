@@ -8,6 +8,7 @@ namespace HubManagement.Application.HubUsers.DTOs
         public Guid Id { get; set; }
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; }
         public string Role { get; set; } = string.Empty;
         public bool IsAdmin { get; set; }
         public string Status { get; set; } = string.Empty;
@@ -21,6 +22,7 @@ namespace HubManagement.Application.HubUsers.DTOs
                 Id = user.Id,
                 Username = user.Username,
                 Email = user.ContactInfo?.Email ?? string.Empty,
+                PhoneNumber = user.PhoneNumber,
                 Role = role.ToString(),
                 IsAdmin = role == RoleType.Admin,
                 Status = user.Status

@@ -1,7 +1,5 @@
 using HubManagement.Core.Hubs.Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using SmartPackageHub.Domains.Abstractions.Entities;
 using SmartPackageHub.HubManagement.Infrastructure.Configurations;
 
@@ -9,13 +7,9 @@ namespace SmartPackageHub.HubManagement.Infrastructure
 {
     public sealed class HubDbContext : DbContext
     {
-        private static readonly ILoggerFactory DebugLoggerFactory = new LoggerFactory(new[] { new Microsoft.Extensions.Logging.Debug.DebugLoggerProvider() });
-        private readonly IHostEnvironment? _env;
-
-        public HubDbContext(DbContextOptions<HubDbContext> options, IHostEnvironment? env
-            ) : base(options)
+        // Pooling forbids mutating options in OnConfiguring — configure logging in AddDbContextPool instead.
+        public HubDbContext(DbContextOptions<HubDbContext> options) : base(options)
         {
-            _env = env;
         }
 
         public DbSet<Society> Societies { get; set; }
@@ -29,6 +23,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         public DbSet<UserSociety> UsersSocieties { get; set; }
         public DbSet<Shelf> Shelves { get; set; }
         public DbSet<Delivery> Deliveries { get; set; }
+        public DbSet<DeliverySlot> DeliverySlots { get; set; }
         public DbSet<Membership> Memberships { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<OtpLog> OTPLogs { get; set; }
@@ -42,16 +37,6 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         public DbSet<SecureBag> SecureBags { get; set; }
         public DbSet<DigitalSignOffReceipt> DigitalSignOffReceipts { get; set; }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            ArgumentNullException.ThrowIfNull(optionsBuilder);
-            if (_env != null && _env.IsDevelopment())
-            {
-                // used to print activity when debugging
-                optionsBuilder.UseLoggerFactory(DebugLoggerFactory);
-            }
-        }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             ArgumentNullException.ThrowIfNull(modelBuilder);
@@ -60,6 +45,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AuditLogsEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(CourierBlacklistEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeliveryEntityConfiguration).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeliverySlotEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(DispatchBatchEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(GuestAccessEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(MembershipEntityConfiguration).Assembly);

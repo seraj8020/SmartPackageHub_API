@@ -7,20 +7,21 @@ services:
       - ./pgdata:/var/lib/postgresql/data/
       - ./postgres-init:/docker-entrypoint-initdb.d
     environment:
-       POSTGRES_DB: keycloak_db
-       POSTGRES_USER: keycloak
-       POSTGRES_PASSWORD: keycloakpassword
-       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      POSTGRES_DB: PackageHubRevamp
+      POSTGRES_USER: SpHubAdmin
+      POSTGRES_PASSWORD: Admin@123
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      test: ["CMD-SHELL", "pg_isready -U SpHubAdmin -d PackageHubRevamp"]
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - 5434:5434
+      - 5434:5432
     networks:
       - backend
+
   pgadmin:
     container_name: pgadmin_container
     image: dpage/pgadmin4
@@ -31,94 +32,12 @@ services:
       - 5050:80
     volumes:
       - pgadmin_data:/var/lib/pgadmin
-    networks: 
+    networks:
       - backend
     depends_on:
-       postgres:
+      postgres:
         condition: service_started
-    restart: 
-      on-failure
-  keycloak:
-    container_name: bankingkeycloak_identity
-    build:
-      context: .
-      dockerfile: ./KeyCloakDockerfile/Dockerfile
-    environment:
-        KC_DB_URL_HOST: postgres
-        KC_DB: postgres 
-        KC_DB_URL_DATABASE: keycloak_db
-        KC_DB_USERNAME: keycloak
-        KC_DB_PASSWORD: keycloakpassword
-        KC_BOOTSTRAP_ADMIN_USERNAME: admin
-        KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-        KC_HOSTNAME: localhost
-        KC_HOSTNAME_STRICT_BACKCHANNEL: "false"
-        KC_HOSTNAME_STRICT_HTTPS: "false"
-        KC_TRANSACTION_XA_ENABLED: "true" # default: true
-        QUARKUS_TRANSACTION_MANAGER_ENABLE_RECOVERY: "true"
-        KC_DB_URL:  jdbc:postgresql://postgres:5432/keycloak_db
-        KC_HTTP_ENABLED: "true"
-        KC_LOG_LEVEL: info
-        KC_METRICS_ENABLED: "true"
-    volumes:
-      - ./data/import:/opt/keycloak/data/import
-    depends_on:
-       postgres:
-          condition: service_healthy 
-    ports:
-      - 8084:8084
-      - 9000:9000
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\r\nhost: http://localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"] 
-      start_period: 10s
-      interval: 30s
-      retries: 3
-      timeout: 5s
-    restart: always
-    networks :
-      - backend
-       
-  mongodb:
-    image: mongo:8.0
-    container_name : mymongo
-    ports:
-      - 27017:27017
-    restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: root123
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh --port 27017 --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    volumes:
-      - mongo_config:/data/configdb
-      - mongodb_data:/data/db
-      - ./data/mongo/001_users.js:/docker-entrypoint-initdb.d/001_users.js:ro
-    networks:
-      - backend
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - 15672:15672
-      - 5672:5672
-    healthcheck:
-      test: rabbitmq-diagnostics check_port_connectivity
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-    restart: always
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq:rw
-    networks:
-      - backend
+    restart: on-failure
 
   redis:
     image: redis:latest
@@ -130,12 +49,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-      start_period: 10s # Optional: Time to wait before starting health checks
+      start_period: 10s
     restart: always
     volumes:
       - redis_data:/docker_data/redis:rw
     networks:
       - backend
+
   seq:
     image: datalust/seq:2024.3
     container_name: seq
@@ -155,25 +75,23 @@ services:
       start_period: 5s
     networks:
       - backend
+
   seq-input-gelf:
     image: datalust/seq-input-gelf:latest
     depends_on:
-      - seq # Ensures Seq starts before the GELF input
+      - seq
     ports:
-      - "12201:12201/udp" # GELF UDP input
+      - "12201:12201/udp"
     environment:
-      SEQ_ADDRESS: "http://seq:5341" # Address of the Seq service
+      SEQ_ADDRESS: "http://seq:5341"
     restart: unless-stopped
+    networks:
+      - backend
+
 volumes:
-  db-data:
-    driver: local  
   pgadmin_data:
-  rabbitmq_data:
   redis_data:
-  mongodb_data:
-    driver: local
-  mongo_config:
-    driver: local  
+
 networks:
   backend:
     name: backend

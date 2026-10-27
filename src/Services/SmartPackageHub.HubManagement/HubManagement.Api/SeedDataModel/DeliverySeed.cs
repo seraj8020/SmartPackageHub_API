@@ -9,9 +9,6 @@ namespace HubManagement.Api.SeedDataModel
         public Guid ResidentId { get; set; }
         public string Method { get; set; } = "CounterPickup";
         public DateTime DeliveredAt { get; set; }
-        public DateTime SlotStart { get; set; }
-        public DateTime SlotEnd { get; set; }
-        public string SlotStatus { get; set; } = "booked";
         public string Status { get; set; } = "Completed";
         public string Notes { get; set; } = string.Empty;
     }

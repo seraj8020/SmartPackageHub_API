@@ -1,3 +1,4 @@
+using HubManagement.Application.Auth.Services;
 using HubManagement.Application.HubUsers.DTOs;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
@@ -39,7 +40,25 @@ namespace HubManagement.Application.HubUsers.Commands
             if (role == null)
                 return new UserCommandResult(true, false, false, "Role must be Admin, Courier, Resident, or Staff.", null);
 
-            var user = User.Create(request.Username.Trim(), ContactInfo.Create(request.Email.Trim()), role, string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim());
+            string? passwordHash = null;
+            if (!string.IsNullOrWhiteSpace(request.Password))
+            {
+                if (request.Password.Trim().Length < 6)
+                    return new UserCommandResult(true, false, false, "Password must be at least 6 characters.", null);
+                passwordHash = PasswordHasher.Hash(request.Password.Trim());
+            }
+            else if (role.Type is RoleType.Staff or RoleType.Admin or RoleType.Courier)
+            {
+                return new UserCommandResult(true, false, false, "Password is required for staff/admin accounts.", null);
+            }
+
+            var user = User.Create(
+                request.Username.Trim(),
+                ContactInfo.Create(request.Email.Trim()),
+                role,
+                string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim(),
+                passwordHash,
+                request.PhoneNumber);
             _users.Insert(user);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogCreatedUser(_logger, user.Id, null);

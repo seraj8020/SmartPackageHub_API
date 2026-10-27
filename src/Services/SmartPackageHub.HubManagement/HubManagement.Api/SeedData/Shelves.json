@@ -1,6 +1,12 @@
 [
   { "id": "51000000-0000-4000-8000-000000000001", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "code": "PFP-A-01", "towerOrWing": "Tower A", "isColdStorage": false, "capacity": 40, "zone": "Hub", "aisle": "A", "tier": 1 },
   { "id": "51000000-0000-4000-8000-000000000002", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "code": "PFP-COLD-01", "towerOrWing": "Tower A", "isColdStorage": true, "capacity": 12, "zone": "Cold", "aisle": "C", "tier": 1 },
+  { "id": "51000000-0000-4000-8000-000000000011", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "code": "A-1", "towerOrWing": "A", "isColdStorage": false, "capacity": 40, "zone": "Hub", "aisle": "A", "tier": 1 },
+  { "id": "51000000-0000-4000-8000-000000000012", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "code": "A-2", "towerOrWing": "A", "isColdStorage": false, "capacity": 40, "zone": "Hub", "aisle": "A", "tier": 2 },
+  { "id": "51000000-0000-4000-8000-000000000013", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "code": "B-1", "towerOrWing": "B", "isColdStorage": false, "capacity": 40, "zone": "Hub", "aisle": "B", "tier": 1 },
+  { "id": "51000000-0000-4000-8000-000000000014", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "code": "B-2", "towerOrWing": "B", "isColdStorage": false, "capacity": 40, "zone": "Hub", "aisle": "B", "tier": 2 },
+  { "id": "51000000-0000-4000-8000-000000000015", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "code": "C-1", "towerOrWing": "C", "isColdStorage": false, "capacity": 40, "zone": "Hub", "aisle": "C", "tier": 1 },
+  { "id": "51000000-0000-4000-8000-000000000016", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "code": "D-1", "towerOrWing": "D", "isColdStorage": false, "capacity": 40, "zone": "Hub", "aisle": "D", "tier": 1 },
   { "id": "51000000-0000-4000-8000-000000000003", "societyId": "7199e325-70fd-4763-98b5-8db65cbdaf2a", "code": "REG-C-01", "towerOrWing": "Tower C", "isColdStorage": false, "capacity": 40, "zone": "Hub", "aisle": "C", "tier": 1 },
   { "id": "51000000-0000-4000-8000-000000000004", "societyId": "7199e325-70fd-4763-98b5-8db65cbdaf2a", "code": "REG-COLD-01", "towerOrWing": "Tower D", "isColdStorage": true, "capacity": 12, "zone": "Cold", "aisle": "D", "tier": 1 },
   { "id": "51000000-0000-4000-8000-000000000005", "societyId": "937df1d5-5b9c-4fea-8e16-34d5d86cff15", "code": "ELD-E-01", "towerOrWing": "Tower E", "isColdStorage": false, "capacity": 40, "zone": "Hub", "aisle": "E", "tier": 1 },

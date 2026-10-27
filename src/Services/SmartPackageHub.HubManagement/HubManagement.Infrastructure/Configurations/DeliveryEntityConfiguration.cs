@@ -1,7 +1,6 @@
 using HubManagement.Core.Hubs.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using ValueObjects = HubManagement.Core.Hubs.ValueObjects;
 
 namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 {
@@ -21,12 +20,6 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(p => p.Method).HasMaxLength(100);
             builder.Property(p => p.DeliveredAt).IsRequired();
             builder.Property(p => p.Notes).HasMaxLength(500);
-
-            builder.OwnsOne(e => e.Slot, slotBuilder =>
-            {
-                slotBuilder.Property(s => s.StartTime).HasColumnName("SlotStartTime").IsRequired();
-                slotBuilder.Property(s => s.EndTime).HasColumnName("SlotEndTime").IsRequired();
-            });
 
             builder.OwnsOne(e => e.Status, statusBuilder =>
             {

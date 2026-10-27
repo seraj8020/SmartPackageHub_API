@@ -6,7 +6,7 @@
     <ProjectGuid>9a7392e9-3aca-4a70-bdab-45dd99f14fe4</ProjectGuid>
     <DockerLaunchAction>LaunchBrowser</DockerLaunchAction>
     <DockerServiceUrl>{Scheme}://localhost:{ServicePort}/swagger</DockerServiceUrl>
-    <DockerServiceName>smartpackagehub.identity</DockerServiceName>
+    <DockerServiceName>hubmanagement.api</DockerServiceName>
   </PropertyGroup>
   <ItemGroup>
     <None Include="docker-compose.yml" />

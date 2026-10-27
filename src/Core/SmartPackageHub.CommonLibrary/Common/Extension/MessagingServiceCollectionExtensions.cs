@@ -1,0 +1,44 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using SmartPackageHub.Common.Services.Messaging.Abstractions;
+using SmartPackageHub.Common.Services.Messaging.Options;
+using SmartPackageHub.Common.Services.Messaging.Services;
+
+namespace SmartPackageHub.Common.Extension
+{
+    public static class MessagingServiceCollectionExtensions
+    {
+        /// <summary>
+        /// Registers Fast2SMS / WhatsApp / Redis outbound messaging (no hosted workers).
+        /// Call <c>AddHubManagementWorkers()</c> from HubManagement.Workers for background processing.
+        /// </summary>
+        public static IServiceCollection AddOutboundMessaging(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.Configure<Fast2SmsOptions>(configuration.GetSection(Fast2SmsOptions.SectionName));
+            services.Configure<WhatsAppFallbackOptions>(configuration.GetSection(WhatsAppFallbackOptions.SectionName));
+            services.Configure<SmsPumpingProtectionOptions>(configuration.GetSection(SmsPumpingProtectionOptions.SectionName));
+            services.Configure<OutboundMessageQueueOptions>(configuration.GetSection(OutboundMessageQueueOptions.SectionName));
+
+            services.AddSingleton<IOutboundMessageQueue, RedisOutboundMessageQueue>();
+            services.AddScoped<IOtpSmsDispatcher, OtpSmsDispatcher>();
+            services.AddScoped<ISmsPumpingGuard, SmsPumpingGuard>();
+
+            services.AddHttpClient<ISmsSender, Fast2SmsClient>((_, client) =>
+            {
+                var options = configuration.GetSection(Fast2SmsOptions.SectionName).Get<Fast2SmsOptions>()
+                    ?? new Fast2SmsOptions();
+                client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
+
+            services.AddHttpClient<IWhatsAppSender, WhatsAppFallbackSender>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
+
+            services.AddHttpClient("Recaptcha");
+
+            return services;
+        }
+    }
+}

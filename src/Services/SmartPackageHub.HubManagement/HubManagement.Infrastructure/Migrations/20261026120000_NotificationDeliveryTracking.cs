@@ -1,11 +1,15 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using SmartPackageHub.HubManagement.Infrastructure;
 
 #nullable disable
 
 namespace HubManagement.Infrastructure.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(HubDbContext))]
+    [Migration("20261026120000_NotificationDeliveryTracking")]
     public partial class NotificationDeliveryTracking : Migration
     {
         /// <inheritdoc />

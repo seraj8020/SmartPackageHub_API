@@ -15,6 +15,14 @@
     "role": "Admin",
     "status": "Active"
   },
+  {
+    "id": "33333333-3333-4333-8333-333333333333",
+    "username": "platform.admin",
+    "email": "majid.akhter@pharmarena-x.com",
+    "phoneNumber": "9900783612",
+    "role": "PlatformAdmin",
+    "status": "Active"
+  },
   { "id": "a2b1459b-2afd-4743-838e-390aeb80f238", "username": "olivia.scott", "email": "olivia.scott@smartpackagehub.local", "role": "Resident", "status": "Active" },
   { "id": "a291b5ce-cc7f-426c-b783-b21663448794", "username": "eve.davis", "email": "eve.davis@smartpackagehub.local", "role": "Resident", "status": "Active" },
   { "id": "a9935277-0426-45ce-a465-62c5faabf727", "username": "alice.smith", "email": "alice.smith@smartpackagehub.local", "role": "Resident", "status": "Active" },

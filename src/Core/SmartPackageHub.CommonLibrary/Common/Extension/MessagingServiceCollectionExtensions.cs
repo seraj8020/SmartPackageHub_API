@@ -18,10 +18,17 @@ namespace SmartPackageHub.Common.Extension
             services.Configure<WhatsAppFallbackOptions>(configuration.GetSection(WhatsAppFallbackOptions.SectionName));
             services.Configure<SmsPumpingProtectionOptions>(configuration.GetSection(SmsPumpingProtectionOptions.SectionName));
             services.Configure<OutboundMessageQueueOptions>(configuration.GetSection(OutboundMessageQueueOptions.SectionName));
+            services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
 
             services.AddSingleton<IOutboundMessageQueue, RedisOutboundMessageQueue>();
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
             services.AddScoped<IOtpSmsDispatcher, OtpSmsDispatcher>();
             services.AddScoped<ISmsPumpingGuard, SmsPumpingGuard>();
+
+            services.AddHttpClient("EmailHttp", client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
 
             services.AddHttpClient<ISmsSender, Fast2SmsClient>((_, client) =>
             {

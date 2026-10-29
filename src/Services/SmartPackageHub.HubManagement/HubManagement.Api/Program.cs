@@ -80,7 +80,8 @@ services.AddRateLimiter(options =>
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 5,
+                // Local/dev MFA + resident OTP testing shares this bucket per IP.
+                PermitLimit = 40,
                 Window = TimeSpan.FromMinutes(15),
                 QueueLimit = 0
             }));
@@ -98,6 +99,7 @@ services.Configure<FeatureFlagsOptions>(builder.Configuration.GetSection(Feature
 services.Configure<HubManagement.Application.Auth.Options.AuthOptions>(
     builder.Configuration.GetSection(HubManagement.Application.Auth.Options.AuthOptions.SectionName));
 services.AddSingleton<IFeatureFlags, FeatureFlagsService>();
+services.AddSingleton<HubManagement.Application.Auth.Services.PlatformAdminSessionStore>();
 
 services.AddSwaggerDocs();
 builder.Services.AddHealthChecks()

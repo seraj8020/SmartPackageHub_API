@@ -47,7 +47,7 @@ namespace HubManagement.Application.HubUsers.Commands
                     return new UserCommandResult(true, false, false, "Password must be at least 6 characters.", null);
                 passwordHash = PasswordHasher.Hash(request.Password.Trim());
             }
-            else if (role.Type is RoleType.Staff or RoleType.Admin or RoleType.Courier)
+            else if (role.Type is RoleType.Staff or RoleType.Admin or RoleType.PlatformAdmin or RoleType.Courier)
             {
                 return new UserCommandResult(true, false, false, "Password is required for staff/admin accounts.", null);
             }

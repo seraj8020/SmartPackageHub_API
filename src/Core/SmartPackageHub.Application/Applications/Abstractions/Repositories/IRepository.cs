@@ -21,5 +21,12 @@ namespace SmartPackageHub.Applications.Abstractions.Repositories
             bool noTracking = false);
         void Update(T item);
         IQueryable<T> FetchMulti(Expression<Func<T, bool>>? predicate = null, bool noTracking = false);
+
+        /// <summary>EF Core ExecuteUpdate for a single column (avoids owned-type tracking issues).</summary>
+        Task<int> ExecuteUpdatePropertyAsync<TProperty>(
+            Expression<Func<T, bool>> predicate,
+            Expression<Func<T, TProperty>> propertyExpression,
+            TProperty value,
+            CancellationToken cancellationToken = default);
     }
 }

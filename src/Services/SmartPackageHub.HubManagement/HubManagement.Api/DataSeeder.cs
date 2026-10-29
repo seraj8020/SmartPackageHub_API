@@ -49,6 +49,8 @@ internal static class DataSeeder
         }
 
         EnsureStaffPasswords(context);
+        EnsurePlatformAdminRole(context);
+        EnsurePlatformAdminEmail(context);
         return webApp;
     }
 
@@ -64,7 +66,7 @@ internal static class DataSeeder
         {
             if (!string.IsNullOrWhiteSpace(user.PasswordHash))
                 continue;
-            if (user.Role.Type is not (RoleType.Staff or RoleType.Admin or RoleType.Courier))
+            if (user.Role.Type is not (RoleType.Staff or RoleType.Admin or RoleType.PlatformAdmin or RoleType.Courier))
                 continue;
             user.SetPasswordHash(PasswordHasher.Hash(defaultPassword));
             updated = true;
@@ -74,6 +76,59 @@ internal static class DataSeeder
         {
             context.SaveChanges();
             Console.WriteLine("Staff/admin seed passwords applied (default Staff@123).");
+        }
+    }
+
+    /// <summary>
+    /// Ensures seeded platform.admin uses Role = PlatformAdmin (not society Admin).
+    /// </summary>
+    private static void EnsurePlatformAdminRole(HubDbContext context)
+    {
+        var updated = false;
+        foreach (var user in context.Users.ToList())
+        {
+            if (!string.Equals(user.Username, "platform.admin", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (user.Role.Type == RoleType.PlatformAdmin)
+                continue;
+            user.ChangeRole(Role.Create(RoleType.PlatformAdmin));
+            updated = true;
+        }
+
+        if (updated)
+        {
+            context.SaveChanges();
+            Console.WriteLine("platform.admin role set to PlatformAdmin.");
+        }
+    }
+
+    /// <summary>
+    /// Points platform.admin at a deliverable mailbox so forgot-password/username emails work with Zoho.
+    /// </summary>
+    private static void EnsurePlatformAdminEmail(HubDbContext context)
+    {
+        const string deliverableEmail = "majid.akhter@pharmarena-x.com";
+        var updated = false;
+        foreach (var user in context.Users.ToList())
+        {
+            if (!string.Equals(user.Username, "platform.admin", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var current = user.ContactInfo?.Email;
+            if (string.Equals(current, deliverableEmail, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (!string.IsNullOrWhiteSpace(current) &&
+                !current.EndsWith(".local", StringComparison.OrdinalIgnoreCase) &&
+                !current.Contains("smartpackagehub.local", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            user.ChangeContact(ContactInfo.Create(deliverableEmail));
+            updated = true;
+        }
+
+        if (updated)
+        {
+            context.SaveChanges();
+            Console.WriteLine($"Platform admin email updated to {deliverableEmail}.");
         }
     }
 

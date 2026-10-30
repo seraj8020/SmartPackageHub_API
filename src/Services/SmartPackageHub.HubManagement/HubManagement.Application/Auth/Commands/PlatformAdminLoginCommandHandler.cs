@@ -43,7 +43,16 @@ namespace HubManagement.Application.Auth.Commands
                 .FirstOrDefault(item =>
                     string.Equals(item.Username, username, StringComparison.OrdinalIgnoreCase));
 
-            // PlatformAdmin or society Admin only. Staff/Resident/Courier rejected.
+            // Valid Staff credentials → explicit Admin Portal denial (not generic invalid login).
+            if (user is not null &&
+                string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase) &&
+                user.Role.Type == RoleType.Staff &&
+                PasswordHasher.Verify(password, user.PasswordHash))
+            {
+                return Task.FromResult(FailStaff());
+            }
+
+            // PlatformAdmin or society Admin only. Resident/Courier rejected as invalid login.
             if (user is null ||
                 !string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase) ||
                 user.Role.Type is not (RoleType.Admin or RoleType.PlatformAdmin) ||
@@ -99,6 +108,17 @@ namespace HubManagement.Application.Auth.Commands
 
         private static PlatformAdminLoginResult Fail(string message) =>
             new(false, false, null, null, null, null, message);
+
+        private static PlatformAdminLoginResult FailStaff() =>
+            new(
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                "Your account role is Staff. Admin Portal is for Platform Admin and Society Admin only. Continue in Staff App for intake, shelves, and handover.",
+                RoleType.Staff.ToString());
 
         private static string MaskEmail(string email)
         {

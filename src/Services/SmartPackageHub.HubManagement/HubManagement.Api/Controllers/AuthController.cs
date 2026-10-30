@@ -126,6 +126,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult> PlatformAdminLogin(
             [FromBody] PlatformAdminLoginRequest request,
             CancellationToken cancellationToken)
@@ -136,7 +137,19 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 .ConfigureAwait(false);
 
             if (!result.Succeeded)
+            {
+                if (string.Equals(result.Role, "Staff", StringComparison.OrdinalIgnoreCase))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new
+                    {
+                        Message = result.Message,
+                        Code = "StaffAdminPortalDenied",
+                        Role = result.Role
+                    });
+                }
+
                 return Unauthorized(new { Message = result.Message });
+            }
 
             return Ok(new
             {

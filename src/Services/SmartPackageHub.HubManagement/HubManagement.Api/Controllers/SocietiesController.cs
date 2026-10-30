@@ -96,6 +96,19 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return NoContent();
         }
 
+        [HttpGet("{societyid:guid}/shelves")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(List<SocietyShelfDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetShelves(Guid societyid)
+        {
+            var shelves = await _mediator.Send(new GetShelvesBySocietyIdQuery(societyid)).ConfigureAwait(false);
+            if (shelves == null)
+                return NotFound();
+
+            return Ok(shelves);
+        }
+
         [HttpGet("{societyid:guid}/packages")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(List<ResidentPackageDto>), StatusCodes.Status200OK)]

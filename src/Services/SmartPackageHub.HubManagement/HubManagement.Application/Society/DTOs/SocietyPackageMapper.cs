@@ -11,14 +11,27 @@ namespace HubManagement.Application.Societies.DTOs
             IReadOnlyDictionary<Guid, string> shelfCodesById,
             DateTime? deliveredAt = null,
             DeliverySlot? slot = null,
-            IReadOnlyDictionary<Guid, int>? shelfCapacitiesById = null)
+            IReadOnlyDictionary<Guid, int>? shelfCapacitiesById = null,
+            IReadOnlyDictionary<Guid, bool>? shelfColdById = null)
         {
             ArgumentNullException.ThrowIfNull(package);
             string? shelfCode = null;
-            if (package.ShelfId is Guid shelfId &&
-                shelfCodesById.TryGetValue(shelfId, out var code))
+            var shelfIsCold = false;
+            if (package.ShelfId is Guid shelfId)
             {
-                shelfCode = code;
+                if (shelfCodesById.TryGetValue(shelfId, out var code))
+                    shelfCode = code;
+                if (shelfColdById != null && shelfColdById.TryGetValue(shelfId, out var cold))
+                    shelfIsCold = cold;
+            }
+
+            // Capacity comes from the assigned shelf when available.
+            int? shelfCapacity = null;
+            if (package.ShelfId is Guid capacityShelfId &&
+                shelfCapacitiesById != null &&
+                shelfCapacitiesById.TryGetValue(capacityShelfId, out var capacity))
+            {
+                shelfCapacity = capacity;
             }
 
             return new SocietyPackageDto
@@ -36,8 +49,8 @@ namespace HubManagement.Application.Societies.DTOs
                 TowerWing = string.IsNullOrWhiteSpace(package.TowerWing) ? null : package.TowerWing,
                 FlatNumber = package.FlatNumber.Value,
                 ShelfCode = shelfCode,
-                ShelfCapacity = package.ShelfId is Guid capacityShelfId && shelfCapacitiesById != null && shelfCapacitiesById.TryGetValue(capacityShelfId, out var capacity) ? capacity : null,
-                IsColdStorage = package.IsColdStorage,
+                ShelfCapacity = shelfCapacity,
+                IsColdStorage = package.IsColdStorage || shelfIsCold,
                 Status = package.Status.ToString(),
                 IsCod = package.IsCod,
                 CodAmount = package.CodAmount,

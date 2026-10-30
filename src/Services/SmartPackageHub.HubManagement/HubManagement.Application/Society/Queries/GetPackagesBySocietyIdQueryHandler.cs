@@ -71,12 +71,18 @@ namespace HubManagement.Application.Societies.Queries
 
             var shelfCodes = SocietyPackageMapper.BuildShelfCodeLookup(ordered, shelves);
             var shelfCapacities = shelves.ToDictionary(shelf => shelf.Id, shelf => shelf.Capacity);
+            var shelfCold = shelves.ToDictionary(shelf => shelf.Id, shelf => shelf.IsColdStorage);
             var activeSlots = SocietyPackageMapper.BuildActiveSlotLookup(ordered, slots);
 
             return ordered.Select(p =>
             {
                 activeSlots.TryGetValue(p.Id, out var slot);
-                return SocietyPackageMapper.Map(p, shelfCodes, slot: slot, shelfCapacitiesById: shelfCapacities);
+                return SocietyPackageMapper.Map(
+                    p,
+                    shelfCodes,
+                    slot: slot,
+                    shelfCapacitiesById: shelfCapacities,
+                    shelfColdById: shelfCold);
             }).ToList();
         }
     }

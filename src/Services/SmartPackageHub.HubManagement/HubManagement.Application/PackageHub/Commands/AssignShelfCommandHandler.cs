@@ -119,24 +119,32 @@ namespace HubManagement.Application.PackageHub.Commands
                 }
             }
 
-            var shelfCode = IntakeText.Clean(command.ShelfCode, 50);
-            if (shelfCode == null)
+            var requestedCode = IntakeText.Clean(command.ShelfCode, 50);
+            var societyShelves = _shelves.FetchMulti(shelf => shelf.SocietyId == package.SocietyId).ToList();
+            var shelf = requestedCode == null ? null : societyShelves.FirstOrDefault(item =>
+                string.Equals(item.Code, requestedCode, StringComparison.OrdinalIgnoreCase));
+            var wasSuggested = shelf == null;
+
+            if (shelf == null)
             {
-                return new AssignShelfResult
-                {
-                    Found = true,
-                    Succeeded = false,
-                    Message = "Shelf code is required.",
-                };
+                var societyPackages = _packages.FetchMulti(item => item.SocietyId == package.SocietyId).ToList();
+                shelf = ShelfSuggester.Suggest(
+                    societyShelves,
+                    societyPackages,
+                    package.SocietyId,
+                    command.IsColdStorage || package.IsColdStorage);
             }
 
-            var shelf = ResolveOrCreateShelf(package.SocietyId, shelfCode, command.IsColdStorage || package.IsColdStorage);
-            package.AssignShelf(shelf.Id);
-            package.ShelfPackage();
+            if (shelf != null)
+            {
+                package.AssignShelf(shelf.Id);
+                // Full shelves remain assignable so intake is never blocked.
+                package.ShelfPackage();
+            }
 
             string? otp = null;
             Resident? resident = null;
-            if (package.ResidentId is Guid residentId)
+            if (shelf != null && package.ResidentId is Guid residentId)
             {
                 resident = await _residents.GetByIdAsync(residentId).ConfigureAwait(false);
                 if (resident != null)
@@ -153,53 +161,20 @@ namespace HubManagement.Application.PackageHub.Commands
             if (intake != null)
                 _queue.Enqueue(intake.Id);
 
-            LogShelfAssigned(_logger, shelf.Code, package.Id, null);
+            if (shelf != null)
+                LogShelfAssigned(_logger, shelf.Code, package.Id, null);
 
             return new AssignShelfResult
             {
                 Found = true,
                 Succeeded = true,
-                Message = "Package shelved. Pickup OTP queued for the resident.",
-                Receipt = await MapReceiptAsync(intake, package, shelf.Code, otp, resident).ConfigureAwait(false),
+                Message = shelf == null
+                    ? "No shelf is configured for this society. Package remains received and shelf is unassigned."
+                    : wasSuggested
+                        ? $"Requested shelf was unavailable. Package shelved at {shelf.Code}."
+                        : "Package shelved. Pickup OTP queued for the resident.",
+                Receipt = await MapReceiptAsync(intake, package, shelf?.Code ?? string.Empty, otp, resident).ConfigureAwait(false),
             };
-        }
-
-        private Shelf ResolveOrCreateShelf(Guid societyId, string code, bool isColdStorage)
-        {
-            // Load society shelves first ? string.Equals(..., OrdinalIgnoreCase) is not EF-translatable.
-            var societyShelves = _shelves.GetAll()
-                .Where(item => item.SocietyId == societyId)
-                .AsEnumerable()
-                .ToList();
-            var existing = societyShelves.FirstOrDefault(item =>
-                string.Equals(item.Code, code, StringComparison.OrdinalIgnoreCase));
-            if (existing != null)
-                return existing;
-
-            var aisle = "A";
-            var tier = 1;
-            var parts = code.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length >= 2)
-            {
-                var aisleToken = parts[^2];
-                if (aisleToken.Length > 0)
-                    aisle = aisleToken.Length == 1 ? aisleToken.ToUpperInvariant() : aisleToken;
-                if (int.TryParse(parts[^1], out var parsedTier) && parsedTier > 0)
-                    tier = parsedTier;
-            }
-            else if (parts.Length == 1 && parts[0].Length > 0)
-            {
-                aisle = parts[0].Substring(0, 1).ToUpperInvariant();
-            }
-
-            var location = HubManagement.Core.Hubs.ValueObjects.ShelfLocation.Create(
-                isColdStorage ? "Cold" : "Hub",
-                aisle,
-                tier);
-
-            var created = Shelf.Create(societyId, code, aisle, isColdStorage, capacity: 40, location);
-            _shelves.Insert(created);
-            return created;
         }
 
         private void AssignDefaultDeliverySlot(Package package, Resident resident)

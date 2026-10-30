@@ -5,12 +5,20 @@ namespace HubManagement.Application.Intake.Helpers
 {
     internal static class ShelfSuggester
     {
-        public static Shelf? Suggest(IEnumerable<Shelf> shelves, IEnumerable<Package> openPackages, Guid? societyId)
+        public static Shelf? Suggest(
+            IEnumerable<Shelf> shelves,
+            IEnumerable<Package> openPackages,
+            Guid? societyId,
+            bool requiresColdStorage = false)
         {
             var candidates = shelves.Where(shelf => societyId == null || shelf.SocietyId == societyId).ToList();
-            var ambient = candidates.Where(shelf => !shelf.IsColdStorage).ToList();
-            if (ambient.Count > 0)
-                candidates = ambient;
+            var suitable = requiresColdStorage
+                ? candidates.Where(shelf => shelf.IsColdStorage).ToList()
+                : candidates.Where(shelf => !shelf.IsColdStorage).ToList();
+            // A suitable temperature zone is preferred, but a package may still be checked in
+            // when only the other type of shelf exists.
+            if (suitable.Count > 0)
+                candidates = suitable;
 
             if (candidates.Count == 0)
                 return null;

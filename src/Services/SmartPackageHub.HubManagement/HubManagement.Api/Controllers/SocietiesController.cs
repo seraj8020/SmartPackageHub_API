@@ -122,6 +122,16 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(packages);
         }
 
+        [HttpGet("{societyid:guid}/shelf-inventory")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(List<ShelfInventoryDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetShelfInventory(Guid societyid)
+        {
+            var inventory = await _mediator.Send(new GetShelfInventoryQuery(societyid)).ConfigureAwait(false);
+            return inventory == null ? NotFound() : Ok(inventory);
+        }
+
         [HttpGet("{societyid:guid}/dispatchedpackages")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(List<ResidentPackageDto>), StatusCodes.Status200OK)]

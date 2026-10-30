@@ -26,10 +26,11 @@ namespace HubManagement.Application.Societies.Queries
                 return null;
 
             var shelves = await _shelves.ListAsync(shelf => shelf.SocietyId == request.SocietyId, noTracking: true).ConfigureAwait(false);
+            // Occupancy = Shelved only. Dispatched / Delivered keep ShelfId but do not count.
             var packages = await _packages.ListAsync(package =>
                 package.SocietyId == request.SocietyId &&
                 package.ShelfId != null &&
-                package.Status != PackageStatus.Delivered,
+                package.Status == PackageStatus.Shelved,
                 noTracking: true).ConfigureAwait(false);
 
             var packagesByShelf = packages.GroupBy(package => package.ShelfId!.Value)

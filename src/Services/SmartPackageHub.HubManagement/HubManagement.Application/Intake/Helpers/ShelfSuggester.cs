@@ -23,8 +23,9 @@ namespace HubManagement.Application.Intake.Helpers
             if (candidates.Count == 0)
                 return null;
 
+            // Occupancy matches shelf inventory: Shelved only (not Dispatched / Delivered).
             var counts = openPackages
-                .Where(package => package.Status != PackageStatus.Delivered && package.ShelfId != null)
+                .Where(package => package.Status == PackageStatus.Shelved && package.ShelfId != null)
                 .GroupBy(package => package.ShelfId!.Value)
                 .ToDictionary(group => group.Key, group => group.Count());
 

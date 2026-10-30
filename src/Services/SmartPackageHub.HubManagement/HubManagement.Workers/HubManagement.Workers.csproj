@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>HubManagement.Workers</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Core\SmartPackageHub.Application\Applications\Applications.csproj" />
+    <ProjectReference Include="..\..\..\Core\SmartPackageHub.CommonLibrary\Common\Common.csproj" />
+    <ProjectReference Include="..\HubManagement.Application\HubManagement.Application.csproj" />
+    <ProjectReference Include="..\HubManagement.Core\HubManagement.Core.csproj" />
+  </ItemGroup>
+
+</Project>

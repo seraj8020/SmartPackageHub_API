@@ -1,0 +1,101 @@
+services:
+  postgres:
+    container_name: mypostgres
+    image: postgres:16.4
+    restart: on-failure
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data/
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_DB: PackageHubRevamp
+      POSTGRES_USER: SpHubAdmin
+      POSTGRES_PASSWORD: Admin@123
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U SpHubAdmin -d PackageHubRevamp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - 5434:5432
+    networks:
+      - backend
+
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - 5050:80
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_started
+    restart: on-failure
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: always
+    volumes:
+      - redis_data:/docker_data/redis:rw
+    networks:
+      - backend
+
+  seq:
+    image: datalust/seq:2024.3
+    container_name: seq
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - ./docker_data/seq:/data
+    ports:
+      - 5341:5341
+      - 8081:80
+    healthcheck:
+      test: ["CMD-SHELL", "/seqsvr/Client/seqcli node health -s http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - backend
+
+  seq-input-gelf:
+    image: datalust/seq-input-gelf:latest
+    depends_on:
+      - seq
+    ports:
+      - "12201:12201/udp"
+    environment:
+      SEQ_ADDRESS: "http://seq:5341"
+    restart: unless-stopped
+    networks:
+      - backend
+
+volumes:
+  pgadmin_data:
+  redis_data:
+
+networks:
+  backend:
+    name: backend
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

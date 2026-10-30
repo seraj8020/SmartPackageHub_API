@@ -1,0 +1,22 @@
+# .NET / Visual Studio build caches and artifacts
+*.cache
+*.json
+!appsettings.json # Ensure you don't accidentally ignore configuration files
+
+# Specific patterns for your project
+project.assets.json
+project.nuget.cache
+rpswa.dswa.cache.json
+SmartPackageHub_API.AssemblyInfo.cs
+SmartPackageHub_API.AssemblyInfoInputs.cache
+SmartPackageHub_API.assets.cache
+SmartPackageHub_API.csproj.AssemblyReference.cache
+SmartPackageHub_API.GeneratedMSBuildEditorConfig.editorconfig
+SmartPackageHub_API.csproj.nuget.dgspec.json
+SmartPackageHub_API.csproj.nuget.g.props
+SmartPackageHub_API.csproj.nuget.g.targets
+
+# Standard .NET build directories
+bin/
+obj/
+.vs/

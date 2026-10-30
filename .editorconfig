@@ -1,0 +1,15 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+
+[**/Migrations/**.cs]
+generated_code = true
+
+[**/Configurations/*EntityConfiguration.cs]
+dotnet_diagnostic.CA1812.severity = none
+dotnet_diagnostic.CA1515.severity = none
+[**/Configurations/*Configuration.cs]
+dotnet_diagnostic.CA1812.severity = none

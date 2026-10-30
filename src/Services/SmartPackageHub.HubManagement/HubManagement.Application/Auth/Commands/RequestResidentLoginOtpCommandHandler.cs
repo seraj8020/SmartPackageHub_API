@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using HubManagement.Application.Auth.DTOs;
-using HubManagement.Application.Auth.Options;
 using HubManagement.Core.Hubs.Entities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
@@ -9,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
+using SmartPackageHub.Common.ConfigOptions;
 using SmartPackageHub.Common.Services.FeatureFlags.Abstractions;
 using SmartPackageHub.Common.Services.Messaging.Abstractions;
 using SmartPackageHub.Common.Services.Messaging.Encoding;

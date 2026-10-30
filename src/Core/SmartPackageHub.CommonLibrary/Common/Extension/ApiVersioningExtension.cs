@@ -1,8 +1,7 @@
-
 using Microsoft.Extensions.DependencyInjection;
-using SmartPackageHub.Common.Types;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.AspNetCore.Mvc;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.Common.Extension
 {

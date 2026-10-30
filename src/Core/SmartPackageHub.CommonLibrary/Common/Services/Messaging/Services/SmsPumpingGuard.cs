@@ -2,11 +2,10 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SmartPackageHub.Common.Cache;
-
+using SmartPackageHub.Common.ConfigOptions;
 using SmartPackageHub.Common.Services.Messaging.Abstractions;
 using SmartPackageHub.Common.Services.Messaging.Guards;
 using SmartPackageHub.Common.Services.Messaging.Models;
-using SmartPackageHub.Common.Services.Messaging.Options;
 
 namespace SmartPackageHub.Common.Services.Messaging.Services
 {

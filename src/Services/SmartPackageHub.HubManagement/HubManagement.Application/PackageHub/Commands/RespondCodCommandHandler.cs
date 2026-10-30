@@ -1,6 +1,4 @@
 using SmartPackageHub.Common.Services.FeatureFlags.Abstractions;
-using SmartPackageHub.Common.Services.FeatureFlags.Options;
-using SmartPackageHub.Common.Services.FeatureFlags.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using Microsoft.Extensions.Logging;
@@ -90,7 +88,7 @@ namespace HubManagement.Application.PackageHub.Commands
                 };
             }
 
-            // Approval only — staff still assigns shelf later; OTP is generated at shelving.
+            // Approval only â€” staff still assigns shelf later; OTP is generated at shelving.
             package.ApproveCod();
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogCodResponded(_logger, package.Id, true, null);

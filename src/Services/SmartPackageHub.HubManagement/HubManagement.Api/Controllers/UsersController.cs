@@ -3,7 +3,7 @@ using HubManagement.Application.HubUsers.DTOs;
 using HubManagement.Application.HubUsers.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using SmartPackageHub.Common.Types;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {
@@ -46,7 +46,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> Create([FromBody] CreateUserRequest request)
         {
-ArgumentNullException.ThrowIfNull(request);
+            ArgumentNullException.ThrowIfNull(request);
             var result = await _mediator.Send(new CreateUserCommand(
                 request.Username,
                 request.Email,
@@ -71,7 +71,7 @@ ArgumentNullException.ThrowIfNull(request);
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> Update(Guid id, [FromBody] UpdateUserRequest request)
         {
-ArgumentNullException.ThrowIfNull(request);
+            ArgumentNullException.ThrowIfNull(request);
             var result = await _mediator.Send(new UpdateUserCommand(
                 id,
                 request.Email,

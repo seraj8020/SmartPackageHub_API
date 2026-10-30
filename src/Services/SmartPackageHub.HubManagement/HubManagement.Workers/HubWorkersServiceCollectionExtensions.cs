@@ -15,6 +15,7 @@ namespace HubManagement.Workers
         {
             services.AddHostedService<IntakeNotificationWorker>();
             services.AddHostedService<OutboundMessageWorker>();
+            services.AddHostedService<AnalyticsDailyRollupWorker>();
             return services;
         }
     }

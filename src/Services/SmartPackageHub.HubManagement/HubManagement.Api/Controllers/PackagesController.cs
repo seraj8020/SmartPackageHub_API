@@ -3,7 +3,7 @@ using HubManagement.Application.PackageHub.Commands;
 using HubManagement.Application.PackageHub.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using SmartPackageHub.Common.Types;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {

@@ -1,5 +1,4 @@
-
-namespace SmartPackageHub.Common.Services.Messaging.Options
+namespace SmartPackageHub.Common.ConfigOptions
 {
     public sealed class SmsPumpingProtectionOptions
     {

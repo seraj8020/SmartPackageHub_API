@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SmartPackageHub.Common.ConfigOptions;
 using SmartPackageHub.Common.Services.Messaging.Abstractions;
-using SmartPackageHub.Common.Services.Messaging.Options;
 using SmartPackageHub.Common.Services.Messaging.Services;
 
 namespace SmartPackageHub.Common.Extension

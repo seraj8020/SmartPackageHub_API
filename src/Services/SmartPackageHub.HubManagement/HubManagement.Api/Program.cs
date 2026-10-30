@@ -5,19 +5,18 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using SmartPackageHub.Common.Types;
 using SmartPackageHub.HubManagement.Infrastructure;
 using BankingApp.AccountManagement.Infrastructure.AutofacModules;
 using SmartPackageHub.HubManagement.Infrastructure.AutofacModules;
 using System.Threading.RateLimiting;
 using SmartPackageHub.HubManagement.Api;
 using SmartPackageHub.Common.Services.FeatureFlags.Abstractions;
-using SmartPackageHub.Common.Services.FeatureFlags.Options;
 using SmartPackageHub.Common.Services.FeatureFlags.Services;
 using HubManagement.Workers;
 using HubManagement.Api.SeedDataModel;
 using System.IO.Compression;
 using HubManagement.Application.Intake.Services;
+using SmartPackageHub.Common.ConfigOptions;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -96,8 +95,10 @@ services.AddRateLimiter(options =>
             }));
 });
 services.Configure<FeatureFlagsOptions>(builder.Configuration.GetSection(FeatureFlagsOptions.SectionName));
-services.Configure<HubManagement.Application.Auth.Options.AuthOptions>(
-    builder.Configuration.GetSection(HubManagement.Application.Auth.Options.AuthOptions.SectionName));
+services.Configure<AuthOptions>(
+    builder.Configuration.GetSection(AuthOptions.SectionName));
+services.Configure<AnalyticsRollupOptions>(
+    builder.Configuration.GetSection(AnalyticsRollupOptions.SectionName));
 services.AddSingleton<IFeatureFlags, FeatureFlagsService>();
 services.AddSingleton<HubManagement.Application.Auth.Services.PlatformAdminSessionStore>();
 

@@ -3,7 +3,7 @@ using HubManagement.Application.DeliverySlots.DTOs;
 using HubManagement.Application.DeliverySlots.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using SmartPackageHub.Common.Types;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {

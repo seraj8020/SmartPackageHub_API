@@ -3,8 +3,8 @@ using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 using SmartPackageHub.Common.Services.Messaging.Abstractions;
-using SmartPackageHub.Common.Services.Messaging.Options;
 using SmartPackageHub.Common.Services.Messaging.Models;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.Common.Services.Messaging.Services
 {

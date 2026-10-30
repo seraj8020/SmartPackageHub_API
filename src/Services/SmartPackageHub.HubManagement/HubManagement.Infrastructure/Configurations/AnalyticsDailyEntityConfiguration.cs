@@ -17,6 +17,11 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(p => p.PackagesDelivered).IsRequired();
             builder.Property(p => p.OverdueCount).IsRequired();
 
+            builder.HasIndex(e => e.SocietyId);
+            builder.HasIndex(e => new { e.SocietyId, e.Day })
+                .IsUnique()
+                .HasDatabaseName("IX_AnalyticsDailies_SocietyId_Day");
+
             builder.HasOne<Society>()
                 .WithMany()
                 .HasForeignKey(e => e.SocietyId)

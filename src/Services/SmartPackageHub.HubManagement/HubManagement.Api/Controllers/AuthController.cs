@@ -3,7 +3,7 @@ using HubManagement.Application.Auth.DTOs;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using SmartPackageHub.Common.Types;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {

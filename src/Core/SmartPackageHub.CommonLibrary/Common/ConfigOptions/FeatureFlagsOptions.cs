@@ -1,4 +1,4 @@
-namespace SmartPackageHub.Common.Services.FeatureFlags.Options
+namespace SmartPackageHub.Common.ConfigOptions
 {
     /// <summary>
     /// Toggle product features from appsettings without a redeploy of UI logic.

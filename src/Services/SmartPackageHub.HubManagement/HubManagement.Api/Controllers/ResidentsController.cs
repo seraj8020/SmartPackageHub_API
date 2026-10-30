@@ -2,18 +2,14 @@ using HubManagement.Application.HubResidents.Commands;
 using HubManagement.Application.HubResidents.DTOs;
 using HubManagement.Application.HubResidents.Queries;
 using SmartPackageHub.Common.Services.Messaging.Abstractions;
-using SmartPackageHub.Common.Services.Messaging.Encoding;
-using SmartPackageHub.Common.Services.Messaging.Guards;
-using SmartPackageHub.Common.Services.Messaging.Options;
-using SmartPackageHub.Common.Services.Messaging.Services;
 using HubManagement.Core.Hubs.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using SmartPackageHub.Applications.Abstractions.Repositories;
-using SmartPackageHub.Common.Types;
 using SmartPackageHub.Infrastructures.ActionResults;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {
@@ -166,8 +162,5 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         }
     }
 
-    public sealed class RequestOtpBody
-    {
-        public string? RecaptchaToken { get; set; }
-    }
+    
 }

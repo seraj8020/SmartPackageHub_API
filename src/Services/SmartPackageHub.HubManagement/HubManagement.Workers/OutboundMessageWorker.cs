@@ -1,5 +1,4 @@
 using SmartPackageHub.Common.Services.Messaging.Abstractions;
-using SmartPackageHub.Common.Services.Messaging.Options;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using HubManagement.Core.Hubs.ValueObjects;
@@ -9,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SmartPackageHub.Applications.Abstractions.Repositories;
 using SmartPackageHub.Common.Services.Messaging.Models;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace HubManagement.Workers
 {

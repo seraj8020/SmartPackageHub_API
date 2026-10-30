@@ -4,7 +4,7 @@ using HubManagement.Application.Societies.DTOs;
 using HubManagement.Application.Societies.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using SmartPackageHub.Common.Types;
+using SmartPackageHub.Common.ConfigOptions;
 using SmartPackageHub.Infrastructures.ActionResults;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers

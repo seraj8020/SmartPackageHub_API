@@ -1,8 +1,8 @@
-﻿using SmartPackageHub.Common.Types;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.Common.Extension
 {

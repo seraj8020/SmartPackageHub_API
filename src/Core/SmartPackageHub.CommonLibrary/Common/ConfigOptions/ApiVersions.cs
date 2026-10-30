@@ -1,4 +1,4 @@
-﻿namespace SmartPackageHub.Common.Types
+namespace SmartPackageHub.Common.ConfigOptions
 {
     public static class ApiVersions
     {

@@ -1,7 +1,6 @@
 using SmartPackageHub.Common.Services.FeatureFlags.Abstractions;
-using SmartPackageHub.Common.Services.FeatureFlags.Options;
 using Microsoft.Extensions.Options;
-
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.Common.Services.FeatureFlags.Services
 {

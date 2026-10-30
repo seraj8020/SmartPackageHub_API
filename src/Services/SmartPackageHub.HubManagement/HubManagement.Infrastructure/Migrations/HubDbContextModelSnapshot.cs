@@ -46,6 +46,10 @@ namespace HubManagement.Infrastructure.Migrations
 
                     b.HasIndex("SocietyId");
 
+                    b.HasIndex("SocietyId", "Day")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AnalyticsDailies_SocietyId_Day");
+
                     b.ToTable("AnalyticsDailies", (string)null);
                 });
 

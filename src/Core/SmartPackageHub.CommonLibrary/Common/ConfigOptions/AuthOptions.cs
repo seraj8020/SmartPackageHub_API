@@ -1,4 +1,4 @@
-namespace HubManagement.Application.Auth.Options
+namespace SmartPackageHub.Common.ConfigOptions
 {
     /// <summary>
     /// Auth behaviour toggles. Used with FeatureFlags:SmsOtp for cheap local/dev login.

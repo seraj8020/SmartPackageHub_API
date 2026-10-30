@@ -4,12 +4,11 @@ using HubManagement.Core.Hubs.ValueObjects;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SmartPackageHub.Applications.Abstractions.Repositories;
-
+using SmartPackageHub.Common.ConfigOptions;
 using SmartPackageHub.Common.Services.Messaging.Abstractions;
 using SmartPackageHub.Common.Services.Messaging.Encoding;
 using SmartPackageHub.Common.Services.Messaging.Guards;
 using SmartPackageHub.Common.Services.Messaging.Models;
-using SmartPackageHub.Common.Services.Messaging.Options;
 
 namespace SmartPackageHub.Common.Services.Messaging.Services
 {

@@ -1,8 +1,6 @@
 using SmartPackageHub.Common.Services.FeatureFlags.Abstractions;
-using SmartPackageHub.Common.Services.FeatureFlags.Options;
-using SmartPackageHub.Common.Services.FeatureFlags.Services;
 using Microsoft.AspNetCore.Mvc;
-using SmartPackageHub.Common.Types;
+using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {

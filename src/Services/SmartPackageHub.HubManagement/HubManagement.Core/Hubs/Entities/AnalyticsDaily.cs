@@ -22,5 +22,16 @@ namespace HubManagement.Core.Hubs.Entities
         {
             return new AnalyticsDaily(societyId, day, packagesReceived, packagesDelivered, overdueCount);
         }
+
+        /// <summary>Replaces daily counts (used by end-of-day rollup upsert).</summary>
+        public void ReplaceCounts(int packagesReceived, int packagesDelivered, int overdueCount)
+        {
+            if (packagesReceived < 0 || packagesDelivered < 0 || overdueCount < 0)
+                throw new ArgumentOutOfRangeException(nameof(packagesReceived), "Counts cannot be negative.");
+
+            PackagesReceived = packagesReceived;
+            PackagesDelivered = packagesDelivered;
+            OverdueCount = overdueCount;
+        }
     }
 }

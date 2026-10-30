@@ -10,7 +10,8 @@ namespace HubManagement.Application.Societies.DTOs
             Package package,
             IReadOnlyDictionary<Guid, string> shelfCodesById,
             DateTime? deliveredAt = null,
-            DeliverySlot? slot = null)
+            DeliverySlot? slot = null,
+            IReadOnlyDictionary<Guid, int>? shelfCapacitiesById = null)
         {
             ArgumentNullException.ThrowIfNull(package);
             string? shelfCode = null;
@@ -35,6 +36,8 @@ namespace HubManagement.Application.Societies.DTOs
                 TowerWing = string.IsNullOrWhiteSpace(package.TowerWing) ? null : package.TowerWing,
                 FlatNumber = package.FlatNumber.Value,
                 ShelfCode = shelfCode,
+                ShelfCapacity = package.ShelfId is Guid capacityShelfId && shelfCapacitiesById != null && shelfCapacitiesById.TryGetValue(capacityShelfId, out var capacity) ? capacity : null,
+                IsColdStorage = package.IsColdStorage,
                 Status = package.Status.ToString(),
                 IsCod = package.IsCod,
                 CodAmount = package.CodAmount,

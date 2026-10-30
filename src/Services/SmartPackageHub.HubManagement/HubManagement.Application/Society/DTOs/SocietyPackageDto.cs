@@ -18,6 +18,8 @@ namespace HubManagement.Application.Societies.DTOs
         public string? TowerWing { get; set; }
         public string FlatNumber { get; set; } = string.Empty;
         public string? ShelfCode { get; set; }
+        public int? ShelfCapacity { get; set; }
+        public bool IsColdStorage { get; set; }
         public string Status { get; set; } = string.Empty;
         public bool IsCod { get; set; }
         public decimal? CodAmount { get; set; }

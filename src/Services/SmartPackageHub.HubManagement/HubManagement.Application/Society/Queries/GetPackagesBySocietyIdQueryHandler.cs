@@ -36,7 +36,7 @@ namespace HubManagement.Application.Societies.Queries
             if (society == null)
                 return null;
 
-            // All hub packages still waiting — not limited to today, so older shelved
+            // All hub packages still waiting ï¿½ not limited to today, so older shelved
             // (not yet dispatched) and received items remain visible on staff screens.
             var waiting = await _packages.ListAsync(
                 p =>
@@ -70,12 +70,13 @@ namespace HubManagement.Application.Societies.Queries
                 noTracking: true).ConfigureAwait(false);
 
             var shelfCodes = SocietyPackageMapper.BuildShelfCodeLookup(ordered, shelves);
+            var shelfCapacities = shelves.ToDictionary(shelf => shelf.Id, shelf => shelf.Capacity);
             var activeSlots = SocietyPackageMapper.BuildActiveSlotLookup(ordered, slots);
 
             return ordered.Select(p =>
             {
                 activeSlots.TryGetValue(p.Id, out var slot);
-                return SocietyPackageMapper.Map(p, shelfCodes, slot: slot);
+                return SocietyPackageMapper.Map(p, shelfCodes, slot: slot, shelfCapacitiesById: shelfCapacities);
             }).ToList();
         }
     }

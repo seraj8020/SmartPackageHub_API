@@ -55,15 +55,16 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Repositories
                 : _entitySet.FirstOrDefaultAsync(predicate);
         }
 
-        public Task<List<T>> ListAsync(
+        public async Task<IReadOnlyList<T>> ListAsync(
             Expression<Func<T, bool>>? predicate = null,
-            CancellationToken cancellationToken = default,
-            bool noTracking = false)
+            bool noTracking = false,
+            CancellationToken cancellationToken = default)
         {
             IQueryable<T> query = noTracking ? _entitySet.AsNoTracking() : _entitySet;
             if (predicate != null)
                 query = query.Where(predicate);
-            return query.ToListAsync(cancellationToken);
+            // ToListAsync materializes once; return as IReadOnlyList (no extra copy).
+            return await query.ToListAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public void Update(T item)

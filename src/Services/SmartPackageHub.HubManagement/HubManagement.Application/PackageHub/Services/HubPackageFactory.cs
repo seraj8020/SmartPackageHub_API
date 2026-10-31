@@ -58,11 +58,13 @@ namespace HubManagement.Application.PackageHub.Services
             var wing = Limit(First(tower, resident?.TowerWing) ?? "NA", 100);
             var unit = Limit(First(flat, resident?.Unit?.Value) ?? "NA", 50);
             var partner = Limit(string.IsNullOrWhiteSpace(courier) ? "Courier" : courier.Trim(), 100);
-            var resolvedCategory = !string.IsNullOrWhiteSpace(category)
-                ? Limit(category.Trim(), 100)
-                : !string.IsNullOrWhiteSpace(description)
-                    ? Limit(description.Trim(), 100)
-                    : "Miscellaneous";
+            string resolvedCategory;
+            if (!string.IsNullOrWhiteSpace(category))
+                resolvedCategory = Limit(category.Trim(), 100);
+            else if (!string.IsNullOrWhiteSpace(description))
+                resolvedCategory = Limit(description.Trim(), 100);
+            else
+                resolvedCategory = "Miscellaneous";
             var dimensions = PackageDimensions.Create(
                 PositiveOrDefault(weight, 1),
                 PositiveOrDefault(height, 1),

@@ -1,0 +1,7 @@
+root = false
+
+# Kept in sync with NoWarn in HubManagement.Api.csproj (ASP.NET host false positives).
+[*.cs]
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1812.severity = none
+dotnet_diagnostic.CA1303.severity = none

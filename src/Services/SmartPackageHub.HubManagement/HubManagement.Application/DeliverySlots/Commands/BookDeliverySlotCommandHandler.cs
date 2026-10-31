@@ -40,8 +40,9 @@ namespace HubManagement.Application.DeliverySlots.Commands
             CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(command);
-            ArgumentNullException.ThrowIfNull(command.Request);
             var request = command.Request;
+            if (request is null)
+                throw new ArgumentNullException(nameof(command));
 
             if (!DeliverySlotWindows.TryResolveWindow(request.WindowStart, request.WindowEnd, out _))
             {
@@ -49,7 +50,7 @@ namespace HubManagement.Application.DeliverySlots.Commands
                 {
                     Found = true,
                     Succeeded = false,
-                    Message = "Choose a valid delivery window (9–12, 12–3, 3–6, or 6–9).",
+                    Message = "Choose a valid delivery window (9-12, 12-3, 3-6, or 6-9).",
                 };
             }
 
@@ -138,7 +139,7 @@ namespace HubManagement.Application.DeliverySlots.Commands
                 };
             }
 
-            // Resident selection overrides the system default 6–9 window.
+            // Resident selection overrides the system default 6ï¿½9 window.
             if (activeForPackage != null && DeliverySlotWindows.IsSystemDefault(activeForPackage.Status))
             {
                 activeForPackage.Cancel();

@@ -122,7 +122,7 @@ namespace HubManagement.Application.Auth.Commands
 
         private static string MaskEmail(string email)
         {
-            var at = email.IndexOf('@');
+            var at = email.IndexOf('@', StringComparison.Ordinal);
             if (at <= 1)
                 return "***";
             return $"{email[0]}***{email[(at - 1)..]}";

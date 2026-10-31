@@ -1,3 +1,4 @@
+using System.Globalization;
 using AutoMapper;
 using HubManagement.Application.Analytics.DTOs;
 using HubManagement.Application.Analytics.Services;
@@ -71,7 +72,7 @@ namespace HubManagement.Application.Analytics.Queries
                 var pending = AnalyticsMetricsCalculator.CountPendingOpenAtEndOfDay(packages, deliveredAt, dayEnd);
                 points.Add(new WeeklyTrendPointDto(
                     day,
-                    day.ToString("ddd"),
+                    day.ToString("ddd", CultureInfo.InvariantCulture),
                     received,
                     delivered,
                     pending));

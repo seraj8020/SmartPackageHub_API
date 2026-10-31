@@ -7,6 +7,6 @@ namespace SmartPackageHub.Common.ConfigOptions
         public bool Enabled { get; set; } = true;
 
         /// <summary>Optional HTTP endpoint that accepts JSON { to, body, idempotencyKey }. When empty, fallback is logged only.</summary>
-        public string? WebhookUrl { get; set; }
+        public Uri? WebhookUrl { get; set; }
     }
 }

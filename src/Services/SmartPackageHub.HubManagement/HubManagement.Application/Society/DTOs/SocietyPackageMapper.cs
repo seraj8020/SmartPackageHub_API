@@ -1,4 +1,3 @@
-using HubManagement.Application.DeliverySlots;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Application.DeliverySlots.Helpers;
 
@@ -87,7 +86,7 @@ namespace HubManagement.Application.Societies.DTOs
             return slots
                 .Where(slot =>
                     packageIds.Contains(slot.PackageId) &&
-                    slot.Status != DeliverySlotWindows.StatusCancelled)
+                    !string.Equals(slot.Status, DeliverySlotWindows.StatusCancelled, StringComparison.Ordinal))
                 .GroupBy(slot => slot.PackageId)
                 .ToDictionary(
                     group => group.Key,

@@ -13,6 +13,12 @@ namespace HubManagement.Application.Auth.Commands
     public sealed class ForgotPlatformAdminUsernameCommandHandler
         : CreateCommandHandler<ForgotPlatformAdminUsernameCommand, PlatformAdminForgotUsernameResult>
     {
+        private static readonly Action<ILogger, Guid, string, Exception?> LogUsernameEmailFailed =
+            LoggerMessage.Define<Guid, string>(
+                LogLevel.Warning,
+                new EventId(1, nameof(ForgotPlatformAdminUsernameCommandHandler)),
+                "Platform admin username reminder email failed for {UserId}: {Reason}");
+
         private readonly IRepository<User> _users;
         private readonly IEmailSender _emailSender;
         private readonly IHostEnvironment _environment;
@@ -40,7 +46,7 @@ namespace HubManagement.Application.Auth.Commands
             const string genericMessage =
                 "If a platform admin account matches that email, the username was sent.";
 
-            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
+            if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@', StringComparison.Ordinal))
             {
                 return new PlatformAdminForgotUsernameResult(
                     false, null, null, "Enter the email registered on your platform admin account.");
@@ -74,10 +80,7 @@ namespace HubManagement.Application.Auth.Commands
 
             if (!send.Succeeded)
             {
-                _logger.LogWarning(
-                    "Platform admin username reminder email failed for {UserId}: {Reason}",
-                    user.Id,
-                    send.ErrorMessage);
+                LogUsernameEmailFailed(_logger, user.Id, send.ErrorMessage ?? string.Empty, null);
 
                 if (!_environment.IsDevelopment())
                     return new PlatformAdminForgotUsernameResult(true, null, null, genericMessage);
@@ -98,7 +101,7 @@ namespace HubManagement.Application.Auth.Commands
 
         private static string MaskEmail(string value)
         {
-            var at = value.IndexOf('@');
+            var at = value.IndexOf('@', StringComparison.Ordinal);
             if (at <= 1)
                 return "***";
             return $"{value[0]}***{value[(at - 1)..]}";

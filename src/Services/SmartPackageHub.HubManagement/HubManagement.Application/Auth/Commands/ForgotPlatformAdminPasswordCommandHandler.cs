@@ -16,6 +16,12 @@ namespace HubManagement.Application.Auth.Commands
     public sealed class ForgotPlatformAdminPasswordCommandHandler
         : CreateCommandHandler<ForgotPlatformAdminPasswordCommand, PlatformAdminForgotPasswordResult>
     {
+        private static readonly Action<ILogger, Guid, string, Exception?> LogResetEmailFailed =
+            LoggerMessage.Define<Guid, string>(
+                LogLevel.Warning,
+                new EventId(1, nameof(ForgotPlatformAdminPasswordCommandHandler)),
+                "Platform admin reset email failed for {UserId}: {Reason}");
+
         private readonly IRepository<User> _users;
         private readonly IEmailSender _emailSender;
         private readonly PlatformAdminSessionStore _sessions;
@@ -95,7 +101,7 @@ namespace HubManagement.Application.Auth.Commands
 
             if (!send.Succeeded)
             {
-                _logger.LogWarning("Platform admin reset email failed for {UserId}: {Reason}", user.Id, send.ErrorMessage);
+                LogResetEmailFailed(_logger, user.Id, send.ErrorMessage ?? string.Empty, null);
 
                 // Keep the challenge + always return resetToken so the UI can complete reset.
                 // In Development (or when email fails), surface the code so local testing is not blocked.
@@ -117,7 +123,7 @@ namespace HubManagement.Application.Auth.Commands
 
         private static string MaskEmail(string email)
         {
-            var at = email.IndexOf('@');
+            var at = email.IndexOf('@', StringComparison.Ordinal);
             if (at <= 1)
                 return "***";
             return $"{email[0]}***{email[(at - 1)..]}";

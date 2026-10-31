@@ -5,6 +5,4 @@ namespace SmartPackageHub.Common.Services.Messaging.Models
         string Subject,
         string PlainTextBody,
         string? IdempotencyKey = null);
-
-    public sealed record EmailSendResult(bool Succeeded, string? ProviderMessageId, string? ErrorMessage);
 }

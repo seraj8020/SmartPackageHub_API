@@ -4,6 +4,7 @@ using HubManagement.Core.Hubs.Models;
 using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
+using HubManagement.Application.PackageHub.DTOs;
 
 namespace HubManagement.Application.PackageHub.Commands
 {

@@ -1,16 +1,20 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using StackExchange.Redis;
-
+using SmartPackageHub.Common.ConfigOptions;
 using SmartPackageHub.Common.Services.Messaging.Abstractions;
 using SmartPackageHub.Common.Services.Messaging.Models;
-using SmartPackageHub.Common.ConfigOptions;
+using StackExchange.Redis;
 
 namespace SmartPackageHub.Common.Services.Messaging.Services
 {
     /// <summary>
     /// Redis list buffer so sends are rate-limited.
     /// </summary>
+    [SuppressMessage(
+        "Naming",
+        "CA1711:Identifiers should not have incorrect suffix",
+        Justification = "Queue is intentional domain naming for the Redis-backed outbound work buffer.")]
     public sealed class RedisOutboundMessageQueue : IOutboundMessageQueue
     {
         private static readonly JsonSerializerOptions JsonOptions = new()
@@ -23,16 +27,12 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
 
         public RedisOutboundMessageQueue(IConnectionMultiplexer redis, IOptions<OutboundMessageQueueOptions> options)
         {
+            ArgumentNullException.ThrowIfNull(redis);
+            ArgumentNullException.ThrowIfNull(options);
             _redis = redis;
             _options = options.Value;
         }
 
-        /// <summary>
-        /// RPUSH JSON work item
-        /// </summary>
-        /// <param name="item"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public async Task EnqueueAsync(OutboundMessageWorkItem item, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(item);
@@ -41,15 +41,9 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             await db.ListRightPushAsync(_options.RedisListKey, payload).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// LPOP + deserialize
-        /// </summary>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public async Task<OutboundMessageWorkItem?> DequeueAsync(CancellationToken cancellationToken = default)
         {
             var db = _redis.GetDatabase();
-            // BRPOP via polling ListLeftPop ? ConnectionMultiplexer timeout-friendly for hosted services.
             var value = await db.ListLeftPopAsync(_options.RedisListKey).ConfigureAwait(false);
             if (value.IsNullOrEmpty)
                 return null;

@@ -1,0 +1,4 @@
+root = false
+
+[*.cs]
+MA0051.maximum_lines_per_method = 140

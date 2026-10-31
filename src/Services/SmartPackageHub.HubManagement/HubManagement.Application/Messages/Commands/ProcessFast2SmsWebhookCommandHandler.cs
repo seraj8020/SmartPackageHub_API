@@ -13,6 +13,12 @@ namespace HubManagement.Application.Messages.Commands
     public sealed class ProcessFast2SmsWebhookCommandHandler
         : CreateCommandHandler<ProcessFast2SmsWebhookCommand, Fast2SmsWebhookResult>
     {
+        private static readonly Action<ILogger, string, string, Exception?> LogUnknownWebhook =
+            LoggerMessage.Define<string, string>(
+                LogLevel.Information,
+                new EventId(1, nameof(ProcessFast2SmsWebhookCommandHandler)),
+                "Fast2SMS webhook for unknown request_id={RequestId} status={Status}");
+
         private readonly IRepository<Notification> _notifications;
         private readonly ILogger<ProcessFast2SmsWebhookCommandHandler> _logger;
 
@@ -45,10 +51,11 @@ namespace HubManagement.Application.Messages.Commands
 
             if (notification is null)
             {
-                _logger.LogInformation(
-                    "Fast2SMS webhook for unknown request_id={RequestId} status={Status}",
+                LogUnknownWebhook(
+                    _logger,
                     payload.RequestId,
-                    payload.Status);
+                    payload.Status ?? string.Empty,
+                    null);
                 return new Fast2SmsWebhookResult(true, false);
             }
 

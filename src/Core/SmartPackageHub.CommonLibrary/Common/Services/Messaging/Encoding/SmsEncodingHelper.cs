@@ -3,29 +3,22 @@ using System.Text;
 namespace SmartPackageHub.Common.Services.Messaging.Encoding
 {
     /// <summary>
-    /// GSM 7-bit vs UCS-2 awareness so OTP messages stay single-segment and to make cheaper rather than multi-segment costly.
+    /// GSM 7-bit vs UCS-2 awareness so OTP messages stay single-segment and cheaper than multi-segment.
     /// </summary>
     public static class SmsEncodingHelper
     {
-        // Basic GSM 7-bit character set (no extension table for simplicity).
         private static readonly HashSet<char> Gsm7 = BuildGsm7();
 
-        /// <summary>
-        /// all chars in GSM-7 set?
-        /// </summary>
-        /// <param name="text"></param>
-        /// <returns></returns>
-        public static bool IsGsm7Compatible(string text) =>
-            text.All(Gsm7.Contains);
+        public static bool IsGsm7Compatible(string text)
+        {
+            ArgumentNullException.ThrowIfNull(text);
+            return text.All(Gsm7.Contains);
+        }
 
-        /// <summary>
-        /// replace ₹/smart quotes; non-GSM 
-        /// </summary>
-        /// <param name="text"></param>
-        /// <returns></returns>
         public static string ToGsm7SafeOtpMessage(string text)
         {
-            // Replace common non-GSM chars used in SPH copy so we stay on 160-char GSM segments.
+            ArgumentNullException.ThrowIfNull(text);
+
             var normalized = text
                 .Replace("?", "Rs", StringComparison.Ordinal)
                 .Replace("–", "-", StringComparison.Ordinal)
@@ -44,11 +37,6 @@ namespace SmartPackageHub.Common.Services.Messaging.Encoding
             return builder.ToString();
         }
 
-        /// <summary>
-        /// 160/153 GSM or 70/67 UCS-2 segments
-        /// </summary>
-        /// <param name="text"></param>
-        /// <returns></returns>
         public static int EstimateSegmentCount(string text)
         {
             if (string.IsNullOrEmpty(text))
@@ -64,10 +52,6 @@ namespace SmartPackageHub.Common.Services.Messaging.Encoding
             return (int)Math.Ceiling(text.Length / 67.0);
         }
 
-        /// <summary>
-        /// GSM character set
-        /// </summary>
-        /// <returns></returns>
         private static HashSet<char> BuildGsm7()
         {
             const string chars =

@@ -36,7 +36,7 @@ namespace HubManagement.Application.Analytics.Queries
 
             var societies = _societies.GetAll().AsEnumerable()
                 .Where(s => AnalyticsScope.Includes(request.SocietyId, s.Id))
-                .OrderBy(s => s.Name)
+                .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             var packages = _packages.GetAll().AsEnumerable()
                 .Where(p => AnalyticsScope.Includes(request.SocietyId, p.SocietyId))

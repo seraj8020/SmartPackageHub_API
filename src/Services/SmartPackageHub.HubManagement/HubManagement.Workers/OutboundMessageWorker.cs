@@ -30,6 +30,12 @@ namespace HubManagement.Workers
                 new EventId(2, nameof(OutboundMessageWorker)),
                 "Submitted notification {NotificationId} providerRequestId={ProviderRequestId}");
 
+        private static readonly Action<ILogger, Exception?> LogLoopError =
+            LoggerMessage.Define(
+                LogLevel.Error,
+                new EventId(3, nameof(OutboundMessageWorker)),
+                "Outbound message worker loop error");
+
         private readonly IServiceScopeFactory _scopes;
         private readonly IOutboundMessageQueue _queue;
         private readonly Fast2SmsOptions _smsOptions;
@@ -46,6 +52,12 @@ namespace HubManagement.Workers
             IOptions<WhatsAppFallbackOptions> whatsAppOptions,
             ILogger<OutboundMessageWorker> logger)
         {
+            ArgumentNullException.ThrowIfNull(scopes);
+            ArgumentNullException.ThrowIfNull(queue);
+            ArgumentNullException.ThrowIfNull(smsOptions);
+            ArgumentNullException.ThrowIfNull(queueOptions);
+            ArgumentNullException.ThrowIfNull(whatsAppOptions);
+            ArgumentNullException.ThrowIfNull(logger);
             _scopes = scopes;
             _queue = queue;
             _smsOptions = smsOptions.Value;
@@ -80,9 +92,9 @@ namespace HubManagement.Workers
                 {
                     break;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or HttpRequestException or IOException)
                 {
-                    _logger.LogError(ex, "Outbound message worker loop error");
+                    LogLoopError(_logger, ex);
                     await Task.Delay(1000, stoppingToken).ConfigureAwait(false);
                 }
             }
@@ -118,7 +130,7 @@ namespace HubManagement.Workers
                 notification.Content.Body,
                 notification.IdempotencyKey ?? item.IdempotencyKey,
                 SenderId: null,
-                UserDefinedFields: new Dictionary<string, string>
+                UserDefinedFields: new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["udf1"] = notification.IdempotencyKey ?? item.IdempotencyKey,
                     ["udf2"] = notification.Id.ToString("N"),

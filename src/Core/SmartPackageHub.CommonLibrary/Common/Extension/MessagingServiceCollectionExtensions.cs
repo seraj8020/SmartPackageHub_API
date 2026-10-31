@@ -14,6 +14,9 @@ namespace SmartPackageHub.Common.Extension
         /// </summary>
         public static IServiceCollection AddOutboundMessaging(this IServiceCollection services, IConfiguration configuration)
         {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(configuration);
+
             services.Configure<Fast2SmsOptions>(configuration.GetSection(Fast2SmsOptions.SectionName));
             services.Configure<WhatsAppFallbackOptions>(configuration.GetSection(WhatsAppFallbackOptions.SectionName));
             services.Configure<SmsPumpingProtectionOptions>(configuration.GetSection(SmsPumpingProtectionOptions.SectionName));
@@ -34,7 +37,8 @@ namespace SmartPackageHub.Common.Extension
             {
                 var options = configuration.GetSection(Fast2SmsOptions.SectionName).Get<Fast2SmsOptions>()
                     ?? new Fast2SmsOptions();
-                client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/");
+                // Absolute path requests (/dev/bulkV2) work without a trailing slash on BaseAddress.
+                client.BaseAddress = options.BaseUrl;
                 client.Timeout = TimeSpan.FromSeconds(30);
             });
 

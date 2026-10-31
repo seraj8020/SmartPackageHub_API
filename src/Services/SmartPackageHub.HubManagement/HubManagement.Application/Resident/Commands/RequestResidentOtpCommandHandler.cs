@@ -64,8 +64,10 @@ namespace HubManagement.Application.HubResidents.Commands
 
             // Keep one active pickup OTP per package so deliver never scans a growing unused set.
             var priorOtps = await _otpLogs.ListAsync(
-                log => log.PackageId == pendingPackage.Id && log.Purpose == "Pickup" && !log.IsUsed,
-                cancellationToken).ConfigureAwait(false);
+                log => log.PackageId == pendingPackage.Id
+                    && string.Equals(log.Purpose, "Pickup", StringComparison.Ordinal)
+                    && !log.IsUsed,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
             foreach (var prior in priorOtps)
                 prior.MarkUsed();
 
@@ -76,7 +78,7 @@ namespace HubManagement.Application.HubResidents.Commands
             LogResidentPickUpOtp(_logger, resident.Id, null);
 
             var smsQueued = false;
-            var message = "OTP generated.";
+            string message;
             if (!string.IsNullOrWhiteSpace(resident.PhoneNumber))
             {
                 // GSM-7 safe OTP copy — avoid ?/emoji so we stay on a single 160-char segment.

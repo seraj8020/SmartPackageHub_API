@@ -1,3 +1,4 @@
+using HubManagement.Application.HubResidents.DTOs;
 using HubManagement.Core.Hubs.Entities;
 using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Commands;

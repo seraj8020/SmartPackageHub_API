@@ -20,7 +20,7 @@ namespace SmartPackageHub.Common.ConfigOptions
         public string? HttpProvider { get; set; }
 
         /// <summary>Full POST URL, e.g. https://cpaas.zoho.in/v1.1/email</summary>
-        public string? HttpUrl { get; set; }
+        public Uri? HttpUrl { get; set; }
 
         /// <summary>Agent Send Mail token (Authorization: Zoho-enczapikey …).</summary>
         public string? HttpApiKey { get; set; }

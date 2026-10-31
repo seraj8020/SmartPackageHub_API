@@ -7,6 +7,12 @@
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..\..</DockerfileContext>
 	  <Platforms>AnyCPU;x64</Platforms>
+    <!--
+      CA1515: ASP.NET discovers public controllers; internal breaks routing.
+      CA1812: SeedDataModel types are created by JSON deserialization, not `new` in source.
+      CA1303: DataSeeder Console diagnostics are operator logs, not localized UI.
+    -->
+    <NoWarn>$(NoWarn);CA1515;CA1812;CA1303</NoWarn>
   </PropertyGroup>
 	<PropertyGroup>
 		<!-- Modify these constants to enable/disable a feature to debug the template. Note that this only affects the C#. -->

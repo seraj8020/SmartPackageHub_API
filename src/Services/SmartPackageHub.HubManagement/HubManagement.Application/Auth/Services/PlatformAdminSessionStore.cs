@@ -39,28 +39,4 @@ namespace HubManagement.Application.Auth.Services
         private static string SessionKey(string token) => $"platform-admin-session:{token}";
         private static string ResetKey(string token) => $"platform-admin-reset:{token}";
     }
-
-    public sealed record PlatformAdminMfaChallenge(
-        Guid UserId,
-        string Username,
-        string Email,
-        string CodeHash,
-        int Attempts);
-
-    public sealed record PlatformAdminPasswordResetChallenge(
-        Guid UserId,
-        string Username,
-        string Email,
-        string CodeHash,
-        int Attempts);
-
-    /// <summary>
-    /// Opaque admin session. Role is PlatformAdmin (all societies) or Admin (society-scoped via SocietyIds).
-    /// </summary>
-    public sealed record PlatformAdminSession(
-        Guid UserId,
-        string Username,
-        string Email,
-        string Role,
-        IReadOnlyList<Guid> SocietyIds);
 }

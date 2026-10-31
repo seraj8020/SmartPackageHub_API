@@ -37,7 +37,9 @@ namespace HubManagement.Application.Analytics.Queries
                 return Task.FromResult<IReadOnlyList<CourierSplitSliceDto>>(Array.Empty<CourierSplitSliceDto>());
 
             var slices = packages
-                .GroupBy(p => string.IsNullOrWhiteSpace(p.CourierPartner) ? "Unknown" : p.CourierPartner.Trim())
+                .GroupBy(
+                    p => string.IsNullOrWhiteSpace(p.CourierPartner) ? "Unknown" : p.CourierPartner.Trim(),
+                    StringComparer.Ordinal)
                 .Select(g => new CourierSplitSliceDto(
                     g.Key,
                     g.Count(),

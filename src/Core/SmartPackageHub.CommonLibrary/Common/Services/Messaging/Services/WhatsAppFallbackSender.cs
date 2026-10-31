@@ -13,6 +13,12 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
     /// </summary>
     public sealed class WhatsAppFallbackSender : IWhatsAppSender
     {
+        private static readonly Action<ILogger, string, string, Exception?> LogDevFallback =
+            LoggerMessage.Define<string, string>(
+                LogLevel.Warning,
+                new EventId(1, nameof(WhatsAppFallbackSender)),
+                "WhatsApp fallback for {Destination} key {Key} (no WebhookUrl configured — logged only).");
+
         private readonly HttpClient _http;
         private readonly WhatsAppFallbackOptions _options;
         private readonly ILogger<WhatsAppFallbackSender> _logger;
@@ -22,17 +28,14 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             IOptions<WhatsAppFallbackOptions> options,
             ILogger<WhatsAppFallbackSender> logger)
         {
+            ArgumentNullException.ThrowIfNull(http);
+            ArgumentNullException.ThrowIfNull(options);
+            ArgumentNullException.ThrowIfNull(logger);
             _http = http;
             _options = options.Value;
             _logger = logger;
         }
 
-        /// <summary>
-        /// POST to configured webhook, or log-only in dev if URL empty
-        /// </summary>
-        /// <param name="request"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public async Task<SmsSendResult> SendAsync(SmsSendRequest request, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(request);
@@ -40,12 +43,9 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             if (!_options.Enabled)
                 return new SmsSendResult(false, null, "WhatsApp fallback disabled.");
 
-            if (string.IsNullOrWhiteSpace(_options.WebhookUrl))
+            if (_options.WebhookUrl is null)
             {
-                _logger.LogWarning(
-                    "WhatsApp fallback for {Destination} key {Key} (no WebhookUrl configured ? logged only).",
-                    request.DestinationE164OrLocal,
-                    request.IdempotencyKey);
+                LogDevFallback(_logger, request.DestinationE164OrLocal, request.IdempotencyKey, null);
                 return new SmsSendResult(true, $"wa-dev-{request.IdempotencyKey}", null);
             }
 
@@ -63,7 +63,5 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
 
             return new SmsSendResult(true, $"wa-{request.IdempotencyKey}", null);
         }
-
-        
     }
 }

@@ -36,8 +36,9 @@ namespace HubManagement.Application.PackageHub.Commands
         public override async Task<PackageCommandResult> Handle(DeliverPackageCommand command, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(command);
-            ArgumentNullException.ThrowIfNull(command.request);
             var request = command.request;
+            if (request is null)
+                throw new ArgumentNullException(nameof(command));
             if (string.IsNullOrWhiteSpace(request.Token))
                 return new PackageCommandResult(true, false, false, "OTP code is required.", null);
 

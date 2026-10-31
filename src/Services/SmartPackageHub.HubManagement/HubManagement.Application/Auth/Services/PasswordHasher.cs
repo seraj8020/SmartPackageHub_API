@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -29,7 +30,7 @@ namespace HubManagement.Application.Auth.Services
             var parts = storedHash.Split('.', 3);
             if (parts.Length != 3)
                 return false;
-            if (!int.TryParse(parts[0], out var iterations) || iterations < 1)
+            if (!int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var iterations) || iterations < 1)
                 return false;
 
             byte[] salt;

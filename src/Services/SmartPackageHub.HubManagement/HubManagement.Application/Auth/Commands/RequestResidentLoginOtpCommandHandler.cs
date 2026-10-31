@@ -56,6 +56,7 @@ namespace HubManagement.Application.Auth.Commands
             _cache = cache;
             _smsSender = smsSender;
             _featureFlags = featureFlags;
+            ArgumentNullException.ThrowIfNull(authOptions);
             _authOptions = authOptions.Value;
             _environment = environment;
             _logger = logger;

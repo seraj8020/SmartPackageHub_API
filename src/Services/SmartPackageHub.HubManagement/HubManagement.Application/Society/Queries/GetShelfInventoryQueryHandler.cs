@@ -22,6 +22,7 @@ namespace HubManagement.Application.Societies.Queries
 
         protected override async Task<List<ShelfInventoryDto>?> HandleAsync(GetShelfInventoryQuery request)
         {
+            ArgumentNullException.ThrowIfNull(request);
             if (await _societies.GetByIdAsync(request.SocietyId).ConfigureAwait(false) is null)
                 return null;
 

@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 
-
 namespace SmartPackageHub.Common.Services.Messaging.Models
 {
     public sealed class Fast2SmsApiResponse
@@ -12,6 +11,6 @@ namespace SmartPackageHub.Common.Services.Messaging.Models
         public string? RequestId { get; set; }
 
         [JsonPropertyName("message")]
-        public string[]? Message { get; set; }
+        public IReadOnlyList<string>? Message { get; set; }
     }
 }

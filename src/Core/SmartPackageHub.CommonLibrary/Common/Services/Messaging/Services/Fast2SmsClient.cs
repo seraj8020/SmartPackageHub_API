@@ -19,23 +19,32 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             PropertyNameCaseInsensitive = true
         };
 
+        private static readonly Action<ILogger, Exception?> LogDisabled =
+            LoggerMessage.Define(
+                LogLevel.Warning,
+                new EventId(1, nameof(Fast2SmsClient)),
+                "Fast2SMS disabled or ApiKey missing; treating as submitted for local/dev.");
+
+        private static readonly Action<ILogger, string, Exception?> LogNonJson =
+            LoggerMessage.Define<string>(
+                LogLevel.Warning,
+                new EventId(2, nameof(Fast2SmsClient)),
+                "Fast2SMS returned non-JSON body: {Body}");
+
         private readonly HttpClient _http;
         private readonly Fast2SmsOptions _options;
         private readonly ILogger<Fast2SmsClient> _logger;
 
         public Fast2SmsClient(HttpClient http, IOptions<Fast2SmsOptions> options, ILogger<Fast2SmsClient> logger)
         {
+            ArgumentNullException.ThrowIfNull(http);
+            ArgumentNullException.ThrowIfNull(options);
+            ArgumentNullException.ThrowIfNull(logger);
             _http = http;
             _options = options.Value;
             _logger = logger;
         }
 
-        /// <summary>
-        /// POST form payload; parse request_id
-        /// </summary>
-        /// <param name="request"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public async Task<SmsSendResult> SendAsync(SmsSendRequest request, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(request);
@@ -44,7 +53,7 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
                 || string.IsNullOrWhiteSpace(_options.ApiKey)
                 || _options.ApiKey.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogWarning("Fast2SMS disabled or ApiKey missing; treating as submitted for local/dev.");
+                LogDisabled(_logger, null);
                 return new SmsSendResult(true, $"dev-{request.IdempotencyKey}", null);
             }
 
@@ -68,12 +77,12 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             }
             catch (JsonException ex)
             {
-                _logger.LogWarning(ex, "Fast2SMS returned non-JSON body: {Body}", raw);
+                LogNonJson(_logger, raw, ex);
             }
 
             if (!response.IsSuccessStatusCode || parsed is null || !parsed.Return)
             {
-                var err = parsed?.Message is { Length: > 0 } msgs
+                var err = parsed?.Message is { Count: > 0 } msgs
                     ? string.Join("; ", msgs)
                     : $"HTTP {(int)response.StatusCode}: {raw}";
                 return new SmsSendResult(false, parsed?.RequestId, err);
@@ -82,12 +91,6 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             return new SmsSendResult(true, parsed.RequestId, null);
         }
 
-        /// <summary>
-        /// quick (q) free text vs DLT (sender_id + template vars)
-        /// </summary>
-        /// <param name="request"></param>
-        /// <param name="numbers"></param>
-        /// <returns></returns>
         private Dictionary<string, string> BuildPayload(SmsSendRequest request, string numbers)
         {
             var route = string.IsNullOrWhiteSpace(_options.Route) ? "q" : _options.Route.Trim();
@@ -111,26 +114,18 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             {
                 map["sender_id"] = request.SenderId ?? _options.SenderId;
                 map["message"] = _options.DltMessageId;
-                // OTP as first DLT variable; adjust to your approved template order.
                 map["variables_values"] = ExtractOtpHint(request.MessageBody);
             }
             else
             {
-                // Quick SMS (test): free-text body. Sender ID is not used on route q.
                 map["message"] = request.MessageBody;
             }
 
             return map;
         }
 
-        /// <summary>
-        /// pull 6-digit OTP for DLT variables_values
-        /// </summary>
-        /// <param name="body"></param>
-        /// <returns></returns>
         private static string ExtractOtpHint(string body)
         {
-            // Prefer a 6-digit code embedded in the message for DLT variable substitution.
             for (var i = 0; i <= body.Length - 6; i++)
             {
                 var allDigits = true;
@@ -149,7 +144,5 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
 
             return body.Length <= 30 ? body : body[..30];
         }
-
-        
     }
 }

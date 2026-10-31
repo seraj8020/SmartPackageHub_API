@@ -1,3 +1,4 @@
+using System.Globalization;
 using AutoMapper;
 using HubManagement.Application.Intake.DTOs;
 using HubManagement.Core.Hubs.Entities;
@@ -54,7 +55,7 @@ namespace HubManagement.Application.Intake.Queries
             return parts.Length == 2
                 && parts[0].Length == 1
                 && parts[0][0] is >= 'A' and <= 'D'
-                && int.TryParse(parts[1], out var slot)
+                && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var slot)
                 && slot > 0;
         }
     }

@@ -7,7 +7,7 @@ namespace SmartPackageHub.Common.ConfigOptions
         /// <summary>Authorization header value from Fast2SMS dashboard (use test/sandbox key in Development).</summary>
         public string ApiKey { get; set; } = string.Empty;
 
-        public string BaseUrl { get; set; } = "https://www.fast2sms.com";
+        public Uri BaseUrl { get; set; } = new("https://www.fast2sms.com");
 
         /// <summary>Quick SMS route "q" for test keys; use "dlt" in production with SenderId + MessageId.</summary>
         public string Route { get; set; } = "q";

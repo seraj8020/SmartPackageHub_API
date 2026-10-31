@@ -58,26 +58,26 @@ namespace HubManagement.Application.Analytics.Commands
                 .ToDictionary(a => a.SocietyId);
 
             var upserted = 0;
-            foreach (var society in societies)
+            foreach (var societyId in societies.Select(society => society.Id))
             {
-                var societyPackages = packages.Where(p => p.SocietyId == society.Id).ToList();
+                var societyPackages = packages.Where(p => p.SocietyId == societyId).ToList();
                 var received = societyPackages.Count(p => p.RecievedAt >= dayStart && p.RecievedAt <= dayEnd);
                 var delivered = deliveries.Count(d =>
-                    d.SocietyId == society.Id &&
+                    d.SocietyId == societyId &&
                     d.DeliveredAt >= dayStart &&
                     d.DeliveredAt <= dayEnd);
                 var overdue = societyPackages.Count(p =>
                     p.Status != PackageStatus.Delivered &&
                     p.RecievedAt <= overdueCutoff);
 
-                if (existing.TryGetValue(society.Id, out var row))
+                if (existing.TryGetValue(societyId, out var row))
                 {
                     row.ReplaceCounts(received, delivered, overdue);
                     _analytics.Update(row);
                 }
                 else
                 {
-                    _analytics.Insert(AnalyticsDaily.Create(society.Id, day, received, delivered, overdue));
+                    _analytics.Insert(AnalyticsDaily.Create(societyId, day, received, delivered, overdue));
                 }
 
                 upserted++;

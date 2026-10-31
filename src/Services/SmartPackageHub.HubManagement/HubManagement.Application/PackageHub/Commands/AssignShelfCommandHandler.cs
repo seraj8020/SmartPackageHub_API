@@ -12,6 +12,7 @@ using HubManagement.Application.Intake.Helpers;
 using HubManagement.Application.Intake.Services;
 using HubManagement.Application.DeliverySlots.Helpers;
 using HubManagement.Application.DeliverySlots.Services;
+using HubManagement.Application.PackageHub.DTOs;
 
 namespace HubManagement.Application.PackageHub.Commands
 {
@@ -168,11 +169,7 @@ namespace HubManagement.Application.PackageHub.Commands
             {
                 Found = true,
                 Succeeded = true,
-                Message = shelf == null
-                    ? "No shelf is configured for this society. Package remains received and shelf is unassigned."
-                    : wasSuggested
-                        ? $"Requested shelf was unavailable. Package shelved at {shelf.Code}."
-                        : "Package shelved. Pickup OTP queued for the resident.",
+                Message = BuildAssignShelfMessage(shelf, wasSuggested),
                 Receipt = await MapReceiptAsync(intake, package, shelf?.Code ?? string.Empty, otp, resident).ConfigureAwait(false),
             };
         }
@@ -224,6 +221,15 @@ namespace HubManagement.Application.PackageHub.Commands
                 PhotoStored = intake != null && _images.GetAll().Any(image => image.IntakeId == intake.Id),
                 Resident = residentDto,
             });
+        }
+
+        private static string BuildAssignShelfMessage(Shelf? shelf, bool wasSuggested)
+        {
+            if (shelf == null)
+                return "No shelf is configured for this society. Package remains received and shelf is unassigned.";
+            if (wasSuggested)
+                return $"Requested shelf was unavailable. Package shelved at {shelf.Code}.";
+            return "Package shelved. Pickup OTP queued for the resident.";
         }
     }
 }

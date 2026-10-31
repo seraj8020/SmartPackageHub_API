@@ -61,7 +61,7 @@ namespace HubManagement.Application.HubResidents.Commands
 
             var pending = await _packages.ListAsync(
                 p => p.ResidentId == resident.Id && p.Status != PackageStatus.Delivered,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var deliveredAt = DateTime.UtcNow;
             foreach (var package in pending)

@@ -21,6 +21,7 @@ namespace HubManagement.Application.DeliverySlots.Queries
 
         protected override Task<DeliverySlotAvailabilityDto?> HandleAsync(GetDeliverySlotAvailabilityQuery request)
         {
+            ArgumentNullException.ThrowIfNull(request);
             var dayStart = request.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             var dayEnd = dayStart.AddDays(1);
             var bookings = _slots

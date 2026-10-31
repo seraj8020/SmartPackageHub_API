@@ -63,7 +63,6 @@ services.AddDbContextPool<HubDbContext>(opts =>
     opts.UseNpgsql(connectionString);
     if (builder.Environment.IsDevelopment())
     {
-       // opts.EnableSensitiveDataLogging();
         opts.LogTo(Console.WriteLine, LogLevel.Information);
     }
 });

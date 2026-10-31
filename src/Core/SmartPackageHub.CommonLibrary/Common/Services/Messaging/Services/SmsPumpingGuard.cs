@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SmartPackageHub.Common.Cache;
@@ -11,6 +12,15 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
 {
     public sealed class SmsPumpingGuard : ISmsPumpingGuard
     {
+        private static readonly Uri RecaptchaSiteVerifyUri =
+            new("https://www.google.com/recaptcha/api/siteverify");
+
+        private static readonly Action<ILogger, Exception?> LogRecaptchaError =
+            LoggerMessage.Define(
+                LogLevel.Warning,
+                new EventId(1, nameof(SmsPumpingGuard)),
+                "reCAPTCHA verification error");
+
         private readonly ICacheService _cache;
         private readonly SmsPumpingProtectionOptions _options;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -22,20 +32,16 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             IHttpClientFactory httpClientFactory,
             ILogger<SmsPumpingGuard> logger)
         {
+            ArgumentNullException.ThrowIfNull(cache);
+            ArgumentNullException.ThrowIfNull(options);
+            ArgumentNullException.ThrowIfNull(httpClientFactory);
+            ArgumentNullException.ThrowIfNull(logger);
             _cache = cache;
             _options = options.Value;
             _httpClientFactory = httpClientFactory;
             _logger = logger;
         }
 
-        /// <summary>
-        /// India phone, optional reCAPTCHA, IP/phone Redis quotas
-        /// </summary>
-        /// <param name="clientIp"></param>
-        /// <param name="phoneNumber"></param>
-        /// <param name="recaptchaToken"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public async Task<SmsPumpingCheckResult> CheckAsync(
             string? clientIp,
             string phoneNumber,
@@ -66,13 +72,6 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             return new SmsPumpingCheckResult(true, null);
         }
 
-        /// <summary>
-        /// increment counters with TTL
-        /// </summary>
-        /// <param name="clientIp"></param>
-        /// <param name="phoneNumber"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public async Task RecordSuccessAsync(string? clientIp, string phoneNumber, CancellationToken cancellationToken = default)
         {
             var ipWindow = TimeSpan.FromMinutes(Math.Max(1, _options.IpWindowMinutes));
@@ -88,12 +87,6 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             await _cache.SetAsync(phoneKey, phoneCount + 1, phoneWindow, cancellationToken).ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Google siteverify (v2/v3 score)
-        /// </summary>
-        /// <param name="token"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         private async Task<bool> VerifyRecaptchaAsync(string? token, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(_options.RecaptchaSecretKey))
@@ -102,30 +95,31 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             try
             {
                 var client = _httpClientFactory.CreateClient("Recaptcha");
-                using var response = await client.PostAsync(
-                    $"https://www.google.com/recaptcha/api/siteverify?secret={Uri.EscapeDataString(_options.RecaptchaSecretKey)}&response={Uri.EscapeDataString(token)}",
-                    content: null,
-                    cancellationToken).ConfigureAwait(false);
+                using var content = new FormUrlEncodedContent(
+                [
+                    new KeyValuePair<string, string>("secret", _options.RecaptchaSecretKey),
+                    new KeyValuePair<string, string>("response", token),
+                ]);
+                using var response = await client.PostAsync(RecaptchaSiteVerifyUri, content, cancellationToken)
+                    .ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                     return false;
 
-                var body = await response.Content.ReadFromJsonAsync<RecaptchaVerifyResponse>(cancellationToken).ConfigureAwait(false);
+                var body = await response.Content.ReadFromJsonAsync<RecaptchaVerifyResponse>(cancellationToken)
+                    .ConfigureAwait(false);
                 if (body is null || !body.Success)
                     return false;
 
-                // v3 score; v2 leaves Score null ? treat as pass when Success.
                 if (body.Score is double score && score < _options.RecaptchaMinScore)
                     return false;
 
                 return true;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException)
             {
-                _logger.LogWarning(ex, "reCAPTCHA verification error");
+                LogRecaptchaError(_logger, ex);
                 return false;
             }
         }
-
-        
     }
 }

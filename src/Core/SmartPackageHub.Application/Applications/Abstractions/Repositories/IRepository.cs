@@ -1,4 +1,4 @@
-﻿using SmartPackageHub.Domains.Abstractions.Entities;
+using SmartPackageHub.Domains.Abstractions.Entities;
 using System.Linq.Expressions;
 
 namespace SmartPackageHub.Applications.Abstractions.Repositories
@@ -12,17 +12,17 @@ namespace SmartPackageHub.Applications.Abstractions.Repositories
         void Delete(T entity);
         void Remove(IEnumerable<T> entitiesToRemove);
         Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>>? predicate = null);
-        /// <param name="noTracking">
-        /// Use true for read-only lists (faster, no change-tracker). Keep false when entities will be updated.
-        /// </param>
-        Task<List<T>> ListAsync(
+        // <param name="noTracking">
+        // Use true for read-only lists (faster, no change-tracker). Keep false when entities will be updated.
+        // </param>
+        Task<IReadOnlyList<T>> ListAsync(
             Expression<Func<T, bool>>? predicate = null,
-            CancellationToken cancellationToken = default,
-            bool noTracking = false);
+            bool noTracking = false,
+            CancellationToken cancellationToken = default);
         void Update(T item);
         IQueryable<T> FetchMulti(Expression<Func<T, bool>>? predicate = null, bool noTracking = false);
 
-        /// <summary>EF Core ExecuteUpdate for a single column (avoids owned-type tracking issues).</summary>
+        // <summary>EF Core ExecuteUpdate for a single column (avoids owned-type tracking issues).</summary>
         Task<int> ExecuteUpdatePropertyAsync<TProperty>(
             Expression<Func<T, bool>> predicate,
             Expression<Func<T, TProperty>> propertyExpression,

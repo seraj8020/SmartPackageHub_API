@@ -39,6 +39,11 @@ namespace SmartPackageHub.Common.Services.Messaging.Services
             IOptions<SmsPumpingProtectionOptions> pumping,
             ILogger<OtpSmsDispatcher> logger)
         {
+            ArgumentNullException.ThrowIfNull(notifications);
+            ArgumentNullException.ThrowIfNull(queue);
+            ArgumentNullException.ThrowIfNull(unitOfWork);
+            ArgumentNullException.ThrowIfNull(pumping);
+            ArgumentNullException.ThrowIfNull(logger);
             _notifications = notifications;
             _queue = queue;
             _unitOfWork = unitOfWork;

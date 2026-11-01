@@ -149,6 +149,24 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(history);
         }
 
+        [HttpGet("{id:guid}/vacationhold")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(VacationHoldDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetResidentVacationHold([FromRoute] Guid id)
+        {
+            var resident = await _residents.GetByIdAsync(id).ConfigureAwait(false);
+            if (resident is null)
+                return NotFound();
+
+            var hold = await _mediator.Send(new GetResidentVacationHoldQuery(id)).ConfigureAwait(false);
+            if (hold is null)
+                return NoContent();
+
+            return Ok(hold);
+        }
+
         [HttpPost("{id:guid}/vacationhold")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -157,10 +175,51 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         public async Task<ActionResult> SaveResidentVacationHold([FromRoute] Guid id, [FromBody] VacationHoldRequestDto request)
         {
             ArgumentNullException.ThrowIfNull(request);
-            var result = await _mediator.Send(new SaveResidentVacationHoldCommand(request.SocietyId, id,request.StartDate,request.EndDate, true)).ConfigureAwait(false);
-            return Ok(new { result });
+            try
+            {
+                var result = await _mediator.Send(
+                    new SaveResidentVacationHoldCommand(
+                        request.SocietyId,
+                        id,
+                        request.StartDate,
+                        request.EndDate,
+                        true)).ConfigureAwait(false);
+                return Ok(new { result });
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound(new { Message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:guid}/vacationhold/cancel")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> CancelResidentVacationHold([FromRoute] Guid id)
+        {
+            try
+            {
+                var result = await _mediator.Send(new CancelResidentVacationHoldCommand(id)).ConfigureAwait(false);
+                return Ok(new { result });
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound(new { Message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
         }
     }
-
-    
 }

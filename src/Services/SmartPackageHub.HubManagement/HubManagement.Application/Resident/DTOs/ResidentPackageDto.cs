@@ -21,5 +21,6 @@ namespace HubManagement.Application.HubResidents.DTOs
         public string? DeliverySlotLabel { get; set; }
         public DateTime? DeliverySlotWindowStart { get; set; }
         public DateTime? DeliverySlotWindowEnd { get; set; }
+        public string? PreferredDeliveryMethod { get; set; }
     }
 }

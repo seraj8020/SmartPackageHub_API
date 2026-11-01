@@ -26,5 +26,6 @@ namespace HubManagement.Application.Societies.DTOs
         public string CodApprovalStatus { get; set; } = "None";
         public string? DeliverySlotStatus { get; set; }
         public string? DeliverySlotLabel { get; set; }
+        public string? PreferredDeliveryMethod { get; set; }
     }
 }

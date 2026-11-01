@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
 using HubManagement.Application.DeliverySlots.Helpers;
+using HubManagement.Application.HubResidents.Services;
 
 namespace HubManagement.Application.DeliverySlots.Commands
 {
@@ -17,21 +18,30 @@ namespace HubManagement.Application.DeliverySlots.Commands
                 new EventId(1, nameof(BookDeliverySlotCommandHandler)),
                 "Booked delivery slot {SlotId} for package {PackageId}");
 
+        private static readonly Action<ILogger, Guid, string, Exception?> LogPreferenceSaved =
+            LoggerMessage.Define<Guid, string>(
+                LogLevel.Information,
+                new EventId(2, nameof(BookDeliverySlotCommandHandler)),
+                "Saved delivery preference {Method} for package {PackageId}");
+
         private readonly IRepository<Package> _packages;
         private readonly IRepository<DeliverySlot> _slots;
         private readonly IRepository<Resident> _residents;
+        private readonly IRepository<VacationHold> _vacationHolds;
         private readonly ILogger<BookDeliverySlotCommandHandler> _logger;
 
         public BookDeliverySlotCommandHandler(
             IRepository<Package> packages,
             IRepository<DeliverySlot> slots,
             IRepository<Resident> residents,
+            IRepository<VacationHold> vacationHolds,
             ILogger<BookDeliverySlotCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
             _packages = packages;
             _slots = slots;
             _residents = residents;
+            _vacationHolds = vacationHolds;
             _logger = logger;
         }
 
@@ -40,10 +50,42 @@ namespace HubManagement.Application.DeliverySlots.Commands
             CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(command);
-            var request = command.Request;
-            if (request is null)
-                throw new ArgumentNullException(nameof(command));
+            var request = command.Request ?? throw new ArgumentNullException(nameof(command));
+            var method = NormalizeMethod(request.PreferredDeliveryMethod);
 
+            var package = await _packages.GetByIdAsync(request.PackageId).ConfigureAwait(false);
+            var guard = await ValidatePackageAndResidentAsync(package, request).ConfigureAwait(false);
+            if (guard is not null)
+                return guard;
+
+            if (string.Equals(method, "CounterPickup", StringComparison.Ordinal))
+                return await SaveCounterPickupAsync(package!, cancellationToken).ConfigureAwait(false);
+
+            return await SaveDoorDeliveryAsync(package!, request, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task<BookDeliverySlotResult> SaveCounterPickupAsync(
+            Package package,
+            CancellationToken cancellationToken)
+        {
+            CancelActiveSlots(package.Id);
+            package.SetPreferredDeliveryMethod("CounterPickup");
+            _packages.Update(package);
+            await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
+            LogPreferenceSaved(_logger, package.Id, "CounterPickup", null);
+            return new BookDeliverySlotResult
+            {
+                Found = true,
+                Succeeded = true,
+                Message = "Counter pickup selected. Package will stay at the hub shelf.",
+            };
+        }
+
+        private async Task<BookDeliverySlotResult> SaveDoorDeliveryAsync(
+            Package package,
+            BookDeliverySlotRequest request,
+            CancellationToken cancellationToken)
+        {
             if (!DeliverySlotWindows.TryResolveWindow(request.WindowStart, request.WindowEnd, out _))
             {
                 return new BookDeliverySlotResult
@@ -54,49 +96,9 @@ namespace HubManagement.Application.DeliverySlots.Commands
                 };
             }
 
-            var package = await _packages.GetByIdAsync(request.PackageId).ConfigureAwait(false);
-            if (package == null)
-            {
-                return new BookDeliverySlotResult
-                {
-                    Found = false,
-                    Succeeded = false,
-                    Message = "Package not found.",
-                };
-            }
-
-            if (package.Status == PackageStatus.Delivered)
-            {
-                return new BookDeliverySlotResult
-                {
-                    Found = true,
-                    Conflict = true,
-                    Succeeded = false,
-                    Message = "Package is already delivered.",
-                };
-            }
-
-            if (package.SocietyId != request.SocietyId ||
-                package.ResidentId != request.ResidentId)
-            {
-                return new BookDeliverySlotResult
-                {
-                    Found = true,
-                    Succeeded = false,
-                    Message = "Package does not match the resident or society.",
-                };
-            }
-
-            var resident = await _residents.GetByIdAsync(request.ResidentId).ConfigureAwait(false);
-            if (resident == null)
-            {
-                return new BookDeliverySlotResult
-                {
-                    Found = false,
-                    Succeeded = false,
-                    Message = "Resident not found.",
-                };
-            }
+            var vacationBlock = await TryBlockForVacationHoldAsync(package, request).ConfigureAwait(false);
+            if (vacationBlock is not null)
+                return vacationBlock;
 
             var activeForPackage = _slots
                 .FetchMulti(slot =>
@@ -139,11 +141,8 @@ namespace HubManagement.Application.DeliverySlots.Commands
                 };
             }
 
-            // Resident selection overrides the system default 6�9 window.
             if (activeForPackage != null && DeliverySlotWindows.IsSystemDefault(activeForPackage.Status))
-            {
                 activeForPackage.Cancel();
-            }
 
             var slot = DeliverySlot.Create(
                 request.SocietyId,
@@ -154,6 +153,8 @@ namespace HubManagement.Application.DeliverySlots.Commands
                 DeliverySlotWindows.StatusBooked,
                 request.Notes);
 
+            package.SetPreferredDeliveryMethod("DoorDelivery");
+            _packages.Update(package);
             _slots.Insert(slot);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogSlotBooked(_logger, slot.Id, package.Id, null);
@@ -162,8 +163,96 @@ namespace HubManagement.Application.DeliverySlots.Commands
             {
                 Found = true,
                 Succeeded = true,
-                Message = "Delivery slot booked.",
+                Message = "Door delivery slot booked.",
                 Slot = Map(slot, package),
+            };
+        }
+
+        private async Task<BookDeliverySlotResult?> ValidatePackageAndResidentAsync(
+            Package? package,
+            BookDeliverySlotRequest request)
+        {
+            if (package == null)
+            {
+                return new BookDeliverySlotResult
+                {
+                    Found = false,
+                    Succeeded = false,
+                    Message = "Package not found.",
+                };
+            }
+
+            if (package.Status == PackageStatus.Delivered)
+            {
+                return new BookDeliverySlotResult
+                {
+                    Found = true,
+                    Conflict = true,
+                    Succeeded = false,
+                    Message = "Package is already delivered.",
+                };
+            }
+
+            if (package.SocietyId != request.SocietyId || package.ResidentId != request.ResidentId)
+            {
+                return new BookDeliverySlotResult
+                {
+                    Found = true,
+                    Succeeded = false,
+                    Message = "Package does not match the resident or society.",
+                };
+            }
+
+            var resident = await _residents.GetByIdAsync(request.ResidentId).ConfigureAwait(false);
+            if (resident == null)
+            {
+                return new BookDeliverySlotResult
+                {
+                    Found = false,
+                    Succeeded = false,
+                    Message = "Resident not found.",
+                };
+            }
+
+            return null;
+        }
+
+        private void CancelActiveSlots(Guid packageId)
+        {
+            var active = _slots
+                .FetchMulti(slot =>
+                    slot.PackageId == packageId &&
+                    slot.Status != DeliverySlotWindows.StatusCancelled)
+                .ToList();
+            foreach (var slot in active)
+                slot.Cancel();
+        }
+
+        private static string NormalizeMethod(string? method)
+        {
+            if (string.IsNullOrWhiteSpace(method))
+                return "DoorDelivery";
+            if (string.Equals(method, "CounterPickup", StringComparison.OrdinalIgnoreCase))
+                return "CounterPickup";
+            return "DoorDelivery";
+        }
+
+        private async Task<BookDeliverySlotResult?> TryBlockForVacationHoldAsync(
+            Package package,
+            BookDeliverySlotRequest request)
+        {
+            var coveringHold = await VacationHoldLookup.FindCoveringAsync(
+                _vacationHolds,
+                request.ResidentId,
+                request.WindowStart.Date).ConfigureAwait(false);
+            if (coveringHold is null && !package.VacationHoldId.HasValue)
+                return null;
+
+            return new BookDeliverySlotResult
+            {
+                Found = true,
+                Succeeded = false,
+                Message = "Door delivery is paused while your vacation hold is active. Choose counter pickup or wait until the hold ends.",
             };
         }
 

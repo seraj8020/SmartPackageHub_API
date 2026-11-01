@@ -8,5 +8,7 @@ namespace HubManagement.Application.DeliverySlots.DTOs
         public DateTime WindowStart { get; set; }
         public DateTime WindowEnd { get; set; }
         public string? Notes { get; set; }
+        /// <summary>DoorDelivery or CounterPickup. Defaults to DoorDelivery when omitted.</summary>
+        public string? PreferredDeliveryMethod { get; set; }
     }
 }

@@ -40,5 +40,19 @@ namespace HubManagement.Core.Hubs.Entities
 
             IsActive = false;
         }
+
+        public void Reschedule(DateTime fromDate, DateTime toDate)
+        {
+            if (!IsActive)
+                throw new InvalidOperationException("Cannot reschedule an inactive vacation hold.");
+            if (toDate.Date <= fromDate.Date)
+                throw new ArgumentException("End date must be after the start date.", nameof(toDate));
+            // Keep an already-started hold's start date; a new start cannot be before today.
+            if (fromDate.Date < DateTime.UtcNow.Date && fromDate.Date != FromDate)
+                throw new ArgumentException("Vacation hold cannot start in the past.", nameof(fromDate));
+
+            FromDate = fromDate.Date;
+            ToDate = toDate.Date;
+        }
     }
 }

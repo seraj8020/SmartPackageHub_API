@@ -88,6 +88,7 @@ namespace HubManagement.Application.HubResidents.Queries
                         DeliverySlotLabel = slot == null
                             ? null
                             : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
+                        PreferredDeliveryMethod = p.PreferredDeliveryMethod,
                     };
                 }).ToList();
         }

@@ -58,6 +58,7 @@ namespace HubManagement.Application.Societies.DTOs
                 DeliverySlotLabel = slot == null
                     ? null
                     : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
+                PreferredDeliveryMethod = package.PreferredDeliveryMethod,
             };
         }
 

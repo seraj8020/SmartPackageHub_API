@@ -605,6 +605,10 @@ namespace HubManagement.Infrastructure.Migrations
                     b.Property<Guid?>("VacationHoldId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("PreferredDeliveryMethod")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DigitalSignOffReceiptId");

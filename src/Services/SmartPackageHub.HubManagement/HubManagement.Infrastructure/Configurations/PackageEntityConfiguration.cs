@@ -28,6 +28,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(e => e.ShelfId);
             builder.Property(e => e.StaffUserId).IsRequired();
             builder.Property(e => e.VacationHoldId);
+            builder.Property(e => e.PreferredDeliveryMethod).HasMaxLength(30);
             builder.Property(e => e.CourierAwb).IsRequired().HasMaxLength(100);
             builder.Property(p => p.Category).HasMaxLength(100);
             builder.Property(p => p.CourierPartner).HasMaxLength(100);

@@ -19,6 +19,8 @@ namespace HubManagement.Core.Hubs.Entities
         public Guid? DigitalSignOffReceiptId { get; private set; }
         public Guid StaffUserId { get; private set; }
         public Guid? VacationHoldId { get; private set; }
+        /// <summary>Resident preference: DoorDelivery or CounterPickup (staff may override at handover).</summary>
+        public string? PreferredDeliveryMethod { get; private set; }
         public PackageDimensions Dimensions { get; private set; } = null!;
         public string? Category { get; private set; }
         [Required]
@@ -170,6 +172,22 @@ namespace HubManagement.Core.Hubs.Entities
         public void ApplyVacationHold(Guid holdId)
         {
             VacationHoldId = holdId;
+        }
+
+        public void SetPreferredDeliveryMethod(string method)
+        {
+            var normalized = (method ?? string.Empty).Trim();
+            if (!string.Equals(normalized, "DoorDelivery", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(normalized, "CounterPickup", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    "Delivery method must be DoorDelivery or CounterPickup.",
+                    nameof(method));
+            }
+
+            PreferredDeliveryMethod = string.Equals(normalized, "DoorDelivery", StringComparison.OrdinalIgnoreCase)
+                ? "DoorDelivery"
+                : "CounterPickup";
         }
 
         // Domain Behavior: Adding an image to the tracking package

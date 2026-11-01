@@ -11,6 +11,7 @@ using HubManagement.Application.Intake.Helpers;
 using HubManagement.Application.Intake.Services;
 using HubManagement.Application.PackageHub.DTOs;
 using HubManagement.Application.PackageHub.Services;
+using HubManagement.Application.HubResidents.Services;
 
 namespace HubManagement.Application.Intake.Commands
 {
@@ -32,6 +33,7 @@ namespace HubManagement.Application.Intake.Commands
         private readonly IRepository<CourierAgent> _agents;
         private readonly IRepository<OtpLog> _otpLogs;
         private readonly IRepository<Notification> _notifications;
+        private readonly IRepository<VacationHold> _vacationHolds;
         private readonly IParcelPhotoStore _photos;
         private readonly IntakeNotificationChannel _queue;
         private readonly IFeatureFlags _featureFlags;
@@ -48,6 +50,7 @@ namespace HubManagement.Application.Intake.Commands
             IRepository<CourierAgent> agents,
             IRepository<OtpLog> otpLogs,
             IRepository<Notification> notifications,
+            IRepository<VacationHold> vacationHolds,
             IParcelPhotoStore photos,
             IntakeNotificationChannel queue,
             IFeatureFlags featureFlags,
@@ -64,6 +67,7 @@ namespace HubManagement.Application.Intake.Commands
             _agents = agents;
             _otpLogs = otpLogs;
             _notifications = notifications;
+            _vacationHolds = vacationHolds;
             _photos = photos;
             _queue = queue;
             _featureFlags = featureFlags;
@@ -363,6 +367,17 @@ namespace HubManagement.Application.Intake.Commands
                 IntakeText.Clean(request.Barcode, 40),
                 request.IsDamaged,
                 IntakeText.Clean(request.DamageNote, 240));
+
+            // Packages arriving during an active vacation hold stay at the hub (no door delivery).
+            if (resident is not null)
+            {
+                var coveringHold = await VacationHoldLookup.FindCoveringAsync(
+                    _vacationHolds,
+                    resident.Id,
+                    now).ConfigureAwait(false);
+                if (coveringHold is not null)
+                    package.ApplyVacationHold(coveringHold.Id);
+            }
 
             _packages.Insert(package);
 

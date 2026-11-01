@@ -55,6 +55,15 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             if (!result.Succeeded)
                 return BadRequest(new { Message = result.Message });
 
+            if (result.Slot is null)
+            {
+                return Ok(new
+                {
+                    Message = result.Message,
+                    PreferredDeliveryMethod = request?.PreferredDeliveryMethod ?? "CounterPickup",
+                });
+            }
+
             return Ok(result.Slot);
         }
     }

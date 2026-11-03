@@ -1,44 +1,51 @@
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
+using HubManagement.Core.Hubs.ValueObjects;
 
 namespace HubManagement.Application.Analytics.Services
 {
     internal static class AnalyticsMetricsCalculator
     {
-        public static int CountReceived(IEnumerable<Package> packages, DateTime fromInclusive, DateTime toInclusive) =>
-            packages.Count(p => p.RecievedAt >= fromInclusive && p.RecievedAt <= toInclusive);
+        public static int CountReceived(IEnumerable<Package> packages, DateTime fromInclusive, DateTime toExclusive) =>
+            packages.Count(p => p.RecievedAt >= fromInclusive && p.RecievedAt < toExclusive);
 
-        public static int CountDelivered(IEnumerable<Delivery> deliveries, DateTime fromInclusive, DateTime toInclusive) =>
-            deliveries.Count(d => d.DeliveredAt >= fromInclusive && d.DeliveredAt <= toInclusive);
+        public static int CountDelivered(IEnumerable<Delivery> deliveries, DateTime fromInclusive, DateTime toExclusive) =>
+            deliveries.Where(d => d.Status == DeliveryStatus.Completed && d.DeliveredAt >= fromInclusive && d.DeliveredAt < toExclusive)
+                .Select(d => d.PackageId).Distinct().Count();
 
         public static int CountPending(IEnumerable<Package> packages) =>
             packages.Count(p => p.Status != PackageStatus.Delivered);
 
-        public static int CountPendingOpenAtEndOfDay(
+        public static int CountPendingOpenBefore(
             IEnumerable<Package> packages,
             IReadOnlyDictionary<Guid, DateTime> deliveredAtByPackage,
-            DateTime dayEnd)
+            DateTime dayEndExclusive)
         {
-            // Pending as of end of day: received on/before dayEnd and not delivered by dayEnd.
             return packages.Count(p =>
             {
-                if (p.RecievedAt > dayEnd)
+                if (p.RecievedAt >= dayEndExclusive)
                     return false;
                 if (!deliveredAtByPackage.TryGetValue(p.Id, out var deliveredAt))
                     return p.Status != PackageStatus.Delivered;
-                return deliveredAt > dayEnd;
+                return deliveredAt >= dayEndExclusive;
             });
         }
+
+        public static int CountPendingOpenAtEndOfDay(
+            IEnumerable<Package> packages,
+            IReadOnlyDictionary<Guid, DateTime> deliveredAtByPackage,
+            DateTime dayEndExclusive) =>
+            CountPendingOpenBefore(packages, deliveredAtByPackage, dayEndExclusive);
 
         public static double AverageHoldDays(
             IEnumerable<Package> packages,
             IEnumerable<Delivery> deliveries,
             DateTime fromInclusive,
-            DateTime toInclusive)
+            DateTime toExclusive)
         {
             var packageById = packages.ToDictionary(p => p.Id);
             var holds = new List<double>();
-            foreach (var delivery in deliveries.Where(d => d.DeliveredAt >= fromInclusive && d.DeliveredAt <= toInclusive))
+            foreach (var delivery in deliveries.Where(d => d.Status == DeliveryStatus.Completed && d.DeliveredAt >= fromInclusive && d.DeliveredAt < toExclusive))
             {
                 if (!packageById.TryGetValue(delivery.PackageId, out var package))
                     continue;
@@ -83,6 +90,7 @@ namespace HubManagement.Application.Analytics.Services
 
         public static Dictionary<Guid, DateTime> FirstDeliveryByPackage(IEnumerable<Delivery> deliveries) =>
             deliveries
+                .Where(d => d.Status == DeliveryStatus.Completed)
                 .GroupBy(d => d.PackageId)
                 .ToDictionary(g => g.Key, g => g.Min(d => d.DeliveredAt));
     }

@@ -583,6 +583,9 @@ namespace HubManagement.Infrastructure.Migrations
                     b.Property<Guid?>("SecureBagId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ShelfAssignedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid?>("ShelfId")
                         .HasColumnType("uuid");
 
@@ -947,6 +950,9 @@ namespace HubManagement.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("OnboardedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(50)

@@ -15,6 +15,7 @@ namespace HubManagement.Core.Hubs.Entities
         public Guid SocietyId { get; private set; }
         public Guid? ResidentId { get; private set; }
         public Guid? ShelfId { get; private set; }
+        public DateTime? ShelfAssignedAtUtc { get; private set; }
         public Guid? SecureBagId { get; private set; }
         public Guid? DigitalSignOffReceiptId { get; private set; }
         public Guid StaffUserId { get; private set; }
@@ -152,6 +153,7 @@ namespace HubManagement.Core.Hubs.Entities
         public void AssignShelf(Guid shelfId)
         {
             ShelfId = shelfId;
+            ShelfAssignedAtUtc = DateTime.UtcNow;
         }
 
         public void AssignSecureBag(Guid secureBagId)

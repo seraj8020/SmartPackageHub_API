@@ -53,11 +53,10 @@ namespace HubManagement.Application.Analytics.Queries
                     societyName,
                     package.Id));
 
-                if (package.Status is PackageStatus.Shelved or PackageStatus.Dispatched or PackageStatus.Delivered
-                    && package.ShelfId is not null)
+                if (package.ShelfAssignedAtUtc is DateTime shelfAssignedAtUtc)
                 {
                     items.Add(new RecentActivityItemDto(
-                        package.RecievedAt.AddMinutes(5),
+                        shelfAssignedAtUtc,
                         "shelf",
                         $"{package.PkgNumber} assigned to shelf",
                         package.SocietyId,
@@ -66,8 +65,22 @@ namespace HubManagement.Application.Analytics.Queries
                 }
             }
 
+            foreach (var society in _societies.GetAll().AsEnumerable()
+                         .Where(s => AnalyticsScope.Includes(request.SocietyId, s.Id) && s.OnboardedAtUtc.HasValue))
+            {
+                items.Add(new RecentActivityItemDto(
+                    society.OnboardedAtUtc!.Value,
+                    "society-onboard",
+                    $"Society onboarded: {society.Name}",
+                    society.Id,
+                    society.Name,
+                    null));
+            }
+
             foreach (var delivery in _deliveries.GetAll().AsEnumerable()
-                         .Where(d => AnalyticsScope.Includes(request.SocietyId, d.SocietyId)))
+                         .Where(d =>
+                             AnalyticsScope.Includes(request.SocietyId, d.SocietyId) &&
+                             d.Status == HubManagement.Core.Hubs.ValueObjects.DeliveryStatus.Completed))
             {
                 societyNames.TryGetValue(delivery.SocietyId, out var societyName);
                 packageById.TryGetValue(delivery.PackageId, out var pkg);

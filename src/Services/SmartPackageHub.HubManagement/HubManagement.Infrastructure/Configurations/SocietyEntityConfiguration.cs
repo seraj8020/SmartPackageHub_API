@@ -12,6 +12,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.HasKey(e => e.Id);
 
             builder.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            builder.Property(e => e.OnboardedAtUtc);
             builder.Property(p => p.ContactEmail).HasMaxLength(150);
             builder.Property(p => p.Phone).HasMaxLength(50);
 

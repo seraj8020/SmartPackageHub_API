@@ -14,6 +14,7 @@ namespace HubManagement.Core.Hubs.Entities
         public string? ContactEmail { get; private set; }
 
         public string? Phone { get; private set; }
+        public DateTime? OnboardedAtUtc { get; private set; }
 
         private Society() { }
         private Society(string name, Address address, string contactEmail, string phone)
@@ -23,6 +24,7 @@ namespace HubManagement.Core.Hubs.Entities
             this.Address = address;
             this.ContactEmail = contactEmail;
             this.Phone = phone;
+            OnboardedAtUtc = DateTime.UtcNow;
         }
         //Factory method to restore state
 

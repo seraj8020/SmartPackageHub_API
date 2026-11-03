@@ -31,7 +31,7 @@ namespace HubManagement.Application.Analytics.Queries
 
             var today = AnalyticsScope.TodayUtc();
             var dayStart = AnalyticsScope.StartOfDayUtc(today);
-            var dayEnd = AnalyticsScope.EndOfDayUtc(today);
+            var dayEndExclusive = AnalyticsScope.StartOfDayUtc(today.AddDays(1));
 
             var societies = _societies.GetAll().AsEnumerable()
                 .Where(s => AnalyticsScope.Includes(request.SocietyId, s.Id))
@@ -43,12 +43,15 @@ namespace HubManagement.Application.Analytics.Queries
                 .Where(d => AnalyticsScope.Includes(request.SocietyId, d.SocietyId))
                 .ToList();
 
+            var activeSocieties = request.SocietyId is null || request.SocietyId == Guid.Empty
+                ? societies.Count
+                : societies.Count > 0 ? 1 : 0;
             var dto = new DashboardSummaryDto(
                 today,
-                AnalyticsMetricsCalculator.CountReceived(packages, dayStart, dayEnd),
+                AnalyticsMetricsCalculator.CountReceived(packages, dayStart, dayEndExclusive),
                 AnalyticsMetricsCalculator.CountPending(packages),
-                AnalyticsMetricsCalculator.CountDelivered(deliveries, dayStart, dayEnd),
-                societies.Count,
+                AnalyticsMetricsCalculator.CountDelivered(deliveries, dayStart, dayEndExclusive),
+                activeSocieties,
                 request.SocietyId is null || request.SocietyId == Guid.Empty
                     ? "All societies"
                     : societies.FirstOrDefault()?.Name ?? "Society");

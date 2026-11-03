@@ -38,8 +38,8 @@ namespace HubManagement.Application.Analytics.Commands
 
             var day = request.Day ?? AnalyticsScope.TodayUtc().AddDays(-1);
             var dayStart = AnalyticsScope.StartOfDayUtc(day);
-            var dayEnd = AnalyticsScope.EndOfDayUtc(day);
-            var overdueCutoff = dayEnd - OverdueThreshold;
+            var dayEndExclusive = AnalyticsScope.StartOfDayUtc(day.AddDays(1));
+            var overdueCutoff = dayEndExclusive - OverdueThreshold;
 
             var societies = _societies.GetAll().AsEnumerable()
                 .Where(s => AnalyticsScope.Includes(request.SocietyId, s.Id))
@@ -61,11 +61,15 @@ namespace HubManagement.Application.Analytics.Commands
             foreach (var society in societies)
             {
                 var societyPackages = packages.Where(p => p.SocietyId == society.Id).ToList();
-                var received = societyPackages.Count(p => p.RecievedAt >= dayStart && p.RecievedAt <= dayEnd);
-                var delivered = deliveries.Count(d =>
+                var received = societyPackages.Count(p => p.RecievedAt >= dayStart && p.RecievedAt < dayEndExclusive);
+                var delivered = deliveries.Where(d =>
                     d.SocietyId == society.Id &&
+                    d.Status == HubManagement.Core.Hubs.ValueObjects.DeliveryStatus.Completed &&
                     d.DeliveredAt >= dayStart &&
-                    d.DeliveredAt <= dayEnd);
+                    d.DeliveredAt < dayEndExclusive)
+                    .Select(d => d.PackageId)
+                    .Distinct()
+                    .Count();
                 var overdue = societyPackages.Count(p =>
                     p.Status != PackageStatus.Delivered &&
                     p.RecievedAt <= overdueCutoff);

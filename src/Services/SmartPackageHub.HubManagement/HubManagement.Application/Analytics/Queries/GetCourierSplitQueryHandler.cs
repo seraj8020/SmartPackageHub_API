@@ -23,13 +23,13 @@ namespace HubManagement.Application.Analytics.Queries
             var days = Math.Clamp(request.Days, 1, 90);
             var today = AnalyticsScope.TodayUtc();
             var from = AnalyticsScope.StartOfDayUtc(today.AddDays(-(days - 1)));
-            var to = AnalyticsScope.EndOfDayUtc(today);
+            var toExclusive = AnalyticsScope.StartOfDayUtc(today.AddDays(1));
 
             var packages = _packages.GetAll().AsEnumerable()
                 .Where(p =>
                     AnalyticsScope.Includes(request.SocietyId, p.SocietyId) &&
                     p.RecievedAt >= from &&
-                    p.RecievedAt <= to)
+                    p.RecievedAt < toExclusive)
                 .ToList();
 
             var total = packages.Count;

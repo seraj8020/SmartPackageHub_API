@@ -26,6 +26,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(e => e.SocietyId).IsRequired();
             builder.Property(e => e.ResidentId);
             builder.Property(e => e.ShelfId);
+            builder.Property(e => e.ShelfAssignedAtUtc);
             builder.Property(e => e.StaffUserId).IsRequired();
             builder.Property(e => e.VacationHoldId);
             builder.Property(e => e.CourierAwb).IsRequired().HasMaxLength(100);

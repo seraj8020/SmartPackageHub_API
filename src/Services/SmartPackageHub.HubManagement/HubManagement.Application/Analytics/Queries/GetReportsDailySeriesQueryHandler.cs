@@ -52,7 +52,7 @@ namespace HubManagement.Application.Analytics.Queries
             {
                 var day = fromDay.AddDays(i);
                 var dayStart = AnalyticsScope.StartOfDayUtc(day);
-                var dayEnd = AnalyticsScope.EndOfDayUtc(day);
+                var dayEndExclusive = AnalyticsScope.StartOfDayUtc(day.AddDays(1));
                 var dayRows = analytics.Where(a => a.Day == day).ToList();
 
                 int received;
@@ -64,11 +64,11 @@ namespace HubManagement.Application.Analytics.Queries
                 }
                 else
                 {
-                    received = AnalyticsMetricsCalculator.CountReceived(packages, dayStart, dayEnd);
-                    delivered = AnalyticsMetricsCalculator.CountDelivered(deliveries, dayStart, dayEnd);
+                    received = AnalyticsMetricsCalculator.CountReceived(packages, dayStart, dayEndExclusive);
+                    delivered = AnalyticsMetricsCalculator.CountDelivered(deliveries, dayStart, dayEndExclusive);
                 }
 
-                var pending = AnalyticsMetricsCalculator.CountPendingOpenAtEndOfDay(packages, deliveredAt, dayEnd);
+                var pending = AnalyticsMetricsCalculator.CountPendingOpenBefore(packages, deliveredAt, dayEndExclusive);
                 points.Add(new ReportsDailyPointDto(day, received, delivered, pending));
             }
 

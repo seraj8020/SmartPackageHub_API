@@ -43,9 +43,20 @@ namespace HubManagement.Application.Analytics.Queries
                 .Where(d => AnalyticsScope.Includes(request.SocietyId, d.SocietyId))
                 .ToList();
 
-            var activeSocieties = request.SocietyId is null || request.SocietyId == Guid.Empty
-                ? societies.Count
-                : societies.Count > 0 ? 1 : 0;
+            int activeSocieties;
+            if (request.SocietyId is null || request.SocietyId == Guid.Empty)
+            {
+                activeSocieties = societies.Count;
+            }
+            else if (societies.Count > 0)
+            {
+                activeSocieties = 1;
+            }
+            else
+            {
+                activeSocieties = 0;
+            }
+
             var dto = new DashboardSummaryDto(
                 today,
                 AnalyticsMetricsCalculator.CountReceived(packages, dayStart, dayEndExclusive),

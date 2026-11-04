@@ -49,11 +49,14 @@ namespace HubManagement.Application.Analytics.Queries
             {
                 var societyPackages = packages.Where(p => p.SocietyId == society.Id).ToList();
                 var societyDeliveries = deliveries.Where(d => d.SocietyId == society.Id).ToList();
+                var societyDeliveredAt = AnalyticsMetricsCalculator.FirstDeliveryByPackage(societyDeliveries);
                 var received = AnalyticsMetricsCalculator.CountReceived(societyPackages, from, to);
                 var delivered = AnalyticsMetricsCalculator.CountDelivered(societyDeliveries, from, to);
-                var pending = AnalyticsMetricsCalculator.CountPending(societyPackages);
+                var pending = AnalyticsMetricsCalculator.CountPendingOpenAtEndOfDay(
+                    societyPackages, societyDeliveredAt, to);
                 var avgHold = AnalyticsMetricsCalculator.AverageHoldDays(societyPackages, societyDeliveries, from, to);
-                var rate = AnalyticsMetricsCalculator.MemberPickupRatePercent(received, delivered);
+                var rate = AnalyticsMetricsCalculator.MemberPickupRateOfReceivedPercent(
+                    societyPackages, societyDeliveredAt, from, to);
                 return new SocietyPerformanceDto(
                     society.Id,
                     society.Name,

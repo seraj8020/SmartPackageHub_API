@@ -50,8 +50,36 @@ namespace HubManagement.Application.Analytics.Services
             return holds.Count == 0 ? 0 : Math.Round(holds.Average(), 2);
         }
 
+        /// <summary>
+        /// Legacy ratio of deliveries-in-range / receipts-in-range. Capped at 100% because
+        /// deliveries of packages received before the window can otherwise inflate the rate.
+        /// Prefer <see cref="MemberPickupRateOfReceivedPercent"/> for reports.
+        /// </summary>
         public static double MemberPickupRatePercent(int received, int delivered) =>
-            received <= 0 ? 0 : Math.Round(100.0 * delivered / received, 1);
+            received <= 0 ? 0 : Math.Round(Math.Min(100.0, 100.0 * delivered / received), 1);
+
+        /// <summary>
+        /// Of packages received in the window, percent that were delivered by the window end.
+        /// Never exceeds 100%.
+        /// </summary>
+        public static double MemberPickupRateOfReceivedPercent(
+            IEnumerable<Package> packages,
+            IReadOnlyDictionary<Guid, DateTime> deliveredAtByPackage,
+            DateTime fromInclusive,
+            DateTime toInclusive)
+        {
+            var received = packages
+                .Where(p => p.RecievedAt >= fromInclusive && p.RecievedAt <= toInclusive)
+                .ToList();
+            if (received.Count == 0)
+                return 0;
+
+            var pickedUp = received.Count(p =>
+                deliveredAtByPackage.TryGetValue(p.Id, out var deliveredAt) &&
+                deliveredAt <= toInclusive);
+
+            return Math.Round(100.0 * pickedUp / received.Count, 1);
+        }
 
         public static Dictionary<Guid, DateTime> FirstDeliveryByPackage(IEnumerable<Delivery> deliveries) =>
             deliveries

@@ -12,17 +12,14 @@ namespace HubManagement.Application.Analytics.Queries
     {
         private readonly IRepository<Package> _packages;
         private readonly IRepository<Delivery> _deliveries;
-        private readonly IRepository<AnalyticsDaily> _analytics;
 
         public GetReportsDailySeriesQueryHandler(
             IMapper mapper,
             IRepository<Package> packages,
-            IRepository<Delivery> deliveries,
-            IRepository<AnalyticsDaily> analytics) : base(mapper)
+            IRepository<Delivery> deliveries) : base(mapper)
         {
             _packages = packages;
             _deliveries = deliveries;
-            _analytics = analytics;
         }
 
         protected override Task<IReadOnlyList<ReportsDailyPointDto>> HandleAsync(GetReportsDailySeriesQuery request)
@@ -32,13 +29,8 @@ namespace HubManagement.Application.Analytics.Queries
             var toDay = AnalyticsScope.TodayUtc();
             var fromDay = toDay.AddDays(-(days - 1));
 
-            var analytics = _analytics.GetAll().AsEnumerable()
-                .Where(a =>
-                    a.Day >= fromDay &&
-                    a.Day <= toDay &&
-                    AnalyticsScope.Includes(request.SocietyId, a.SocietyId))
-                .ToList();
-
+            // Always use live package/delivery counts. Partial AnalyticsDaily rollups across
+            // societies previously undercounted platform-wide days when only some societies had rows.
             var packages = _packages.GetAll().AsEnumerable()
                 .Where(p => AnalyticsScope.Includes(request.SocietyId, p.SocietyId))
                 .ToList();
@@ -53,21 +45,8 @@ namespace HubManagement.Application.Analytics.Queries
                 var day = fromDay.AddDays(i);
                 var dayStart = AnalyticsScope.StartOfDayUtc(day);
                 var dayEnd = AnalyticsScope.EndOfDayUtc(day);
-                var dayRows = analytics.Where(a => a.Day == day).ToList();
-
-                int received;
-                int delivered;
-                if (dayRows.Count > 0)
-                {
-                    received = dayRows.Sum(a => a.PackagesReceived);
-                    delivered = dayRows.Sum(a => a.PackagesDelivered);
-                }
-                else
-                {
-                    received = AnalyticsMetricsCalculator.CountReceived(packages, dayStart, dayEnd);
-                    delivered = AnalyticsMetricsCalculator.CountDelivered(deliveries, dayStart, dayEnd);
-                }
-
+                var received = AnalyticsMetricsCalculator.CountReceived(packages, dayStart, dayEnd);
+                var delivered = AnalyticsMetricsCalculator.CountDelivered(deliveries, dayStart, dayEnd);
                 var pending = AnalyticsMetricsCalculator.CountPendingOpenAtEndOfDay(packages, deliveredAt, dayEnd);
                 points.Add(new ReportsDailyPointDto(day, received, delivered, pending));
             }

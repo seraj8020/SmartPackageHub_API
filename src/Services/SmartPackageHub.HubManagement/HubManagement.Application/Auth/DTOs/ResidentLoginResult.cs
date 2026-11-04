@@ -8,6 +8,8 @@ namespace HubManagement.Application.Auth.DTOs
         Guid? SocietyId,
         string? FullName,
         string? PhoneNumber,
+        string? TowerWing,
+        string? FlatNumber,
         string Role,
         string Message);
 }

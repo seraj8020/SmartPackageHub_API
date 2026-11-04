@@ -32,16 +32,12 @@ namespace HubManagement.Application.Auth.Commands
             ArgumentNullException.ThrowIfNull(request);
             if (!PhoneNumberGuard.TryNormalizeIndiaMobile(request.PhoneNumber, out var phone))
             {
-                return Task.FromResult(new ResidentLoginResult(
-                    false, false, null, null, null, null, null, "Resident",
-                    "Enter a valid 10-digit mobile number."));
+                return Task.FromResult(Fail(false, "Enter a valid 10-digit mobile number."));
             }
 
             if (string.IsNullOrWhiteSpace(request.Otp) || request.Otp.Trim().Length != 6)
             {
-                return Task.FromResult(new ResidentLoginResult(
-                    false, false, null, null, null, null, null, "Resident",
-                    "Enter the complete 6-digit code."));
+                return Task.FromResult(Fail(false, "Enter the complete 6-digit code."));
             }
 
             var resident = _residents.GetAll().AsEnumerable()
@@ -52,9 +48,7 @@ namespace HubManagement.Application.Auth.Commands
 
             if (resident is null)
             {
-                return Task.FromResult(new ResidentLoginResult(
-                    false, true, null, null, null, null, null, "Resident",
-                    "This mobile number is not registered. Please register first."));
+                return Task.FromResult(Fail(true, "This mobile number is not registered. Please register first."));
             }
 
             var cacheKey = RequestResidentLoginOtpCommandHandler.CacheKey(resident.Id);
@@ -64,8 +58,8 @@ namespace HubManagement.Application.Auth.Commands
                     Encoding.UTF8.GetBytes(expectedOtp),
                     Encoding.UTF8.GetBytes(request.Otp.Trim())))
             {
-                return Task.FromResult(new ResidentLoginResult(
-                    false, false, null, null, null, null, null, "Resident",
+                return Task.FromResult(Fail(
+                    false,
                     "That code is not correct or has expired. Please request a new one."));
             }
 
@@ -78,8 +72,13 @@ namespace HubManagement.Application.Auth.Commands
                 resident.SocietyId,
                 resident.FullName,
                 phone,
+                resident.TowerWing,
+                resident.Unit?.Value,
                 "Resident",
                 "Signed in."));
         }
+
+        private static ResidentLoginResult Fail(bool notFound, string message) =>
+            new(false, notFound, null, null, null, null, null, null, null, "Resident", message);
     }
 }

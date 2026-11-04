@@ -80,6 +80,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 result.SocietyId,
                 result.FullName,
                 result.PhoneNumber,
+                result.TowerWing,
+                result.FlatNumber,
                 result.Role,
                 Message = result.Message
             });

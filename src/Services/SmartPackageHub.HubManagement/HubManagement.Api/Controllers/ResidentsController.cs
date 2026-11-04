@@ -45,7 +45,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             if (!result.Succeeded || result.Id is null)
                 return BadRequest(new { Message = result.Message });
 
-            return Ok(new { id = result.Id.Value, Id = result.Id.Value, Message = result.Message });
+            // Single "id" only — camelCase JSON would collide if both id and Id were returned.
+            return Ok(new { id = result.Id.Value, message = result.Message });
         }
 
         [HttpGet("getresidentbyid/{residentid}")]
@@ -58,6 +59,27 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         {
             var result = await _mediator.Send(new GetResidentByIdQuery(residentid)).ConfigureAwait(false);
             return Ok(result);
+        }
+
+        [HttpGet("{id:guid}/profile")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetResidentProfile(Guid id)
+        {
+            var resident = await _residents.GetByIdAsync(id).ConfigureAwait(false);
+            if (resident is null)
+                return NotFound();
+
+            return Ok(new
+            {
+                id = resident.Id,
+                societyId = resident.SocietyId,
+                fullName = resident.FullName,
+                phoneNumber = resident.PhoneNumber,
+                towerWing = resident.TowerWing,
+                flatNumber = resident.Unit?.Value,
+            });
         }
 
         [HttpGet("{id:guid}/packages")]

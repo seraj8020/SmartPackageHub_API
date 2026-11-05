@@ -1,17 +1,19 @@
 using HubManagement.Application.Analytics.Commands;
 using HubManagement.Application.Analytics.Services;
+using HubManagement.Core.Hubs.Entities;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SmartPackageHub.Common.ConfigOptions;
+using SmartPackageHub.Applications.Abstractions.Repositories;
 
 namespace HubManagement.Workers
 {
     /// <summary>
-    /// End-of-day style rollup: after <see cref="AnalyticsRollupOptions.RunAfterHourUtc"/> UTC,
-    /// upserts yesterday's AnalyticsDailies once per calendar day. Does not poll packages every few minutes.
+    /// Daily rollup: after <see cref="AnalyticsRollupOptions.RunAfterHourUtc"/> UTC,
+    /// upserts today's AnalyticsDailies once per calendar day.
     /// </summary>
     public sealed class AnalyticsDailyRollupWorker : BackgroundService
     {
@@ -73,22 +75,47 @@ namespace HubManagement.Workers
         private async Task TryRollupAsync(AnalyticsRollupOptions opts, CancellationToken cancellationToken)
         {
             var now = DateTime.UtcNow;
-            var targetDay = AnalyticsScope.TodayUtc().AddDays(-1);
+            var targetDay = AnalyticsScope.TodayUtc();
+            var runAfterHourUtc = Math.Clamp(opts.RunAfterHourUtc, 0, 23);
+            var runAfterMinuteUtc = Math.Clamp(opts.RunAfterMinuteUtc, 0, 59);
+            if (now.Hour < runAfterHourUtc ||
+                (now.Hour == runAfterHourUtc && now.Minute < runAfterMinuteUtc))
+                return;
 
             if (_lastRolledDay == targetDay)
                 return;
 
-            if (now.Hour < Math.Clamp(opts.RunAfterHourUtc, 0, 23))
-                return;
-
             using var scope = _scopes.CreateScope();
+            var analytics = scope.ServiceProvider.GetRequiredService<IRepository<AnalyticsDaily>>();
+            var societies = scope.ServiceProvider.GetRequiredService<IRepository<Society>>();
+            var cutoffUtc = DateTime.SpecifyKind(
+                targetDay.ToDateTime(new TimeOnly(runAfterHourUtc, runAfterMinuteUtc)),
+                DateTimeKind.Utc);
+            var societyCount = societies.GetAll().Count();
+            var rolledSocietyCount = analytics.GetAll()
+                .Where(row => row.Day == targetDay && row.LastRolledUpAtUtc >= cutoffUtc &&
+                    row.PendingCountVersion >= 1)
+                .Select(row => row.SocietyId)
+                .Distinct()
+                .Count();
+            var alreadyRolledToday = societyCount == 0 || rolledSocietyCount >= societyCount;
+            if (alreadyRolledToday)
+            {
+                _lastRolledDay = targetDay;
+                return;
+            }
+
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-            var result = await mediator
-                .Send(new RollupAnalyticsDailyCommand(targetDay), cancellationToken)
-                .ConfigureAwait(false);
+            var firstDayToRefresh = targetDay.AddDays(-6);
+            for (var day = firstDayToRefresh; day <= targetDay; day = day.AddDays(1))
+            {
+                var result = await mediator
+                    .Send(new RollupAnalyticsDailyCommand(day), cancellationToken)
+                    .ConfigureAwait(false);
+                LogRollupSucceeded(_logger, result.Day, result.SocietiesProcessed, null);
+            }
 
             _lastRolledDay = targetDay;
-            LogRollupSucceeded(_logger, result.Day, result.SocietiesProcessed, null);
         }
     }
 }

@@ -16,6 +16,9 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(p => p.PackagesReceived).IsRequired();
             builder.Property(p => p.PackagesDelivered).IsRequired();
             builder.Property(p => p.OverdueCount).IsRequired();
+            builder.Property(p => p.PendingCountVersion).IsRequired().HasDefaultValue(0);
+            builder.Property(p => p.CourierSplitJson).IsRequired().HasDefaultValue("{}");
+            builder.Property(p => p.LastRolledUpAtUtc);
 
             builder.HasIndex(e => e.SocietyId);
             builder.HasIndex(e => new { e.SocietyId, e.Day })

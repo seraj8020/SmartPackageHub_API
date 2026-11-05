@@ -27,7 +27,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             _sessions = sessions;
         }
 
-        /// <summary>Live dashboard KPIs for today.</summary>
+        /// <summary>Dashboard KPIs from today's daily rollup. Values stay fixed between rollups.</summary>
         [HttpGet("dashboard/summary")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(DashboardSummaryDto), StatusCodes.Status200OK)]
@@ -45,7 +45,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(result);
         }
 
-        /// <summary>Received vs delivered trend (default last 7 days). Prefers AnalyticsDaily when present.</summary>
+        /// <summary>Received vs delivered trend (default last 7 days) from AnalyticsDaily rollups.</summary>
         [HttpGet("dashboard/weekly-trend")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(IReadOnlyList<WeeklyTrendPointDto>), StatusCodes.Status200OK)]
@@ -67,7 +67,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         /// <summary>Courier partner distribution for packages received in the period.</summary>
         [HttpGet("dashboard/courier-split")]
         [MapToApiVersion(ApiVersions.V2)]
-        [ProducesResponseType(typeof(IReadOnlyList<CourierSplitSliceDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(CourierSplitDashboardDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult> GetCourierSplit(
@@ -102,6 +102,37 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(result);
         }
 
+        /// <summary>Package rows matching a received or delivered daily dashboard rollup.</summary>
+        [HttpGet("dashboard/metric-packages")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(DashboardMetricPackagesPageDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult> GetDashboardMetricPackages(
+            [FromQuery] Guid? societyId,
+            [FromQuery] DateOnly? day,
+            [FromQuery] string metric = "received",
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryResolveSocietyScope(societyId, out var scope, out var error))
+                return error!;
+            if (day == DateOnly.MaxValue)
+                return BadRequest(new { message = "day must be earlier than 9999-12-31." });
+            if (metric is not ("received" or "delivered" or "pending") &&
+                !string.Equals(metric, "received", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(metric, "delivered", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(metric, "pending", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "metric must be received, delivered, or pending." });
+            if (page < 1 || pageSize < 1 || pageSize > 100)
+                return BadRequest(new { message = "page must be positive and pageSize must be between 1 and 100." });
+            var result = await _mediator
+                .Send(new GetDashboardMetricPackagesQuery(scope, day, metric, page, pageSize), cancellationToken)
+                .ConfigureAwait(false);
+            return Ok(result);
+        }
+
         /// <summary>
         /// Reports summary KPIs for 7 / 30 / 90 days.
         /// Total packages = received in range; avg hold = mean delivery lag in days;
@@ -125,7 +156,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(result);
         }
 
-        /// <summary>Packages by day: received / delivered / pending for the range.</summary>
+        /// <summary>Packages by day: received / delivered / pending for the range, using daily rollups.</summary>
         [HttpGet("reports/daily")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(IReadOnlyList<ReportsDailyPointDto>), StatusCodes.Status200OK)]
@@ -184,8 +215,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         }
 
         /// <summary>
-        /// Manually trigger AnalyticsDaily rollup for a day (default: yesterday UTC).
-        /// Platform admin only. Prefer the background worker at hub end-of-day.
+        /// Manually trigger AnalyticsDaily rollup for a day (default: today UTC).
+        /// Platform admin only. The worker runs once daily after its configured UTC hour.
         /// </summary>
         [HttpPost("rollup")]
         [MapToApiVersion(ApiVersions.V2)]

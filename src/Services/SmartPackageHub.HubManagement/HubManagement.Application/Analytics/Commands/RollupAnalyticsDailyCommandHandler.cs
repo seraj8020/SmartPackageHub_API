@@ -10,8 +10,6 @@ namespace HubManagement.Application.Analytics.Commands
     public sealed class RollupAnalyticsDailyCommandHandler
         : CreateCommandHandler<RollupAnalyticsDailyCommand, RollupAnalyticsDailyResult>
     {
-        private static readonly TimeSpan OverdueThreshold = TimeSpan.FromHours(24);
-
         private readonly IRepository<Society> _societies;
         private readonly IRepository<Package> _packages;
         private readonly IRepository<Delivery> _deliveries;
@@ -36,48 +34,80 @@ namespace HubManagement.Application.Analytics.Commands
         {
             ArgumentNullException.ThrowIfNull(request);
 
-            var day = request.Day ?? AnalyticsScope.TodayUtc().AddDays(-1);
+            var day = request.Day ?? AnalyticsScope.TodayUtc();
+            var rolledUpAtUtc = DateTime.UtcNow;
             var dayStart = AnalyticsScope.StartOfDayUtc(day);
-            var dayEnd = AnalyticsScope.EndOfDayUtc(day);
-            var overdueCutoff = dayEnd - OverdueThreshold;
+            var dayEndExclusive = AnalyticsScope.StartOfDayUtc(day.AddDays(1));
 
-            var societies = _societies.GetAll().AsEnumerable()
-                .Where(s => AnalyticsScope.Includes(request.SocietyId, s.Id))
+            var allSocieties = request.SocietyId is null || request.SocietyId == Guid.Empty;
+            var societies = _societies.GetAll()
+                .Where(s => allSocieties || s.Id == request.SocietyId!.Value)
                 .ToList();
+            var societyIds = societies.Select(society => society.Id).ToList();
 
-            var packages = _packages.GetAll().AsEnumerable()
-                .Where(p => AnalyticsScope.Includes(request.SocietyId, p.SocietyId))
-                .ToList();
+            var receivedBySociety = _packages.GetAll()
+                .Where(p => societyIds.Contains(p.SocietyId) && p.RecievedAt >= dayStart &&
+                    p.RecievedAt < dayEndExclusive && p.RecievedAt <= rolledUpAtUtc)
+                .GroupBy(p => p.SocietyId)
+                .Select(group => new { SocietyId = group.Key, Count = group.Count() })
+                .ToDictionary(row => row.SocietyId, row => row.Count);
 
-            var deliveries = _deliveries.GetAll().AsEnumerable()
-                .Where(d => AnalyticsScope.Includes(request.SocietyId, d.SocietyId))
-                .ToList();
+            var deliveredBySociety = _deliveries.GetAll()
+                .Where(d => societyIds.Contains(d.SocietyId) && d.Status.Value == "Completed" &&
+                    d.DeliveredAt >= dayStart && d.DeliveredAt < dayEndExclusive && d.DeliveredAt <= rolledUpAtUtc)
+                .GroupBy(d => d.SocietyId)
+                .Select(group => new
+                {
+                    SocietyId = group.Key,
+                    Count = group.Select(d => d.PackageId).Distinct().Count()
+                })
+                .ToDictionary(row => row.SocietyId, row => row.Count);
 
-            var existing = _analytics.GetAll(noTracking: false).AsEnumerable()
-                .Where(a => a.Day == day && AnalyticsScope.Includes(request.SocietyId, a.SocietyId))
+            var courierCountsBySociety = _packages.GetAll()
+                .Where(p => societyIds.Contains(p.SocietyId) && p.RecievedAt >= dayStart &&
+                    p.RecievedAt < dayEndExclusive && p.RecievedAt <= rolledUpAtUtc)
+                .GroupBy(p => new { p.SocietyId, p.CourierPartner })
+                .Select(group => new { group.Key.SocietyId, group.Key.CourierPartner, Count = group.Count() })
+                .AsEnumerable()
+                .GroupBy(row => row.SocietyId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => System.Text.Json.JsonSerializer.Serialize(group
+                        .GroupBy(row => string.IsNullOrWhiteSpace(row.CourierPartner) ? "Unknown" : row.CourierPartner.Trim(), StringComparer.Ordinal)
+                        .ToDictionary(courier => courier.Key, courier => courier.Sum(row => row.Count), StringComparer.Ordinal)));
+
+            var completedPackagesBeforeEnd = _deliveries.GetAll()
+                .Where(d => societyIds.Contains(d.SocietyId) && d.Status.Value == "Completed" &&
+                    d.DeliveredAt < dayEndExclusive && d.DeliveredAt <= rolledUpAtUtc)
+                .Select(d => d.PackageId);
+            var pendingBySociety = _packages.GetAll()
+                .Where(p => societyIds.Contains(p.SocietyId) &&
+                    p.RecievedAt < dayEndExclusive && p.RecievedAt <= rolledUpAtUtc &&
+                    !completedPackagesBeforeEnd.Contains(p.Id))
+                .GroupBy(p => p.SocietyId)
+                .Select(group => new { SocietyId = group.Key, Count = group.Count() })
+                .ToDictionary(row => row.SocietyId, row => row.Count);
+
+            var existing = _analytics.GetAll(noTracking: false)
+                .Where(a => a.Day == day && (allSocieties || a.SocietyId == request.SocietyId!.Value))
                 .ToDictionary(a => a.SocietyId);
 
             var upserted = 0;
             foreach (var societyId in societies.Select(society => society.Id))
             {
-                var societyPackages = packages.Where(p => p.SocietyId == societyId).ToList();
-                var received = societyPackages.Count(p => p.RecievedAt >= dayStart && p.RecievedAt <= dayEnd);
-                var delivered = deliveries.Count(d =>
-                    d.SocietyId == societyId &&
-                    d.DeliveredAt >= dayStart &&
-                    d.DeliveredAt <= dayEnd);
-                var overdue = societyPackages.Count(p =>
-                    p.Status != PackageStatus.Delivered &&
-                    p.RecievedAt <= overdueCutoff);
+                var received = receivedBySociety.GetValueOrDefault(societyId);
+                var delivered = deliveredBySociety.GetValueOrDefault(societyId);
+                var pending = pendingBySociety.GetValueOrDefault(societyId);
+                var courierSplitJson = courierCountsBySociety.GetValueOrDefault(societyId, "{}");
 
                 if (existing.TryGetValue(societyId, out var row))
                 {
-                    row.ReplaceCounts(received, delivered, overdue);
+                    row.ReplaceCounts(received, delivered, pending, rolledUpAtUtc, courierSplitJson, pendingCountVersion: 1);
                     _analytics.Update(row);
                 }
                 else
                 {
-                    _analytics.Insert(AnalyticsDaily.Create(societyId, day, received, delivered, overdue));
+                    _analytics.Insert(AnalyticsDaily.Create(societyId, day, received, delivered, pending, rolledUpAtUtc, courierSplitJson, pendingCountVersion: 1));
                 }
 
                 upserted++;

@@ -29,7 +29,7 @@ namespace HubManagement.Application.Analytics.Queries
             var toDay = AnalyticsScope.TodayUtc();
             var fromDay = toDay.AddDays(-(days - 1));
             var from = AnalyticsScope.StartOfDayUtc(fromDay);
-            var to = AnalyticsScope.EndOfDayUtc(toDay);
+            var toExclusive = AnalyticsScope.StartOfDayUtc(toDay.AddDays(1));
 
             var packages = _packages.GetAll().AsEnumerable()
                 .Where(p => AnalyticsScope.Includes(request.SocietyId, p.SocietyId))
@@ -37,15 +37,13 @@ namespace HubManagement.Application.Analytics.Queries
             var deliveries = _deliveries.GetAll().AsEnumerable()
                 .Where(d => AnalyticsScope.Includes(request.SocietyId, d.SocietyId))
                 .ToList();
-            var deliveredAt = AnalyticsMetricsCalculator.FirstDeliveryByPackage(deliveries);
+            
 
-            var received = AnalyticsMetricsCalculator.CountReceived(packages, from, to);
-            var delivered = AnalyticsMetricsCalculator.CountDelivered(deliveries, from, to);
-            // Pending at end of selected range (not "currently open forever").
-            var pending = AnalyticsMetricsCalculator.CountPendingOpenAtEndOfDay(packages, deliveredAt, to);
-            var avgHold = AnalyticsMetricsCalculator.AverageHoldDays(packages, deliveries, from, to);
-            var rate = AnalyticsMetricsCalculator.MemberPickupRateOfReceivedPercent(
-                packages, deliveredAt, from, to);
+            var received = AnalyticsMetricsCalculator.CountReceived(packages, from, toExclusive);
+            var delivered = AnalyticsMetricsCalculator.CountDelivered(deliveries, from, toExclusive);
+            var pending = AnalyticsMetricsCalculator.CountPending(packages);
+            var avgHold = AnalyticsMetricsCalculator.AverageHoldDays(packages, deliveries, from, toExclusive);
+            var rate = AnalyticsMetricsCalculator.MemberPickupRatePercent(received, delivered);
 
             return Task.FromResult(new ReportsSummaryDto(
                 days,

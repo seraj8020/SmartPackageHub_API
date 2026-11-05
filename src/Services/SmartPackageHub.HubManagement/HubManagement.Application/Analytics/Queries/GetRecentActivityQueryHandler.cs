@@ -31,14 +31,40 @@ namespace HubManagement.Application.Analytics.Queries
             ArgumentNullException.ThrowIfNull(request);
             var take = Math.Clamp(request.Take, 1, 100);
 
-            var societyNames = _societies.GetAll().AsEnumerable()
-                .Where(s => AnalyticsScope.Includes(request.SocietyId, s.Id))
+            var societyNames = _societies.GetAll()
+                .Where(s => request.SocietyId == null || request.SocietyId == Guid.Empty || s.Id == request.SocietyId.Value)
                 .ToDictionary(s => s.Id, s => s.Name);
 
-            var packages = _packages.GetAll().AsEnumerable()
-                .Where(p => AnalyticsScope.Includes(request.SocietyId, p.SocietyId))
+            var packages = _packages.GetAll()
+                .Where(p => request.SocietyId == null || request.SocietyId == Guid.Empty || p.SocietyId == request.SocietyId.Value)
+                .OrderByDescending(p => p.RecievedAt)
+                .ThenByDescending(p => p.Id)
+                .Take(take)
                 .ToList();
-            var packageById = packages.ToDictionary(p => p.Id);
+            var shelfPackages = _packages.GetAll()
+                .Where(p => (request.SocietyId == null || request.SocietyId == Guid.Empty || p.SocietyId == request.SocietyId.Value) &&
+                    p.ShelfAssignedAtUtc.HasValue)
+                .OrderByDescending(p => p.ShelfAssignedAtUtc)
+                .ThenByDescending(p => p.Id)
+                .Take(take)
+                .ToList();
+            var deliveries = _deliveries.GetAll()
+                .Where(d => (request.SocietyId == null || request.SocietyId == Guid.Empty || d.SocietyId == request.SocietyId.Value) &&
+                    d.Status.Value == "Completed")
+                .OrderByDescending(d => d.DeliveredAt)
+                .ThenByDescending(d => d.Id)
+                .Take(take)
+                .ToList();
+            var relatedPackageIds = shelfPackages.Select(p => p.Id)
+                .Concat(deliveries.Select(d => d.PackageId))
+                .Distinct()
+                .ToList();
+            var relatedPackagesById = relatedPackageIds.Count == 0
+                ? new Dictionary<Guid, Package>()
+                : _packages.GetAll()
+                    .Where(p => relatedPackageIds.Contains(p.Id) &&
+                        (request.SocietyId == null || request.SocietyId == Guid.Empty || p.SocietyId == request.SocietyId.Value))
+                    .ToDictionary(p => p.Id);
 
             var items = new List<RecentActivityItemDto>();
 
@@ -53,24 +79,41 @@ namespace HubManagement.Application.Analytics.Queries
                     societyName,
                     package.Id));
 
-                if (package.Status is PackageStatus.Shelved or PackageStatus.Dispatched or PackageStatus.Delivered
-                    && package.ShelfId is not null)
-                {
-                    items.Add(new RecentActivityItemDto(
-                        package.RecievedAt.AddMinutes(5),
-                        "shelf",
-                        $"{package.PkgNumber} assigned to shelf",
-                        package.SocietyId,
-                        societyName,
-                        package.Id));
-                }
             }
 
-            foreach (var delivery in _deliveries.GetAll().AsEnumerable()
-                         .Where(d => AnalyticsScope.Includes(request.SocietyId, d.SocietyId)))
+            foreach (var package in shelfPackages)
+            {
+                societyNames.TryGetValue(package.SocietyId, out var societyName);
+                items.Add(new RecentActivityItemDto(
+                    package.ShelfAssignedAtUtc!.Value,
+                    "shelf",
+                    $"{package.PkgNumber} assigned to shelf",
+                    package.SocietyId,
+                    societyName,
+                    package.Id));
+            }
+
+            foreach (var society in _societies.GetAll()
+                         .Where(s => (request.SocietyId == null || request.SocietyId == Guid.Empty || s.Id == request.SocietyId.Value) &&
+                             s.OnboardedAtUtc.HasValue)
+                         .OrderByDescending(s => s.OnboardedAtUtc)
+                         .ThenByDescending(s => s.Id)
+                         .Take(take)
+                         .ToList())
+            {
+                items.Add(new RecentActivityItemDto(
+                    society.OnboardedAtUtc!.Value,
+                    "society-onboard",
+                    $"Society onboarded: {society.Name}",
+                    society.Id,
+                    society.Name,
+                    null));
+            }
+
+            foreach (var delivery in deliveries)
             {
                 societyNames.TryGetValue(delivery.SocietyId, out var societyName);
-                packageById.TryGetValue(delivery.PackageId, out var pkg);
+                relatedPackagesById.TryGetValue(delivery.PackageId, out var pkg);
                 var pkgNumber = pkg?.PkgNumber ?? "package";
                 var viaOtp = delivery.OtpLogId is not null ? " via OTP" : string.Empty;
                 items.Add(new RecentActivityItemDto(

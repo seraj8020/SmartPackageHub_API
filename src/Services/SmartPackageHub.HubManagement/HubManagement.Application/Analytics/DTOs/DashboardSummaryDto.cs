@@ -8,5 +8,6 @@ namespace HubManagement.Application.Analytics.DTOs
         int DeliveredToday,
         int ActiveSocieties,
         string ScopeLabel,
-        DateTime? LastRollupAtUtc);
+        DateTime? LastRollupAtUtc,
+        int SocietiesRolledUp);
 }

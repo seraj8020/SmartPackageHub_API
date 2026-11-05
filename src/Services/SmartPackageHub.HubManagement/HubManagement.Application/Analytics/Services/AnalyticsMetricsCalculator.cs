@@ -35,7 +35,7 @@ namespace HubManagement.Application.Analytics.Services
             IEnumerable<Package> packages,
             IReadOnlyDictionary<Guid, DateTime> deliveredAtByPackage,
             DateTime dayEndExclusive,
-            DateTime? receivedFromInclusive = null)
+            DateTime? receivedFromInclusive)
         {
             var receivedFrom = receivedFromInclusive ?? DateTime.MinValue;
             return packages.Count(p =>
@@ -45,6 +45,12 @@ namespace HubManagement.Application.Analytics.Services
                 return !deliveredAtByPackage.TryGetValue(p.Id, out var deliveredAt) || deliveredAt >= dayEndExclusive;
             });
         }
+
+        public static int CountPendingOpenAtEndOfDay(
+            IEnumerable<Package> packages,
+            IReadOnlyDictionary<Guid, DateTime> deliveredAtByPackage,
+            DateTime dayEndExclusive) =>
+            CountPendingOpenAtEndOfDay(packages, deliveredAtByPackage, dayEndExclusive, null);
 
         public static double AverageHoldDays(
             IEnumerable<Package> packages,

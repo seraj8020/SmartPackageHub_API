@@ -57,6 +57,5 @@ namespace HubManagement.Application.Analytics.Queries
 
             return Task.FromResult(dto);
         }
-
     }
 }

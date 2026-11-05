@@ -8,12 +8,14 @@ namespace SmartPackageHub.Common.ConfigOptions
         public bool Enabled { get; set; } = true;
 
         /// <summary>
-        /// Hour (0–23) in UTC after which yesterday's rollup may run.
-        /// Default 18 ≈ end of India hub day in UTC for IST evening.
+        /// UTC time after which today's rollup may run.
+        /// Defaults to 12:30 UTC, which is 6:00 PM India time.
         /// </summary>
-        public int RunAfterHourUtc { get; set; } = 18;
+        public int RunAfterHourUtc { get; set; } = 12;
+
+        public int RunAfterMinuteUtc { get; set; } = 30;
 
         /// <summary>How often the worker wakes to check whether a rollup is due.</summary>
-        public int CheckIntervalMinutes { get; set; } = 30;
+        public int CheckIntervalMinutes { get; set; } = 5;
     }
 }

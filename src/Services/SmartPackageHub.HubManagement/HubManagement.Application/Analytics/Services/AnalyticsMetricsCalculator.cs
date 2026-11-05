@@ -10,7 +10,7 @@ namespace HubManagement.Application.Analytics.Services
             packages.Count(p => p.RecievedAt >= fromInclusive && p.RecievedAt < toExclusive);
 
         public static int CountDelivered(IEnumerable<Delivery> deliveries, DateTime fromInclusive, DateTime toExclusive) =>
-            deliveries.Where(d => d.Status == DeliveryStatus.Completed && d.DeliveredAt >= fromInclusive && d.DeliveredAt < toExclusive)
+            deliveries.Where(d => d.Status.Equals(DeliveryStatus.Completed) && d.DeliveredAt >= fromInclusive && d.DeliveredAt < toExclusive)
                 .Select(d => d.PackageId).Distinct().Count();
 
         public static int CountPending(IEnumerable<Package> packages) =>
@@ -26,7 +26,7 @@ namespace HubManagement.Application.Analytics.Services
                 if (p.RecievedAt >= dayEndExclusive)
                     return false;
                 if (!deliveredAtByPackage.TryGetValue(p.Id, out var deliveredAt))
-                    return p.Status != PackageStatus.Delivered;
+                    return true;
                 return deliveredAt >= dayEndExclusive;
             });
         }
@@ -34,8 +34,17 @@ namespace HubManagement.Application.Analytics.Services
         public static int CountPendingOpenAtEndOfDay(
             IEnumerable<Package> packages,
             IReadOnlyDictionary<Guid, DateTime> deliveredAtByPackage,
-            DateTime dayEndExclusive) =>
-            CountPendingOpenBefore(packages, deliveredAtByPackage, dayEndExclusive);
+            DateTime dayEndExclusive,
+            DateTime? receivedFromInclusive = null)
+        {
+            var receivedFrom = receivedFromInclusive ?? DateTime.MinValue;
+            return packages.Count(p =>
+            {
+                if (p.RecievedAt < receivedFrom || p.RecievedAt >= dayEndExclusive)
+                    return false;
+                return !deliveredAtByPackage.TryGetValue(p.Id, out var deliveredAt) || deliveredAt >= dayEndExclusive;
+            });
+        }
 
         public static double AverageHoldDays(
             IEnumerable<Package> packages,
@@ -45,7 +54,7 @@ namespace HubManagement.Application.Analytics.Services
         {
             var packageById = packages.ToDictionary(p => p.Id);
             var holds = new List<double>();
-            foreach (var delivery in deliveries.Where(d => d.Status == DeliveryStatus.Completed && d.DeliveredAt >= fromInclusive && d.DeliveredAt < toExclusive))
+            foreach (var delivery in deliveries.Where(d => d.Status.Equals(DeliveryStatus.Completed) && d.DeliveredAt >= fromInclusive && d.DeliveredAt < toExclusive))
             {
                 if (!packageById.TryGetValue(delivery.PackageId, out var package))
                     continue;
@@ -90,7 +99,7 @@ namespace HubManagement.Application.Analytics.Services
 
         public static Dictionary<Guid, DateTime> FirstDeliveryByPackage(IEnumerable<Delivery> deliveries) =>
             deliveries
-                .Where(d => d.Status == DeliveryStatus.Completed)
+                .Where(d => d.Status.Equals(DeliveryStatus.Completed))
                 .GroupBy(d => d.PackageId)
                 .ToDictionary(g => g.Key, g => g.Min(d => d.DeliveredAt));
     }

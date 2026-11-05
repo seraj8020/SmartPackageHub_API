@@ -4,4 +4,5 @@ namespace HubManagement.Application.Analytics.DTOs
         string Courier,
         int Count,
         double Percent);
+
 }

@@ -30,8 +30,22 @@ namespace HubManagement.Infrastructure.Migrations
                     b.Property<DateOnly>("Day")
                         .HasColumnType("date");
 
+                    b.Property<string>("CourierSplitJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("{}");
+
                     b.Property<int>("OverdueCount")
                         .HasColumnType("integer");
+
+                    b.Property<int>("PendingCountVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime?>("LastRolledUpAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("PackagesDelivered")
                         .HasColumnType("integer");

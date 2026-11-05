@@ -11,63 +11,45 @@ namespace HubManagement.Application.Analytics.Queries
         : QueryHandler<GetDashboardSummaryQuery, DashboardSummaryDto>
     {
         private readonly IRepository<Society> _societies;
-        private readonly IRepository<Package> _packages;
-        private readonly IRepository<Delivery> _deliveries;
+        private readonly IRepository<AnalyticsDaily> _analytics;
 
         public GetDashboardSummaryQueryHandler(
             IMapper mapper,
             IRepository<Society> societies,
-            IRepository<Package> packages,
-            IRepository<Delivery> deliveries) : base(mapper)
+            IRepository<AnalyticsDaily> analytics) : base(mapper)
         {
             _societies = societies;
-            _packages = packages;
-            _deliveries = deliveries;
+            _analytics = analytics;
         }
 
         protected override Task<DashboardSummaryDto> HandleAsync(GetDashboardSummaryQuery request)
         {
             ArgumentNullException.ThrowIfNull(request);
 
-            var today = AnalyticsScope.TodayUtc();
-            var dayStart = AnalyticsScope.StartOfDayUtc(today);
-            var dayEndExclusive = AnalyticsScope.StartOfDayUtc(today.AddDays(1));
+            var summaryDay = AnalyticsScope.TodayUtc();
+            var allSocieties = request.SocietyId is null || request.SocietyId == Guid.Empty;
+            var scopedSocieties = _societies.GetAll()
+                .Where(s => allSocieties || s.Id == request.SocietyId!.Value);
+            var activeSocieties = scopedSocieties.Count();
+            var societyName = allSocieties
+                ? "All societies"
+                : scopedSocieties.Select(s => s.Name).FirstOrDefault() ?? "Society";
 
-            var societies = _societies.GetAll().AsEnumerable()
-                .Where(s => AnalyticsScope.Includes(request.SocietyId, s.Id))
-                .ToList();
-            var packages = _packages.GetAll().AsEnumerable()
-                .Where(p => AnalyticsScope.Includes(request.SocietyId, p.SocietyId))
-                .ToList();
-            var deliveries = _deliveries.GetAll().AsEnumerable()
-                .Where(d => AnalyticsScope.Includes(request.SocietyId, d.SocietyId))
-                .ToList();
-
-            int activeSocieties;
-            if (request.SocietyId is null || request.SocietyId == Guid.Empty)
-            {
-                activeSocieties = societies.Count;
-            }
-            else if (societies.Count > 0)
-            {
-                activeSocieties = 1;
-            }
-            else
-            {
-                activeSocieties = 0;
-            }
+            var analytics = _analytics.GetAll()
+                .Where(a => a.Day == summaryDay &&
+                    (allSocieties || a.SocietyId == request.SocietyId!.Value));
 
             var dto = new DashboardSummaryDto(
-                today,
-                AnalyticsMetricsCalculator.CountReceived(packages, dayStart, dayEndExclusive),
-                AnalyticsMetricsCalculator.CountPending(packages),
-                AnalyticsMetricsCalculator.CountDelivered(deliveries, dayStart, dayEndExclusive),
+                summaryDay,
+                analytics.Sum(a => (int?)a.PackagesReceived) ?? 0,
+                analytics.Sum(a => (int?)a.OverdueCount) ?? 0,
+                analytics.Sum(a => (int?)a.PackagesDelivered) ?? 0,
                 activeSocieties,
-                request.SocietyId is null || request.SocietyId == Guid.Empty
-                    ? "All societies"
-                    : societies.FirstOrDefault()?.Name ?? "Society");
+                societyName,
+                analytics.Max(a => a.LastRolledUpAtUtc));
 
             return Task.FromResult(dto);
         }
+
     }
 }

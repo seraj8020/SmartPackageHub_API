@@ -30,5 +30,14 @@ namespace HubManagement.Core.Hubs.Entities
         {
             return new Shelf(societyId, code, towerWing, isColdStorage, capacity, location);
         }
+
+        public void Update(string code, string towerWing, bool isColdStorage, int capacity, ShelfLocation location)
+        {
+            Code = code;
+            TowerOrWing = towerWing;
+            IsColdStorage = isColdStorage;
+            Capacity = capacity;
+            Location = location;
+        }
     }
 }

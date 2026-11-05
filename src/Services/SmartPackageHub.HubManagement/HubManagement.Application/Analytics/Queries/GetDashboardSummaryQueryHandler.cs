@@ -26,27 +26,34 @@ namespace HubManagement.Application.Analytics.Queries
         {
             ArgumentNullException.ThrowIfNull(request);
 
-            var summaryDay = AnalyticsScope.TodayUtc();
+            var todayUtc = AnalyticsScope.TodayUtc();
             var allSocieties = request.SocietyId is null || request.SocietyId == Guid.Empty;
             var scopedSocieties = _societies.GetAll()
                 .Where(s => allSocieties || s.Id == request.SocietyId!.Value);
             var activeSocieties = scopedSocieties.Count();
-            var societyName = allSocieties
-                ? "All societies"
-                : scopedSocieties.Select(s => s.Name).FirstOrDefault() ?? "Society";
+            var societyName = "All societies";
+            if (!allSocieties)
+                societyName = scopedSocieties.Select(s => s.Name).FirstOrDefault() ?? "Society";
 
-            var analytics = _analytics.GetAll()
-                .Where(a => a.Day == summaryDay &&
-                    (allSocieties || a.SocietyId == request.SocietyId!.Value));
+            var scopedAnalytics = _analytics.GetAll()
+                .Where(a => allSocieties || a.SocietyId == request.SocietyId!.Value);
+            var latestRollupDay = scopedAnalytics
+                .Select(a => (DateOnly?)a.Day)
+                .OrderByDescending(day => day)
+                .FirstOrDefault();
+            var snapshotDay = latestRollupDay ?? todayUtc;
+            var snapshotAnalytics = latestRollupDay.HasValue
+                ? scopedAnalytics.Where(a => a.Day == snapshotDay)
+                : scopedAnalytics.Where(_ => false);
 
             var dto = new DashboardSummaryDto(
-                summaryDay,
-                analytics.Sum(a => (int?)a.PackagesReceived) ?? 0,
-                analytics.Sum(a => (int?)a.OverdueCount) ?? 0,
-                analytics.Sum(a => (int?)a.PackagesDelivered) ?? 0,
+                snapshotDay,
+                snapshotAnalytics.Sum(a => (int?)a.PackagesReceived) ?? 0,
+                snapshotAnalytics.Sum(a => (int?)a.OverdueCount) ?? 0,
+                snapshotAnalytics.Sum(a => (int?)a.PackagesDelivered) ?? 0,
                 activeSocieties,
                 societyName,
-                analytics.Max(a => a.LastRolledUpAtUtc));
+                snapshotAnalytics.Max(a => a.LastRolledUpAtUtc));
 
             return Task.FromResult(dto);
         }

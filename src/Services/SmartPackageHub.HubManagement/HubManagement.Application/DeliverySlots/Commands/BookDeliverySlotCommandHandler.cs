@@ -92,7 +92,19 @@ namespace HubManagement.Application.DeliverySlots.Commands
                 {
                     Found = true,
                     Succeeded = false,
-                    Message = "Choose a valid delivery window (9-12, 12-3, 3-6, or 6-9).",
+                    Message = "Choose a valid delivery window (9-12, 12-3, or 3-6).",
+                };
+            }
+
+            // 6–9 is the system default already set at shelving — residents change away from it.
+            if (request.WindowStart.TimeOfDay == DeliverySlotWindows.DefaultWindow.Start &&
+                request.WindowEnd.TimeOfDay == DeliverySlotWindows.DefaultWindow.End)
+            {
+                return new BookDeliverySlotResult
+                {
+                    Found = true,
+                    Succeeded = false,
+                    Message = "6–9 is already the default door window. Choose 9–12, 12–3, or 3–6 to change it.",
                 };
             }
 
@@ -124,6 +136,7 @@ namespace HubManagement.Application.DeliverySlots.Commands
                 .FetchMulti(slot =>
                     slot.SocietyId == request.SocietyId &&
                     slot.Status != DeliverySlotWindows.StatusCancelled &&
+                    !DeliverySlotWindows.IsSystemDefault(slot.Status) &&
                     slot.WindowStart >= dayStart &&
                     slot.WindowStart < dayEnd &&
                     slot.WindowStart == request.WindowStart &&

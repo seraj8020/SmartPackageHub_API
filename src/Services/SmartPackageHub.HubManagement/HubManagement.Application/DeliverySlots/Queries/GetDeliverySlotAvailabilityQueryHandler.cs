@@ -36,8 +36,15 @@ namespace HubManagement.Application.DeliverySlots.Queries
             {
                 var windowStart = dayStart.Add(window.Start);
                 var windowEnd = dayStart.Add(window.End);
+                var isDefaultWindow =
+                    window.Start == DeliverySlotWindows.DefaultWindow.Start &&
+                    window.End == DeliverySlotWindows.DefaultWindow.End;
+                // Capacity for resident booking counts explicit bookings only — system
+                // defaults on 6–9 should not fill the other windows' capacity math.
                 var booked = bookings.Count(slot =>
-                    slot.WindowStart == windowStart && slot.WindowEnd == windowEnd);
+                    slot.WindowStart == windowStart &&
+                    slot.WindowEnd == windowEnd &&
+                    !DeliverySlotWindows.IsSystemDefault(slot.Status));
                 var remaining = Math.Max(0, DeliverySlotWindows.CapacityPerWindow - booked);
                 return new DeliverySlotWindowDto
                 {
@@ -48,6 +55,7 @@ namespace HubManagement.Application.DeliverySlots.Queries
                     BookedCount = booked,
                     Remaining = remaining,
                     IsFull = remaining == 0,
+                    IsDefaultWindow = isDefaultWindow,
                 };
             }).ToList();
 

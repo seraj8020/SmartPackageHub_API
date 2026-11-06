@@ -64,7 +64,7 @@ namespace HubManagement.Application.Societies.DTOs
             };
         }
 
-        private static int? TryGetFloor(string flatNumber)
+        internal static int? TryGetFloor(string flatNumber)
         {
             // Current package records store a flat label (for example, 402) rather
             // than a separate floor. Use the common floor + two-digit unit format.

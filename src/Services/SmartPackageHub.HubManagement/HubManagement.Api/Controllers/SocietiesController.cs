@@ -1,4 +1,6 @@
 using HubManagement.Application.HubResidents.DTOs;
+using HubManagement.Application.PackageHub.Commands;
+using HubManagement.Application.PackageHub.DTOs;
 using HubManagement.Application.Societies.Commands;
 using HubManagement.Application.Societies.DTOs;
 using HubManagement.Application.Societies.Queries;
@@ -183,6 +185,35 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         {
             var inventory = await _mediator.Send(new GetShelfInventoryQuery(societyid)).ConfigureAwait(false);
             return inventory == null ? NotFound() : Ok(inventory);
+        }
+
+        [HttpPost("{societyid:guid}/tower-route/start")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> StartTowerRoute(
+            Guid societyid,
+            [FromBody] StartTowerRouteRequest? request)
+        {
+            var result = await _mediator.Send(
+                new StartTowerRouteCommand(
+                    societyid,
+                    request?.TowerWing ?? string.Empty,
+                    request?.Floor),
+                HttpContext.RequestAborted).ConfigureAwait(false);
+
+            if (!result.SocietyFound)
+                return NotFound(new { Message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { Message = result.Message });
+
+            return Ok(new
+            {
+                message = result.Message,
+                dispatchedCount = result.DispatchedCount,
+                packageIds = result.PackageIds,
+            });
         }
 
         [HttpGet("{societyid:guid}/dispatchedpackages")]

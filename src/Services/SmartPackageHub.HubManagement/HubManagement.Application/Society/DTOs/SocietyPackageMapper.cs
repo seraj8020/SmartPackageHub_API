@@ -1,5 +1,6 @@
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Application.DeliverySlots.Helpers;
+using System.Globalization;
 
 namespace HubManagement.Application.Societies.DTOs
 {
@@ -46,6 +47,7 @@ namespace HubManagement.Application.Societies.DTOs
                 Category = package.Category,
                 Weight = package.Dimensions.Weight,
                 TowerWing = string.IsNullOrWhiteSpace(package.TowerWing) ? null : package.TowerWing,
+                Floor = TryGetFloor(package.FlatNumber.Value),
                 FlatNumber = package.FlatNumber.Value,
                 ShelfCode = shelfCode,
                 ShelfCapacity = shelfCapacity,
@@ -60,6 +62,17 @@ namespace HubManagement.Application.Societies.DTOs
                     : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
                 PreferredDeliveryMethod = package.PreferredDeliveryMethod,
             };
+        }
+
+        private static int? TryGetFloor(string flatNumber)
+        {
+            // Current package records store a flat label (for example, 402) rather
+            // than a separate floor. Use the common floor + two-digit unit format.
+            var value = flatNumber?.Trim();
+            if (value == null || value.Length < 3 || !value.All(char.IsDigit))
+                return null;
+
+            return int.TryParse(value[..^2], CultureInfo.InvariantCulture, out var floor) ? floor : null;
         }
 
         public static Dictionary<Guid, string> BuildShelfCodeLookup(

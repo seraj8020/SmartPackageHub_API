@@ -11,7 +11,7 @@ using System.Security.Cryptography;
 namespace HubManagement.Application.HubResidents.Commands
 {
     /// <summary>
-    /// records success if SMS queued. Rate-limited (otp-sms).
+    /// Records success if SMS queued. Rate-limited (otp-sms).
     /// </summary>
     public sealed class RequestResidentOtpCommandHandler : CreateCommandHandler<RequestResidentOtpCommand, RequestOtpResponse>
     {
@@ -25,6 +25,7 @@ namespace HubManagement.Application.HubResidents.Commands
         private readonly IRepository<Package> _packages;
         private readonly IRepository<OtpLog> _otpLogs;
         private readonly IOtpSmsDispatcher _otpSmsDispatcher;
+        private readonly ISmsPumpingGuard _smsPumpingGuard;
         private readonly ILogger<RequestResidentOtpCommandHandler> _logger;
 
         public RequestResidentOtpCommandHandler(
@@ -32,6 +33,7 @@ namespace HubManagement.Application.HubResidents.Commands
             IRepository<Package> packages,
             IRepository<OtpLog> otpLogs,
             IOtpSmsDispatcher otpSmsDispatcher,
+            ISmsPumpingGuard smsPumpingGuard,
             ILogger<RequestResidentOtpCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
@@ -39,21 +41,36 @@ namespace HubManagement.Application.HubResidents.Commands
             _packages = packages;
             _otpLogs = otpLogs;
             _otpSmsDispatcher = otpSmsDispatcher;
+            _smsPumpingGuard = smsPumpingGuard;
             _logger = logger;
         }
 
         /// <summary>
-        /// find shelved package, generate OTP, save OtpLog, queue SMS via IOtpSmsDispatcher
+        /// Find shelved package, generate OTP, save OtpLog, queue SMS via IOtpSmsDispatcher.
         /// </summary>
-        /// <param name="request"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
         public override async Task<RequestOtpResponse> Handle(RequestResidentOtpCommand request, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(request);
             var resident = await _residents.GetByIdAsync(request.ResidentId).ConfigureAwait(false);
             if (resident == null)
                 return new RequestOtpResponse(false, null, null, "Resident was not found.", SmsQueued: false);
+
+            var phone = resident.PhoneNumber ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                var pumping = await _smsPumpingGuard.CheckAsync(
+                    request.ClientIp,
+                    phone,
+                    request.RecaptchaToken,
+                    cancellationToken).ConfigureAwait(false);
+                if (!pumping.Allowed)
+                    return new RequestOtpResponse(
+                        true,
+                        resident.Id,
+                        null,
+                        pumping.Reason ?? "OTP SMS request was blocked.",
+                        SmsQueued: false);
+            }
 
             var pendingPackage = await _packages.FirstOrDefaultAsync(p =>
                 p.ResidentId == resident.Id
@@ -79,7 +96,7 @@ namespace HubManagement.Application.HubResidents.Commands
 
             var smsQueued = false;
             string message;
-            if (!string.IsNullOrWhiteSpace(resident.PhoneNumber))
+            if (!string.IsNullOrWhiteSpace(phone))
             {
                 // GSM-7 safe OTP copy — avoid ?/emoji so we stay on a single 160-char segment.
                 var smsBody =
@@ -88,7 +105,7 @@ namespace HubManagement.Application.HubResidents.Commands
                     resident.SocietyId,
                     resident.Id,
                     pendingPackage.Id,
-                    resident.PhoneNumber,
+                    phone,
                     code,
                     "PickupOtp",
                     smsBody,
@@ -98,6 +115,14 @@ namespace HubManagement.Application.HubResidents.Commands
                 message = dispatch.Queued
                     ? "OTP sent via SMS. Delivery confirmed by provider webhook."
                     : $"OTP generated but SMS was not queued: {dispatch.ErrorMessage}";
+
+                if (smsQueued)
+                {
+                    await _smsPumpingGuard.RecordSuccessAsync(
+                        request.ClientIp,
+                        phone,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
             else
             {

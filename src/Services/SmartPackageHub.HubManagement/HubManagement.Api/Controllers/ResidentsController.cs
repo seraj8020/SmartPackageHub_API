@@ -1,13 +1,10 @@
 using HubManagement.Application.HubResidents.Commands;
 using HubManagement.Application.HubResidents.DTOs;
 using HubManagement.Application.HubResidents.Queries;
-using SmartPackageHub.Common.Services.Messaging.Abstractions;
-using HubManagement.Core.Hubs.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using SmartPackageHub.Applications.Abstractions.Repositories;
 using SmartPackageHub.Infrastructures.ActionResults;
 using SmartPackageHub.Common.ConfigOptions;
 
@@ -18,17 +15,10 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
     public class ResidentsController : ControllerBase
     {
         readonly IMediator _mediator;
-        readonly ISmsPumpingGuard _smsPumpingGuard;
-        readonly IRepository<Resident> _residents;
 
-        public ResidentsController(
-            IMediator mediator,
-            ISmsPumpingGuard smsPumpingGuard,
-            IRepository<Resident> residents)
+        public ResidentsController(IMediator mediator)
         {
             _mediator = mediator;
-            _smsPumpingGuard = smsPumpingGuard;
-            _residents = residents;
         }
 
         [HttpPost("addresident")]
@@ -63,23 +53,15 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
 
         [HttpGet("{id:guid}/profile")]
         [MapToApiVersion(ApiVersions.V2)]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ResidentProfileDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetResidentProfile(Guid id)
         {
-            var resident = await _residents.GetByIdAsync(id).ConfigureAwait(false);
-            if (resident is null)
+            var profile = await _mediator.Send(new GetResidentProfileQuery(id)).ConfigureAwait(false);
+            if (profile is null)
                 return NotFound();
 
-            return Ok(new
-            {
-                id = resident.Id,
-                societyId = resident.SocietyId,
-                fullName = resident.FullName,
-                phoneNumber = resident.PhoneNumber,
-                towerWing = resident.TowerWing,
-                flatNumber = resident.Unit?.Value,
-            });
+            return Ok(profile);
         }
 
         [HttpGet("{id:guid}/packages")]
@@ -104,23 +86,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult> RequestOtp(Guid id, [FromBody] RequestOtpBody? body, CancellationToken cancellationToken)
         {
-            var resident = await _residents.GetByIdAsync(id).ConfigureAwait(false);
-            if (resident is null)
-                return NotFound();
-
             var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
-            var phone = resident.PhoneNumber ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(phone))
-            {
-                var pumping = await _smsPumpingGuard.CheckAsync(
-                    clientIp,
-                    phone,
-                    body?.RecaptchaToken,
-                    cancellationToken).ConfigureAwait(false);
-                if (!pumping.Allowed)
-                    return BadRequest(new { Message = pumping.Reason });
-            }
-
             var result = await _mediator.Send(
                 new RequestResidentOtpCommand(id, clientIp, body?.RecaptchaToken),
                 cancellationToken).ConfigureAwait(false);
@@ -129,9 +95,6 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 return NotFound();
             if (result.Otp == null)
                 return BadRequest(new { Message = result.Message });
-
-            if (result.SmsQueued && !string.IsNullOrWhiteSpace(phone))
-                await _smsPumpingGuard.RecordSuccessAsync(clientIp, phone, cancellationToken).ConfigureAwait(false);
 
             return Ok(new
             {
@@ -178,15 +141,13 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetResidentVacationHold([FromRoute] Guid id)
         {
-            var resident = await _residents.GetByIdAsync(id).ConfigureAwait(false);
-            if (resident is null)
+            var result = await _mediator.Send(new GetResidentVacationHoldQuery(id)).ConfigureAwait(false);
+            if (!result.ResidentFound)
                 return NotFound();
-
-            var hold = await _mediator.Send(new GetResidentVacationHoldQuery(id)).ConfigureAwait(false);
-            if (hold is null)
+            if (result.Hold is null)
                 return NoContent();
 
-            return Ok(hold);
+            return Ok(result.Hold);
         }
 
         [HttpPost("{id:guid}/vacationhold")]

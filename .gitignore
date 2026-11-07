@@ -63,3 +63,13 @@ $RECYCLE.BIN/
 ## Local scratch / runtime blob storage (do not commit)
 .tmp/
 **/HubManagement.Api/App_Data/
+
+## Docker / env secrets (commit *.example only)
+.env
+.env.qa
+.env.uat
+.env.production
+.env.*.local
+!.env.*.example
+pgdata/
+docker_data/

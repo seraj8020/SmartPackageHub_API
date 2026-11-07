@@ -37,6 +37,9 @@ jobs:
       # Publish without --no-build so the CI runner always emits a full publish folder.
       - name: Publish
         run: dotnet publish "$API_PROJECT" --configuration Release -o publish
+        env:
+          # Ensures appsettings.QA.json is available; runtime still uses ASPNETCORE_ENVIRONMENT on the VM.
+          DOTNET_ENVIRONMENT: QA
 
       - name: Upload publish output
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -94,4 +97,4 @@ jobs:
           key: ${{ secrets.OCI_SSH_KEY }}
           script: |
             sudo systemctl restart sph-api || true
-            curl -fsS http://127.0.0.1:5000/health || true
+            curl -fsS http://127.0.0.1:5000/healthz || true

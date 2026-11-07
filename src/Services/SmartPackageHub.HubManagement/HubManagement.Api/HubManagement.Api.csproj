@@ -7,6 +7,8 @@
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..\..</DockerfileContext>
 	  <Platforms>AnyCPU;x64</Platforms>
+    <!-- Prefer Api appsettings when a referenced project also has the same file names. -->
+    <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
     <!--
       CA1515: ASP.NET discovers public controllers; internal breaks routing.
       CA1812: SeedDataModel types are created by JSON deserialization, not `new` in source.

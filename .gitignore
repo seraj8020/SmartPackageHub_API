@@ -73,3 +73,8 @@ $RECYCLE.BIN/
 !.env.*.example
 pgdata/
 docker_data/
+
+## Per-environment JSON secrets (override appsettings; commit *.example only)
+**/appsettings.*.Secrets.json
+!**/appsettings.*.Secrets.json.example
+secrets/

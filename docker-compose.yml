@@ -73,10 +73,19 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-QA}
       ASPNETCORE_URLS: http://+:8080
-      # Keys must match configuration sections used by the API (not ConnectionStrings__*).
+      # Env vars override appsettings*.json (and optional Secrets.json).
       DbContextSettings__ConnectionString: ${DbContextSettings__ConnectionString}
       RedisConnectionString__Redis: ${RedisConnectionString__Redis}
       CorsOrigin: ${CorsOrigin:-http://localhost:8088}
+      Fast2Sms__Enabled: ${Fast2Sms__Enabled:-false}
+      Fast2Sms__ApiKey: ${Fast2Sms__ApiKey:-}
+      Email__Enabled: ${Email__Enabled:-false}
+      Email__HttpApiKey: ${Email__HttpApiKey:-}
+      Email__SmtpUsername: ${Email__SmtpUsername:-}
+      Email__SmtpPassword: ${Email__SmtpPassword:-}
+      SmsPumpingProtection__RecaptchaRequired: ${SmsPumpingProtection__RecaptchaRequired:-false}
+      SmsPumpingProtection__RecaptchaSecretKey: ${SmsPumpingProtection__RecaptchaSecretKey:-}
+      Auth__FixedLoginOtp: ${Auth__FixedLoginOtp:-}
     ports:
       - "${API_HOST_PORT:-5000}:8080"
     depends_on:

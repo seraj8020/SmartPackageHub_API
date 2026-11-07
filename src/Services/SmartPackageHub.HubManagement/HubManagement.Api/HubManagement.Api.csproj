@@ -7,6 +7,7 @@
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..\..</DockerfileContext>
 	  <Platforms>AnyCPU;x64</Platforms>
+    <UserSecretsId>smartpackagehub-hubmanagement-api</UserSecretsId>
     <!-- Prefer Api appsettings when a referenced project also has the same file names. -->
     <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
     <!--

@@ -10,6 +10,7 @@ namespace HubManagement.Application.PackageHub.Services
             IRepository<Resident> residents,
             IRepository<Society> societies,
             IRepository<User> users,
+            IRepository<UserSociety> userSocieties,
             Guid? residentId,
             Guid? societyId,
             Guid? staffUserId,
@@ -35,13 +36,21 @@ namespace HubManagement.Application.PackageHub.Services
                     return Placement.Fail(false, "Society was not found.");
                 resolvedSociety = society.Id;
             }
-            else if (requireResidentWhenSocietyMissing)
-            {
-                return Placement.Fail(true, "ResidentId is required");
-            }
             else
             {
-                return Placement.Fail(true, "A resident or society is required");
+                if (staffUserId is not Guid staffId || staffId == Guid.Empty)
+                    return Placement.Fail(true, requireResidentWhenSocietyMissing ? "ResidentId or StaffUserId is required" : "A resident, society, or staff user is required");
+
+                var linkedSocieties = userSocieties.FetchMulti(link => link.UserId == staffId)
+                    .Select(link => link.SocietyId)
+                    .Distinct()
+                    .ToList();
+                if (linkedSocieties.Count == 0)
+                    return Placement.Fail(true, "Staff user is not linked to a society.");
+                if (linkedSocieties.Count > 1)
+                    return Placement.Fail(true, "SocietyId is required because the staff user is linked to multiple societies.");
+
+                resolvedSociety = linkedSocieties[0];
             }
 
             Guid resolvedStaff;

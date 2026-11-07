@@ -29,6 +29,7 @@ namespace HubManagement.Application.Intake.Commands
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<Society> _societies;
         private readonly IRepository<HubManagement.Core.Hubs.Entities.User> _users;
+        private readonly IRepository<UserSociety> _userSocieties;
         private readonly IRepository<Shelf> _shelves;
         private readonly IRepository<CourierAgent> _agents;
         private readonly IRepository<OtpLog> _otpLogs;
@@ -46,6 +47,7 @@ namespace HubManagement.Application.Intake.Commands
             IRepository<Resident> residents,
             IRepository<Society> societies,
             IRepository<HubManagement.Core.Hubs.Entities.User> users,
+            IRepository<UserSociety> userSocieties,
             IRepository<Shelf> shelves,
             IRepository<CourierAgent> agents,
             IRepository<OtpLog> otpLogs,
@@ -63,6 +65,7 @@ namespace HubManagement.Application.Intake.Commands
             _residents = residents;
             _societies = societies;
             _users = users;
+            _userSocieties = userSocieties;
             _shelves = shelves;
             _agents = agents;
             _otpLogs = otpLogs;
@@ -155,6 +158,7 @@ namespace HubManagement.Application.Intake.Commands
                 _residents,
                 _societies,
                 _users,
+                _userSocieties,
                 resident?.Id,
                 matchedSocietyId ?? resident?.SocietyId,
                 request.StaffUserId,

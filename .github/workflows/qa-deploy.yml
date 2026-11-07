@@ -34,8 +34,9 @@ jobs:
       - name: Build
         run: dotnet build "$API_PROJECT" --configuration Release --no-restore
 
+      # Publish without --no-build so the CI runner always emits a full publish folder.
       - name: Publish
-        run: dotnet publish "$API_PROJECT" --configuration Release --no-build -o publish
+        run: dotnet publish "$API_PROJECT" --configuration Release -o publish
 
       - name: Upload publish output
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

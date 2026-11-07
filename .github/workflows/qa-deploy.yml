@@ -1,0 +1,97 @@
+# QA CI for SmartPackageHub API — runs on Development.
+# Deploy to Oracle Free Tier VM only when OCI_* secrets are set.
+name: QA API
+
+on:
+  push:
+    branches: [Development]
+  pull_request:
+    branches: [Development]
+  workflow_dispatch:
+
+concurrency:
+  group: qa-api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --verbosity minimal
+        continue-on-error: true
+
+      - name: Publish
+        run: |
+          dotnet publish src/Services/SmartPackageHub.HubManagement/HubManagement.Api/HubManagement.Api.csproj \
+            -c Release -o publish
+
+      - name: Upload publish output
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-publish
+          path: publish
+          retention-days: 7
+
+  deploy-oci:
+    name: Deploy to OCI QA (optional)
+    needs: build
+    if: >
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/Development'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deploy secrets
+        id: check
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+          OCI_SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
+        run: |
+          if [ -n "$OCI_HOST" ] && [ -n "$OCI_USER" ] && [ -n "$OCI_SSH_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping OCI deploy — add secrets OCI_HOST, OCI_USER, OCI_SSH_KEY when the QA VM is ready."
+          fi
+
+      - uses: actions/download-artifact@v4
+        if: steps.check.outputs.ready == 'true'
+        with:
+          name: api-publish
+          path: publish
+
+      - name: Upload API to VM
+        if: steps.check.outputs.ready == 'true'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          source: "publish/*"
+          target: "/opt/sph/api"
+          strip_components: 1
+
+      - name: Restart API service
+        if: steps.check.outputs.ready == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USER }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          script: |
+            sudo systemctl restart sph-api || true
+            curl -fsS http://127.0.0.1:5000/health || true

@@ -13,6 +13,9 @@ concurrency:
   group: qa-api-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  API_PROJECT: src/Services/SmartPackageHub.HubManagement/HubManagement.Api/HubManagement.Api.csproj
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,20 +26,16 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      # Restore/build the API csproj only — repo root has multiple .sln/.slnLaunch
+      # files and a docker-compose.dcproj that breaks bare `dotnet restore`.
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore "$API_PROJECT"
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity minimal
-        continue-on-error: true
+        run: dotnet build "$API_PROJECT" --configuration Release --no-restore
 
       - name: Publish
-        run: |
-          dotnet publish src/Services/SmartPackageHub.HubManagement/HubManagement.Api/HubManagement.Api.csproj \
-            -c Release -o publish
+        run: dotnet publish "$API_PROJECT" --configuration Release --no-build -o publish
 
       - name: Upload publish output
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

@@ -19,6 +19,7 @@ namespace HubManagement.Application.Scans.Commands
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<Society> _societies;
         private readonly IRepository<User> _users;
+        private readonly IRepository<UserSociety> _userSocieties;
         private readonly ILogger<ScanReceiveCommandHandler> _logger;
 
         public ScanReceiveCommandHandler(
@@ -26,6 +27,7 @@ namespace HubManagement.Application.Scans.Commands
             IRepository<Resident> residents,
             IRepository<Society> societies,
             IRepository<User> users,
+            IRepository<UserSociety> userSocieties,
             ILogger<ScanReceiveCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
@@ -33,6 +35,7 @@ namespace HubManagement.Application.Scans.Commands
             _residents = residents;
             _societies = societies;
             _users = users;
+            _userSocieties = userSocieties;
             _logger = logger;
         }
 
@@ -57,6 +60,7 @@ namespace HubManagement.Application.Scans.Commands
                 _residents,
                 _societies,
                 _users,
+                _userSocieties,
                 request.ResidentId,
                 request.SocietyId,
                 request.StaffUserId,

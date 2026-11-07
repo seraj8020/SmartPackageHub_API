@@ -18,6 +18,7 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<Society> _societies;
         private readonly IRepository<User> _users;
+        private readonly IRepository<UserSociety> _userSocieties;
         private readonly ILogger<CreatePackageCommandHandler> _logger;
 
         public CreatePackageCommandHandler(
@@ -25,6 +26,7 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<Resident> residents,
             IRepository<Society> societies,
             IRepository<User> users,
+            IRepository<UserSociety> userSocieties,
             ILogger<CreatePackageCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
@@ -32,6 +34,7 @@ namespace HubManagement.Application.PackageHub.Commands
             _residents = residents;
             _societies = societies;
             _users = users;
+            _userSocieties = userSocieties;
             _logger = logger;
         }
 
@@ -48,7 +51,7 @@ namespace HubManagement.Application.PackageHub.Commands
             if (open != null)
                 return new PackageCommandResult(true, true, false, $"This tracking number is already at the hub ({open.PkgNumber}).", null);
 
-            var placed = await PackagePlacement.ResolveAsync(_residents, _societies, _users, request.ResidentId, request.SocietyId, request.StaffUserId, requireResidentWhenSocietyMissing: true).ConfigureAwait(false);
+            var placed = await PackagePlacement.ResolveAsync(_residents, _societies, _users, _userSocieties, request.ResidentId, request.SocietyId, request.StaffUserId, requireResidentWhenSocietyMissing: true).ConfigureAwait(false);
             if (!placed.Succeeded)
                 return new PackageCommandResult(placed.Found, false, false, placed.Message, null);
 

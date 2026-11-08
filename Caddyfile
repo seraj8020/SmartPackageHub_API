@@ -1,5 +1,5 @@
 # Domains come from docker-compose.proxy.yml environment (UI_DOMAIN / API_DOMAIN).
-# Replace qa.localhost / qa-api.localhost with real DNS when available.
+# QA defaults: qa-smartpackagehub.com (UI) and api.qa-smartpackagehub.com (API).
 # Caddy will request Let's Encrypt certs automatically for public hostnames on :443.
 
 {$UI_DOMAIN} {

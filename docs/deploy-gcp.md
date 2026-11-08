@@ -45,7 +45,7 @@ cp .env.qa.example .env.qa
 
 cd ../SmartPackageHub_UI
 # ensure .env.qa has VITE_MODE=qa and VITE_API_BASE_URL pointing at your API
-# (public IP, or https://qa-api.yourdomain.com once DNS/Caddy are ready)
+# VITE_API_BASE_URL=https://api.qa-smartpackagehub.com
 ```
 
 First bring-up:
@@ -85,7 +85,18 @@ Optional Variables:
 
 Without `GCP_*` secrets, CI still **builds**; deploy is skipped.
 
-## 5. Firewall checklist
+## 5. DNS for qa-smartpackagehub.com
+
+At your registrar (or Cloud DNS), create **A** records pointing at the VM external IP:
+
+| Host | Points to |
+|------|-----------|
+| `qa-smartpackagehub.com` | GCE external IP (UI) |
+| `api.qa-smartpackagehub.com` | same GCE external IP (API) |
+
+Then start Caddy: `docker compose --env-file .env.qa -f docker-compose.proxy.yml up -d`
+
+## 6. Firewall checklist
 
 VPC firewall (or VM tags) should allow:
 

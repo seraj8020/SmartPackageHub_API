@@ -16,8 +16,8 @@ services:
       - "${PROXY_HTTP_PORT:-80}:80"
       - "${PROXY_HTTPS_PORT:-443}:443"
     environment:
-      UI_DOMAIN: ${UI_DOMAIN:-qa.localhost}
-      API_DOMAIN: ${API_DOMAIN:-qa-api.localhost}
+      UI_DOMAIN: ${UI_DOMAIN:-qa-smartpackagehub.com}
+      API_DOMAIN: ${API_DOMAIN:-api.qa-smartpackagehub.com}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

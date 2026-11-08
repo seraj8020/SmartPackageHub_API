@@ -1,5 +1,6 @@
 # QA CI for SmartPackageHub API — runs on Development.
 # Deploy to Oracle Free Tier VM only when OCI_* secrets are set.
+# VM must already have: Docker, repo clone, and .env.qa with real secrets.
 name: QA API
 
 on:
@@ -50,7 +51,7 @@ jobs:
           retention-days: 7
 
   deploy-oci:
-    name: Deploy to OCI QA (optional)
+    name: Deploy to OCI QA (Docker Compose)
     needs: build
     if: >
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
@@ -71,24 +72,7 @@ jobs:
             echo "::notice::Skipping OCI deploy — add secrets OCI_HOST, OCI_USER, OCI_SSH_KEY when the QA VM is ready."
           fi
 
-      - uses: actions/download-artifact@v4
-        if: steps.check.outputs.ready == 'true'
-        with:
-          name: api-publish
-          path: publish
-
-      - name: Upload API to VM
-        if: steps.check.outputs.ready == 'true'
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.OCI_HOST }}
-          username: ${{ secrets.OCI_USER }}
-          key: ${{ secrets.OCI_SSH_KEY }}
-          source: "publish/*"
-          target: "/opt/sph/api"
-          strip_components: 1
-
-      - name: Restart API service
+      - name: Docker Compose up on VM
         if: steps.check.outputs.ready == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -96,5 +80,25 @@ jobs:
           username: ${{ secrets.OCI_USER }}
           key: ${{ secrets.OCI_SSH_KEY }}
           script: |
-            sudo systemctl restart sph-api || true
-            curl -fsS http://127.0.0.1:5000/healthz || true
+            set -euo pipefail
+            DIR="${{ vars.SPH_API_DIR }}"
+            DIR="${DIR:-/opt/sph/SmartPackageHub_API}"
+            if [ ! -d "$DIR" ]; then
+              echo "Missing API clone at $DIR — clone the repo once, copy .env.qa.example → .env.qa, then re-run."
+              exit 1
+            fi
+            if [ ! -f "$DIR/.env.qa" ]; then
+              echo "Missing $DIR/.env.qa — copy from .env.qa.example and set real passwords."
+              exit 1
+            fi
+            cd "$DIR"
+            git fetch origin
+            git checkout Development
+            git pull --ff-only origin Development
+            docker compose --env-file .env.qa up -d --build
+            docker compose --env-file .env.qa ps
+            set -a
+            # shellcheck disable=SC1091
+            source .env.qa
+            set +a
+            curl -fsS "http://127.0.0.1:${API_HOST_PORT:-5000}/healthz"

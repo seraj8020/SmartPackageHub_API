@@ -1,0 +1,35 @@
+# Optional HTTPS edge in front of UI + API (same Docker network: sph-net).
+# Requires UI and API stacks already up so containers sph-ui / sph-api exist.
+#
+# 1) Set UI_DOMAIN / API_DOMAIN in .env.qa (or export them) — placeholders until DNS exists.
+# 2) docker compose --env-file .env.qa -f docker-compose.proxy.yml up -d
+#
+# Until you have a real domain, use HTTP-only hostnames or skip this file and hit
+# host ports directly (API_HOST_PORT / UI_HOST_PORT).
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: sph-caddy
+    restart: unless-stopped
+    ports:
+      - "${PROXY_HTTP_PORT:-80}:80"
+      - "${PROXY_HTTPS_PORT:-443}:443"
+    environment:
+      UI_DOMAIN: ${UI_DOMAIN:-qa.localhost}
+      API_DOMAIN: ${API_DOMAIN:-qa-api.localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - sph-net
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  sph-net:
+    external: true
+    name: sph-net

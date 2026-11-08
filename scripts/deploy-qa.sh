@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Manual QA deploy on a host that already has Docker + this repo + .env.qa.
+# Manual QA deploy on a GCP Compute Engine (or any) host with Docker + this repo + .env.qa.
 # Usage (from repo root): ./scripts/deploy-qa.sh
+# One-time cloud setup: docs/deploy-gcp.md
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

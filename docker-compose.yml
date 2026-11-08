@@ -1,4 +1,4 @@
-# Backend stack for Oracle Cloud QA/UAT/Prod.
+# Backend stack for Google Cloud (Compute Engine) QA/UAT/Prod.
 # Prefer secrets via env file (never commit real passwords):
 #   cp .env.qa.example .env.qa
 #   docker compose --env-file .env.qa up -d --build

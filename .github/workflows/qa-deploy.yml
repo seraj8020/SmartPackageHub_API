@@ -1,6 +1,7 @@
 # QA CI for SmartPackageHub API — runs on Development.
-# Deploy to Oracle Free Tier VM only when OCI_* secrets are set.
+# Deploy to a Google Compute Engine VM when GCP_* secrets are set.
 # VM must already have: Docker, repo clone, and .env.qa with real secrets.
+# See docs/deploy-gcp.md for one-time VM setup.
 name: QA API
 
 on:
@@ -50,8 +51,8 @@ jobs:
           path: publish
           retention-days: 7
 
-  deploy-oci:
-    name: Deploy to OCI QA (Docker Compose)
+  deploy-gcp:
+    name: Deploy to GCP QA (Docker Compose)
     needs: build
     if: >
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
@@ -61,24 +62,24 @@ jobs:
       - name: Check deploy secrets
         id: check
         env:
-          OCI_HOST: ${{ secrets.OCI_HOST }}
-          OCI_USER: ${{ secrets.OCI_USER }}
-          OCI_SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
+          GCP_VM_HOST: ${{ secrets.GCP_VM_HOST }}
+          GCP_VM_USER: ${{ secrets.GCP_VM_USER }}
+          GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}
         run: |
-          if [ -n "$OCI_HOST" ] && [ -n "$OCI_USER" ] && [ -n "$OCI_SSH_KEY" ]; then
+          if [ -n "$GCP_VM_HOST" ] && [ -n "$GCP_VM_USER" ] && [ -n "$GCP_SSH_KEY" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping OCI deploy — add secrets OCI_HOST, OCI_USER, OCI_SSH_KEY when the QA VM is ready."
+            echo "::notice::Skipping GCP deploy — add secrets GCP_VM_HOST, GCP_VM_USER, GCP_SSH_KEY when the Compute Engine VM is ready."
           fi
 
-      - name: Docker Compose up on VM
+      - name: Docker Compose up on GCE VM
         if: steps.check.outputs.ready == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.OCI_HOST }}
-          username: ${{ secrets.OCI_USER }}
-          key: ${{ secrets.OCI_SSH_KEY }}
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
           script: |
             set -euo pipefail
             DIR="${{ vars.SPH_API_DIR }}"

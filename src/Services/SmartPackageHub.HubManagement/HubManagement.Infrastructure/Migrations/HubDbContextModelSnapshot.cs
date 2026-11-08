@@ -27,31 +27,31 @@ namespace HubManagement.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
-                    b.Property<DateOnly>("Day")
-                        .HasColumnType("date");
-
                     b.Property<string>("CourierSplitJson")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
                         .HasDefaultValue("{}");
 
-                    b.Property<int>("OverdueCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PendingCountVersion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
 
                     b.Property<DateTime?>("LastRolledUpAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("OverdueCount")
+                        .HasColumnType("integer");
 
                     b.Property<int>("PackagesDelivered")
                         .HasColumnType("integer");
 
                     b.Property<int>("PackagesReceived")
                         .HasColumnType("integer");
+
+                    b.Property<int>("PendingCountVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<Guid>("SocietyId")
                         .HasColumnType("uuid");
@@ -452,12 +452,12 @@ namespace HubManagement.Infrastructure.Migrations
                     b.Property<DateTime?>("DeliveredAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("FallbackOfNotificationId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("FailureReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("FallbackOfNotificationId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("IdempotencyKey")
                         .HasMaxLength(120)
@@ -583,6 +583,10 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("PreferredDeliveryMethod")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<DateTime>("RecievedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -621,10 +625,6 @@ namespace HubManagement.Infrastructure.Migrations
 
                     b.Property<Guid?>("VacationHoldId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("PreferredDeliveryMethod")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
 
                     b.HasKey("Id");
 
@@ -946,7 +946,8 @@ namespace HubManagement.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SocietyId");
+                    b.HasIndex("SocietyId", "Code")
+                        .IsUnique();
 
                     b.ToTable("Shelves", (string)null);
                 });

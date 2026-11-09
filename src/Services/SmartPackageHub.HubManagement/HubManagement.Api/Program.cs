@@ -116,11 +116,9 @@ services.AddSingleton<HubManagement.Application.Auth.Services.PlatformAdminSessi
 services.AddSwaggerDocs();
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy("Application is running"))
-#if (UseSqlServer)
-    .AddSqlServer(builder.Configuration["Database:SqlConnectionString"]!);
-#else
-    .AddNpgSql(connectionString);
-#endif
+    .AddNpgSql(
+        connectionString
+        ?? throw new InvalidOperationException("DbContextSettings:ConnectionString was not found"));
 
 var corsOriginUrl = builder.Configuration["CorsOrigin"] ?? throw new InvalidOperationException("CorsOrigin section was not found");
 services

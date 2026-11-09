@@ -17,18 +17,9 @@
     -->
     <NoWarn>$(NoWarn);CA1515;CA1812;CA1303</NoWarn>
   </PropertyGroup>
-	<PropertyGroup>
-		<!-- Modify these constants to enable/disable a feature to debug the template. Note that this only affects the C#. -->
-		<DefineConstants>$(DefineConstants);UseSqlServer</DefineConstants>
-		<!-- Workaround to build this project: https://github.com/dotnet/templating/issues/1438 -->
-		<UseSqlServer>false</UseSqlServer>
-	</PropertyGroup>
 	<ItemGroup>
-		<!--#if (UseSqlServer)-->
-		<PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="8.0.2" />
-		<!--#else-->
+		<!-- Postgres only — do not define UseSqlServer (template leftover broke /healthz). -->
 		<PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.2" />
-		<!--#endif-->
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.15" />
 		<PackageReference Include="Microsoft.Extensions.ML" Version="5.0.0" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.1" />

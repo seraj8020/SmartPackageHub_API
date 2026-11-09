@@ -97,7 +97,28 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$GCP_SSH_KEY" | tr -d '\r' > ~/.ssh/gcp_deploy
           chmod 600 ~/.ssh/gcp_deploy
+          echo "TCP check ${GCP_VM_HOST}:22 ..."
+          if ! timeout 15 bash -c "echo >/dev/tcp/${GCP_VM_HOST}/22"; then
+            echo "::error::Cannot reach ${GCP_VM_HOST}:22 from GitHub Actions. Open VPC firewall tcp:22 (or confirm the VM external IP)."
+            exit 1
+          fi
           ssh-keyscan -T 10 -H "$GCP_VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "SSH auth check as ${GCP_VM_USER}@${GCP_VM_HOST} ..."
+          if ! ssh -i ~/.ssh/gcp_deploy \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 \
+            -o BatchMode=yes \
+            "${GCP_VM_USER}@${GCP_VM_HOST}" 'echo ssh-ok'; then
+            echo "::error::SSH auth failed for ${GCP_VM_USER}@${GCP_VM_HOST}. Re-check GCP_SSH_KEY (private key) and that its .pub is in GCE metadata / authorized_keys for that exact username."
+            ssh -vvv -i ~/.ssh/gcp_deploy \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=20 \
+              -o BatchMode=yes \
+              "${GCP_VM_USER}@${GCP_VM_HOST}" 'true' || true
+            exit 1
+          fi
           DIR="${SPH_API_DIR:-/opt/sph/SmartPackageHub_API}"
           ssh -i ~/.ssh/gcp_deploy \
             -o IdentitiesOnly=yes \

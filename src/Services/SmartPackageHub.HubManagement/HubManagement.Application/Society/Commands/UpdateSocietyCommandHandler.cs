@@ -42,6 +42,8 @@ namespace HubManagement.Application.Societies.Commands
             }
 
             society.ChangeContact(request.ContactEmail, request.Phone);
+            // Backfill legacy rows that were saved before OnboardedAtUtc was populated.
+            society.MarkOnboarded(DateTime.UtcNow);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogUpdatedSociety(_logger, society.Id, null);
             return new SocietyCommandResult(true, true, "Society updated.", SocietyDetailsDto.From(society));

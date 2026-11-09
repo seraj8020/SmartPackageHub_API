@@ -967,7 +967,9 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<DateTime?>("OnboardedAtUtc")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("(now() AT TIME ZONE 'utc')");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(50)

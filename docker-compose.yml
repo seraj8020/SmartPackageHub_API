@@ -11,7 +11,8 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     volumes:
-      - ./pgdata:/var/lib/postgresql/data/
+      # Named volume (not ./pgdata) so `docker compose build` never walks root-owned host pgdata.
+      - postgres_data:/var/lib/postgresql/data/
       - ./postgres-init:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-smartpackagehub_qa}
@@ -124,6 +125,7 @@ services:
 volumes:
   pgadmin_data:
   redis_data:
+  postgres_data:
 
 networks:
   sph-net:

@@ -46,22 +46,22 @@ namespace HubManagement.Application.DeliverySlots.Commands
         }
 
         public override async Task<BookDeliverySlotResult> Handle(
-            BookDeliverySlotCommand command,
+            BookDeliverySlotCommand request,
             CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
-            var request = command.Request ?? throw new ArgumentNullException(nameof(command));
-            var method = NormalizeMethod(request.PreferredDeliveryMethod);
+            ArgumentNullException.ThrowIfNull(request);
+            var payload = request.Request ?? throw new ArgumentNullException(nameof(request));
+            var method = NormalizeMethod(payload.PreferredDeliveryMethod);
 
-            var package = await _packages.GetByIdAsync(request.PackageId).ConfigureAwait(false);
-            var guard = await ValidatePackageAndResidentAsync(package, request).ConfigureAwait(false);
+            var package = await _packages.GetByIdAsync(payload.PackageId).ConfigureAwait(false);
+            var guard = await ValidatePackageAndResidentAsync(package, payload).ConfigureAwait(false);
             if (guard is not null)
                 return guard;
 
             if (string.Equals(method, "CounterPickup", StringComparison.Ordinal))
                 return await SaveCounterPickupAsync(package!, cancellationToken).ConfigureAwait(false);
 
-            return await SaveDoorDeliveryAsync(package!, request, cancellationToken).ConfigureAwait(false);
+            return await SaveDoorDeliveryAsync(package!, payload, cancellationToken).ConfigureAwait(false);
         }
 
         private async Task<BookDeliverySlotResult> SaveCounterPickupAsync(

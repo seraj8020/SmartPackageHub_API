@@ -38,20 +38,20 @@ namespace HubManagement.Application.PackageHub.Commands
             _logger = logger;
         }
 
-        public override async Task<PackageCommandResult> Handle(CreatePackageCommand command, CancellationToken cancellationToken)
+        public override async Task<PackageCommandResult> Handle(CreatePackageCommand request, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
-            var request = command.Request;
-            var trackingError = HubPackageFactory.ValidateTracking(request.TrackingNumber, 100);
+            ArgumentNullException.ThrowIfNull(request);
+            var payload = request.Request;
+            var trackingError = HubPackageFactory.ValidateTracking(payload.TrackingNumber, 100);
             if (trackingError != null)
                 return new PackageCommandResult(true, false, false, trackingError, null);
 
-            var tracking = request.TrackingNumber!.Trim();
+            var tracking = payload.TrackingNumber!.Trim();
             var open = HubPackageFactory.FindOpen(_packages, tracking);
             if (open != null)
                 return new PackageCommandResult(true, true, false, $"This tracking number is already at the hub ({open.PkgNumber}).", null);
 
-            var placed = await PackagePlacement.ResolveAsync(_residents, _societies, _users, _userSocieties, request.ResidentId, request.SocietyId, request.StaffUserId, requireResidentWhenSocietyMissing: true).ConfigureAwait(false);
+            var placed = await PackagePlacement.ResolveAsync(_residents, _societies, _users, _userSocieties, payload.ResidentId, payload.SocietyId, payload.StaffUserId, requireResidentWhenSocietyMissing: true).ConfigureAwait(false);
             if (!placed.Succeeded)
                 return new PackageCommandResult(placed.Found, false, false, placed.Message, null);
 
@@ -62,11 +62,11 @@ namespace HubManagement.Application.PackageHub.Commands
                 placed.StaffUserId,
                 tracking,
                 HubPackageFactory.NextNumber(_packages),
-                request.Courier,
-                request.Description,
-                request.RecipientName,
-                request.Tower,
-                request.FlatNumber,
+                payload.Courier,
+                payload.Description,
+                payload.RecipientName,
+                payload.Tower,
+                payload.FlatNumber,
                 false);
 
             _packages.Insert(package);

@@ -39,14 +39,14 @@ namespace HubManagement.Application.Scans.Commands
             _logger = logger;
         }
 
-        public override async Task<PackageCommandResult> Handle(ScanReceiveCommand command, CancellationToken cancellationToken)
+        public override async Task<PackageCommandResult> Handle(ScanReceiveCommand request, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
-            var request = command.Request;
-            if (string.IsNullOrWhiteSpace(request.Vendor) || string.IsNullOrWhiteSpace(request.RawCode))
+            ArgumentNullException.ThrowIfNull(request);
+            var scan = request.Request;
+            if (string.IsNullOrWhiteSpace(scan.Vendor) || string.IsNullOrWhiteSpace(scan.RawCode))
                 return new PackageCommandResult(true, false, false, "Vendor and RawCode are required", null);
 
-            var tracking = ScanCodeParser.ParseTracking(request.Vendor, request.RawCode) ?? request.RawCode.Trim();
+            var tracking = ScanCodeParser.ParseTracking(scan.Vendor, scan.RawCode) ?? scan.RawCode.Trim();
             var trackingError = HubPackageFactory.ValidateTracking(tracking, 100);
             if (trackingError != null)
                 return new PackageCommandResult(true, false, false, trackingError, null);
@@ -61,9 +61,9 @@ namespace HubManagement.Application.Scans.Commands
                 _societies,
                 _users,
                 _userSocieties,
-                request.ResidentId,
-                request.SocietyId,
-                request.StaffUserId,
+                scan.ResidentId,
+                scan.SocietyId,
+                scan.StaffUserId,
                 requireResidentWhenSocietyMissing: true).ConfigureAwait(false);
             if (!placed.Succeeded)
                 return new PackageCommandResult(placed.Found, false, false, placed.Message, null);
@@ -75,16 +75,16 @@ namespace HubManagement.Application.Scans.Commands
                 placed.StaffUserId,
                 tracking,
                 HubPackageFactory.NextNumber(_packages),
-                request.Vendor,
-                request.Description,
-                request.RecipientName,
-                request.Tower,
-                request.FlatNumber,
+                scan.Vendor,
+                scan.Description,
+                scan.RecipientName,
+                scan.Tower,
+                scan.FlatNumber,
                 false);
 
             _packages.Insert(package);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
-            LogScanReceived(_logger, package.Id, request.Vendor, null);
+            LogScanReceived(_logger, package.Id, scan.Vendor, null);
             return new PackageCommandResult(true, false, true, "Package received", PackageDetailsDto.From(package));
         }
     }

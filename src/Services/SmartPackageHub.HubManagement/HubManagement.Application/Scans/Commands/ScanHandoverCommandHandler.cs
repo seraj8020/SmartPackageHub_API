@@ -29,10 +29,10 @@ namespace HubManagement.Application.Scans.Commands
             _logger = logger;
         }
 
-        public override async Task<PackageCommandResult> Handle(ScanHandoverCommand command, CancellationToken cancellationToken)
+        public override async Task<PackageCommandResult> Handle(ScanHandoverCommand request, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
-            var code = command.Request.Code?.Trim();
+            ArgumentNullException.ThrowIfNull(request);
+            var code = request.Request.Code?.Trim();
             if (string.IsNullOrWhiteSpace(code))
                 return new PackageCommandResult(true, false, false, "Code is required", null);
 
@@ -60,7 +60,7 @@ namespace HubManagement.Application.Scans.Commands
                 null,
                 "Handover",
                 DateTime.UtcNow,
-                string.IsNullOrWhiteSpace(command.Request.Notes) ? "Handed over via scan" : command.Request.Notes.Trim());
+                string.IsNullOrWhiteSpace(request.Request.Notes) ? "Handed over via scan" : request.Request.Notes.Trim());
             delivery.CompleteDelivery();
             _deliveries.Insert(delivery);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);

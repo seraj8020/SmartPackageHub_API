@@ -31,9 +31,9 @@ namespace HubManagement.Application.PackageHub.Commands
             _logger = logger;
         }
 
-        public override async Task<CodResponseResult> Handle(RespondCodCommand command, CancellationToken cancellationToken)
+        public override async Task<CodResponseResult> Handle(RespondCodCommand request, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
+            ArgumentNullException.ThrowIfNull(request);
 
             if (!_featureFlags.CashOnDelivery)
             {
@@ -45,7 +45,7 @@ namespace HubManagement.Application.PackageHub.Commands
                 };
             }
 
-            var package = await _packages.GetByIdAsync(command.PackageId).ConfigureAwait(false);
+            var package = await _packages.GetByIdAsync(request.PackageId).ConfigureAwait(false);
             if (package == null)
             {
                 return new CodResponseResult { Found = false, Message = "Package was not found." };
@@ -74,7 +74,7 @@ namespace HubManagement.Application.PackageHub.Commands
                 };
             }
 
-            if (!command.Approve)
+            if (!request.Approve)
             {
                 package.RejectCod();
                 await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -89,7 +89,7 @@ namespace HubManagement.Application.PackageHub.Commands
                 };
             }
 
-            // Approval only â€” staff still assigns shelf later; OTP is generated at shelving.
+            // Approval only — staff still assigns shelf later; OTP is generated at shelving.
             package.ApproveCod();
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogCodResponded(_logger, package.Id, true, null);

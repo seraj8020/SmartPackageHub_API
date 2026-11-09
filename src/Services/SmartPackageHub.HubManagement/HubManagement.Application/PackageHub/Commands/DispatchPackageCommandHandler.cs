@@ -24,10 +24,10 @@ namespace HubManagement.Application.PackageHub.Commands
             _logger = logger;
         }
 
-        public override async Task<bool> Handle(DispatchPackageCommand command, CancellationToken cancellationToken)
+        public override async Task<bool> Handle(DispatchPackageCommand request, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
-            var packageTask = _packages.GetByIdAsync(command.packageId);
+            ArgumentNullException.ThrowIfNull(request);
+            var packageTask = _packages.GetByIdAsync(request.packageId);
             // 2. Await the task later using ConfigureAwait(false) to get the result
             var package = await packageTask.ConfigureAwait(false);
             if (package == null)

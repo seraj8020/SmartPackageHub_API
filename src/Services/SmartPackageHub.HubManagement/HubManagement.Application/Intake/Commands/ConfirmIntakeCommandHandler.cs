@@ -77,41 +77,41 @@ namespace HubManagement.Application.Intake.Commands
             _logger = logger;
         }
 
-        public override async Task<IntakeStatusResult<ConfirmIntakeResponse>> Handle(ConfirmIntakeCommand command, CancellationToken cancellationToken)
+        public override async Task<IntakeStatusResult<ConfirmIntakeResponse>> Handle(ConfirmIntakeCommand request, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
+            ArgumentNullException.ThrowIfNull(request);
 
-            var request = command.Request;
-            var clientRequestId = IntakeText.Clean(request.ClientRequestId, 80);
-            var duplicateResult = await CheckDuplicateAsync(request, clientRequestId, cancellationToken).ConfigureAwait(false);
+            var payload = request.Request;
+            var clientRequestId = IntakeText.Clean(payload.ClientRequestId, 80);
+            var duplicateResult = await CheckDuplicateAsync(payload, clientRequestId, cancellationToken).ConfigureAwait(false);
             if (duplicateResult != null)
             {
                 return duplicateResult;
             }
 
-            var (awb, courier, name, tower, flat, trackingError) = await ValidateAndCleanTrackingAsync(request).ConfigureAwait(false);
+            var (awb, courier, name, tower, flat, trackingError) = await ValidateAndCleanTrackingAsync(payload).ConfigureAwait(false);
             if (trackingError != null)
             {
                 return trackingError;
             }
 
-            var (resident, matchedSocietyId, ambiguous, residentError) = await ResolveResidentAndSocietyAsync(request, tower, flat).ConfigureAwait(false);
+            var (resident, matchedSocietyId, ambiguous, residentError) = await ResolveResidentAndSocietyAsync(payload, tower, flat).ConfigureAwait(false);
             if (residentError != null)
             {
                 return residentError;
             }
 
-            var (placed, resolvedResident, placementError) = await ResolvePlacementAsync(request, resident, matchedSocietyId).ConfigureAwait(false);
+            var (placed, resolvedResident, placementError) = await ResolvePlacementAsync(payload, resident, matchedSocietyId).ConfigureAwait(false);
             if (placementError != null)
             {
                 return placementError;
             }
 
             // Shelf allocation is a separate staff step after courier intake.
-            var matchStatus = DetermineMatchStatus(request.MatchStatus, resolvedResident, ambiguous);
+            var matchStatus = DetermineMatchStatus(payload.MatchStatus, resolvedResident, ambiguous);
 
             return await PersistAndConfirmAsync(
-                request,
+                payload,
                 placed!,
                 resolvedResident,
                 awb!,

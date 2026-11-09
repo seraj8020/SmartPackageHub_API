@@ -33,16 +33,16 @@ namespace HubManagement.Application.PackageHub.Commands
             _logger = logger;
         }
 
-        public override async Task<PackageCommandResult> Handle(DeliverPackageCommand command, CancellationToken cancellationToken)
+        public override async Task<PackageCommandResult> Handle(DeliverPackageCommand request, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
-            var request = command.request;
-            if (request is null)
-                throw new ArgumentNullException(nameof(command));
-            if (string.IsNullOrWhiteSpace(request.Token))
+            ArgumentNullException.ThrowIfNull(request);
+            var payload = request.request;
+            if (payload is null)
+                throw new ArgumentNullException(nameof(request));
+            if (string.IsNullOrWhiteSpace(payload.Token))
                 return new PackageCommandResult(true, false, false, "OTP code is required.", null);
 
-            var package = await _packages.GetByIdAsync(command.packageId).ConfigureAwait(false);
+            var package = await _packages.GetByIdAsync(request.packageId).ConfigureAwait(false);
             if (package == null)
                 return new PackageCommandResult(false, false, false, "Package not found.", null);
             if (package.Status != PackageStatus.Dispatched)
@@ -51,14 +51,14 @@ namespace HubManagement.Application.PackageHub.Commands
                 return new PackageCommandResult(true, false, false, "Package has no resident assigned.", null);
 
             // Prefer package truth; only reject when client explicitly sends a mismatched override.
-            if (request.SocietyId is Guid societyId && societyId != Guid.Empty && societyId != package.SocietyId)
+            if (payload.SocietyId is Guid societyId && societyId != Guid.Empty && societyId != package.SocietyId)
                 return new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null);
-            if (request.ResidentId is Guid residentId && residentId != Guid.Empty && residentId != packageResidentId)
+            if (payload.ResidentId is Guid residentId && residentId != Guid.Empty && residentId != packageResidentId)
                 return new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null);
-            if (request.StaffUserId is Guid staffUserId && staffUserId != Guid.Empty && staffUserId != package.StaffUserId)
+            if (payload.StaffUserId is Guid staffUserId && staffUserId != Guid.Empty && staffUserId != package.StaffUserId)
                 return new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null);
 
-            var token = request.Token.Trim();
+            var token = payload.Token.Trim();
             var utcNow = DateTime.UtcNow;
             var otpLog = await _otpLogs.FirstOrDefaultAsync(log =>
                 log.PackageId == package.Id &&
@@ -75,14 +75,14 @@ namespace HubManagement.Application.PackageHub.Commands
             package.DeliverPackage();
             var delivery = Delivery.Create(
                 package.SocietyId,
-                command.packageId,
+                request.packageId,
                 package.StaffUserId,
                 packageResidentId,
                 otpLog.Id,
-                request.BatchId,
-                string.IsNullOrWhiteSpace(request.Method) ? "CounterPickup" : request.Method,
+                payload.BatchId,
+                string.IsNullOrWhiteSpace(payload.Method) ? "CounterPickup" : payload.Method,
                 utcNow,
-                request.Notes ?? $"Handed to '{package.RecipientName}' at Flat Number '{package.FlatNumber}'");
+                payload.Notes ?? $"Handed to '{package.RecipientName}' at Flat Number '{package.FlatNumber}'");
             delivery.CompleteDelivery();
             _deliveries.Insert(delivery);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);

@@ -36,19 +36,19 @@ namespace HubManagement.Application.Intake.Commands
             _logger = logger;
         }
 
-        public override async Task<DamageSaveResult> Handle(SaveDamageCommand command, CancellationToken cancellationToken)
+        public override async Task<DamageSaveResult> Handle(SaveDamageCommand request, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
-            var intake = await _intakes.GetByIdAsync(command.IntakeId).ConfigureAwait(false);
+            ArgumentNullException.ThrowIfNull(request);
+            var intake = await _intakes.GetByIdAsync(request.IntakeId).ConfigureAwait(false);
             if (intake == null)
                 return new DamageSaveResult(false, "Intake not found");
 
-            if (!string.IsNullOrWhiteSpace(command.Request.ImageBase64))
+            if (!string.IsNullOrWhiteSpace(request.Request.ImageBase64))
             {
                 byte[] bytes;
                 try
                 {
-                    bytes = Convert.FromBase64String(command.Request.ImageBase64);
+                    bytes = Convert.FromBase64String(request.Request.ImageBase64);
                 }
                 catch (FormatException)
                 {
@@ -58,7 +58,7 @@ namespace HubManagement.Application.Intake.Commands
                 if (bytes.Length > 1_500_000)
                     return new DamageSaveResult(false, "Damage photo is too large");
 
-                var key = await _photos.SaveDamageAsync(command.IntakeId, bytes, cancellationToken).ConfigureAwait(false);
+                var key = await _photos.SaveDamageAsync(request.IntakeId, bytes, cancellationToken).ConfigureAwait(false);
                 intake.DamageImagePath = key;
                 var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
                 var image = PackageImage.Create(intake.PackageId, intake.Id, "Damage", key, hash, DateTime.UtcNow);
@@ -68,8 +68,8 @@ namespace HubManagement.Application.Intake.Commands
             }
 
             intake.IsDamaged = true;
-            if (!string.IsNullOrWhiteSpace(command.Request.Note))
-                intake.DamageNote = IntakeText.Clean(command.Request.Note, 240);
+            if (!string.IsNullOrWhiteSpace(request.Request.Note))
+                intake.DamageNote = IntakeText.Clean(request.Request.Note, 240);
 
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogSaveDamageImageConfirmed(_logger, intake.Id, intake.PackageId.ToString(), null);

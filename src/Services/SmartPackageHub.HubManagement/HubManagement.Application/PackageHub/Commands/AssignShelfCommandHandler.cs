@@ -65,11 +65,11 @@ namespace HubManagement.Application.PackageHub.Commands
             _logger = logger;
         }
 
-        public override async Task<AssignShelfResult> Handle(AssignShelfCommand command, CancellationToken cancellationToken)
+        public override async Task<AssignShelfResult> Handle(AssignShelfCommand request, CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
+            ArgumentNullException.ThrowIfNull(request);
 
-            var package = await _packages.GetByIdAsync(command.PackageId).ConfigureAwait(false);
+            var package = await _packages.GetByIdAsync(request.PackageId).ConfigureAwait(false);
             if (package == null)
             {
                 return new AssignShelfResult { Found = false, Message = "Package was not found." };
@@ -120,7 +120,7 @@ namespace HubManagement.Application.PackageHub.Commands
                 }
             }
 
-            var requestedCode = IntakeText.Clean(command.ShelfCode, 50);
+            var requestedCode = IntakeText.Clean(request.ShelfCode, 50);
             var societyShelves = _shelves.FetchMulti(shelf => shelf.SocietyId == package.SocietyId).ToList();
             var shelf = requestedCode == null ? null : societyShelves.FirstOrDefault(item =>
                 string.Equals(item.Code, requestedCode, StringComparison.OrdinalIgnoreCase));
@@ -133,7 +133,7 @@ namespace HubManagement.Application.PackageHub.Commands
                     societyShelves,
                     societyPackages,
                     package.SocietyId,
-                    command.IsColdStorage || package.IsColdStorage);
+                    request.IsColdStorage || package.IsColdStorage);
             }
 
             if (shelf != null)

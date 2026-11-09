@@ -392,7 +392,7 @@ internal static class DataSeeder
         var existingIds = context.Shelves.Select(s => s.Id).ToHashSet();
         var existingCodes = context.Shelves
             .Select(s => new { s.SocietyId, s.Code })
-            .ToList()
+            .AsEnumerable()
             .Select(s => (s.SocietyId, s.Code))
             .ToHashSet();
 

@@ -33,13 +33,10 @@ namespace SmartPackageHub.Common.Extension
             .GetValue<string>("RedisConnectionString:Redis")
             ?? throw new InvalidOperationException("RedisConnectionString:Redis section was not found");
 
-            ConfigurationOptions option = new ConfigurationOptions
-            {
-                AbortOnConnectFail = false,
-               // ClientName = "MyApp-RedisCacheProvider",
-                //ReconnectRetryPolicy = new ExponentialRetry(5000, 10000),
-                EndPoints = { redisConnectionString }
-            };
+            // Parse full StackExchange.Redis strings such as "redis:6379,password=secret".
+            // EndPoints only accepts host:port — never the whole connection string.
+            var option = ConfigurationOptions.Parse(redisConnectionString);
+            option.AbortOnConnectFail = false;
 
             IConnectionMultiplexer connectionMultiplexer = ConnectionMultiplexer.Connect(option);
             services

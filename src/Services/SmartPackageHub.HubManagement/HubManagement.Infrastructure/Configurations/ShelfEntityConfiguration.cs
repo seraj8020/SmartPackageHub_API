@@ -18,8 +18,8 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(p => p.IsColdStorage).IsRequired();
             builder.Property(p => p.Capacity).IsRequired();
 
-            // Non-unique: seed/demo data can include multiple shelves with the same code.
-            builder.HasIndex(e => e.SocietyId);
+            // Business rule from SPH-45: shelf code is unique within a society.
+            builder.HasIndex(e => new { e.SocietyId, e.Code }).IsUnique();
 
             builder.OwnsOne(e => e.Location, locBuilder =>
             {

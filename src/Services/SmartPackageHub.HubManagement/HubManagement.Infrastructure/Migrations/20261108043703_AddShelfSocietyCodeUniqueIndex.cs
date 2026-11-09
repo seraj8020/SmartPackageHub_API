@@ -5,20 +5,21 @@
 namespace HubManagement.Infrastructure.Migrations
 {
     /// <summary>
-    /// Intentionally a no-op. An earlier version of this migration incorrectly
-    /// recreated the schema / unique shelf index and broke seed data.
-    /// See 20261109130000_RevertShelfSocietyCodeUniqueIndex.
+    /// Historical no-op. An earlier revision of this migration was unsafe.
+    /// The real unique index is applied in 20261109140000_EnforceShelfSocietyCodeUniqueIndex.
     /// </summary>
     public partial class AddShelfSocietyCodeUniqueIndex : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Intentionally empty: superseded by EnforceShelfSocietyCodeUniqueIndex after a bad full-schema revision.
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Intentionally empty: nothing was applied in Up for this migration id.
         }
     }
 }

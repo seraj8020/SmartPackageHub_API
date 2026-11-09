@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace HubManagement.Infrastructure.Migrations
 {
     /// <summary>
-    /// Reverts the accidental unique index on Shelves (SocietyId, Code) so seed
-    /// and existing duplicate shelf codes work again.
+    /// Intermediate rollback of a bad unique-index attempt. Uniqueness is re-applied
+    /// cleanly in 20261109140000_EnforceShelfSocietyCodeUniqueIndex.
     /// </summary>
     public partial class RevertShelfSocietyCodeUniqueIndex : Migration
     {
@@ -40,7 +40,7 @@ namespace HubManagement.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Do not recreate the unique index — seed data allows duplicate codes.
+            // Intentionally empty: forward path is superseded by EnforceShelfSocietyCodeUniqueIndex.
         }
     }
 }

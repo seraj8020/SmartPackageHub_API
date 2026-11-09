@@ -946,7 +946,8 @@ namespace HubManagement.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SocietyId");
+                    b.HasIndex("SocietyId", "Code")
+                        .IsUnique();
 
                     b.ToTable("Shelves", (string)null);
                 });

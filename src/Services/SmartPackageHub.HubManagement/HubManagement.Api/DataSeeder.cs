@@ -27,7 +27,7 @@ internal static class DataSeeder
         added |= AddMissing(context, BuildUserSocieties(Items<UserSocietySeed>(newData, "UserSocieties")), context.UsersSocieties, link => link.Id);
         added |= AddMissing(context, BuildResidents(Items<ResidentSeed>(newData, "Residents")), context.Residents, r => r.Id);
         added |= AddMissing(context, BuildMemberships(Items<MembershipSeed>(newData, "Memberships")), context.Memberships, m => m.Id);
-        added |= AddMissing(context, BuildShelves(Items<ShelfSeed>(newData, "Shelves")), context.Shelves, s => s.Id);
+        added |= AddMissingShelves(context, BuildShelves(Items<ShelfSeed>(newData, "Shelves")));
         added |= AddMissing(context, BuildCourierAgents(Items<CourierAgentSeed>(newData, "CourierAgents")), context.CourierAgents, a => a.Id);
         added |= AddMissing(context, BuildSecureBags(Items<SecureBagSeed>(newData, "SecureBags")), context.SecureBags, b => b.Id);
         added |= AddMissing(context, BuildReceipts(Items<DigitalSignOffReceiptSeed>(newData, "DigitalSignOffReceipts")), context.DigitalSignOffReceipts, r => r.Id);
@@ -378,6 +378,48 @@ internal static class DataSeeder
             return new List<TEntity>();
 
         return data.Cast<TEntity>().ToList();
+    }
+
+    /// <summary>
+    /// Inserts shelves only when both Id and (SocietyId, Code) are unused.
+    /// Required once IX_Shelves_SocietyId_Code is unique (SPH-45).
+    /// </summary>
+    private static bool AddMissingShelves(HubDbContext context, List<Shelf> shelves)
+    {
+        if (shelves.Count == 0)
+            return false;
+
+        var existingIds = context.Shelves.Select(s => s.Id).ToHashSet();
+        var existingCodes = context.Shelves
+            .Select(s => new { s.SocietyId, s.Code })
+            .ToList()
+            .Select(s => (s.SocietyId, s.Code))
+            .ToHashSet();
+
+        var missing = new List<Shelf>();
+        foreach (var shelf in shelves)
+        {
+            if (existingIds.Contains(shelf.Id))
+                continue;
+            var key = (shelf.SocietyId, shelf.Code);
+            if (existingCodes.Contains(key))
+                continue;
+
+            missing.Add(shelf);
+            existingIds.Add(shelf.Id);
+            existingCodes.Add(key);
+        }
+
+        if (missing.Count == 0)
+            return false;
+
+        foreach (var shelf in missing)
+        {
+            context.Shelves.Add(shelf);
+            PinId(context, shelf, shelf.Id);
+        }
+
+        return true;
     }
 
     private static bool AddMissing<TEntity>(

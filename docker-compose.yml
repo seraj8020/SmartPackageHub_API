@@ -34,10 +34,13 @@ services:
     image: redis:7-alpine
     container_name: sph-redis
     command: redis-server --requirepass ${REDIS_PASSWORD:-CHANGE_ME}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-CHANGE_ME}
     ports:
       - "${REDIS_HOST_PORT:-6379}:6379"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD:-CHANGE_ME} ping | grep PONG"]
+      # Password must be available inside the container (see environment above).
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
       interval: 5s
       timeout: 3s
       retries: 5

@@ -18,7 +18,7 @@ namespace HubManagement.Application.PackageHub.Commands
             LoggerMessage.Define<Guid, string, int>(
                 LogLevel.Information,
                 new EventId(1, nameof(StartTowerRouteCommandHandler)),
-                "Started tower route for society {SocietyId} tower {Tower} â€” dispatched {Count} packages");
+                "Started tower route for society {SocietyId} tower {Tower} — dispatched {Count} packages");
 
         private readonly IRepository<Society> _societies;
         private readonly IRepository<Package> _packages;
@@ -36,19 +36,19 @@ namespace HubManagement.Application.PackageHub.Commands
         }
 
         public override async Task<StartTowerRouteResult> Handle(
-            StartTowerRouteCommand command,
+            StartTowerRouteCommand request,
             CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
+            ArgumentNullException.ThrowIfNull(request);
 
-            var tower = command.TowerWing?.Trim() ?? string.Empty;
+            var tower = request.TowerWing?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(tower))
             {
                 return new StartTowerRouteResult(
                     true, false, "Tower is required to start a route.", 0, Array.Empty<Guid>());
             }
 
-            var society = await _societies.GetByIdAsync(command.SocietyId).ConfigureAwait(false);
+            var society = await _societies.GetByIdAsync(request.SocietyId).ConfigureAwait(false);
             if (society is null)
             {
                 return new StartTowerRouteResult(
@@ -57,7 +57,7 @@ namespace HubManagement.Application.PackageHub.Commands
 
             var shelved = await _packages.ListAsync(
                 package =>
-                    package.SocietyId == command.SocietyId &&
+                    package.SocietyId == request.SocietyId &&
                     package.Status == PackageStatus.Shelved,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
@@ -68,17 +68,17 @@ namespace HubManagement.Application.PackageHub.Commands
                         tower,
                         StringComparison.OrdinalIgnoreCase))
                 .Where(package =>
-                    command.Floor is null ||
-                    SocietyPackageMapper.TryGetFloor(package.FlatNumber.Value) == command.Floor)
+                    request.Floor is null ||
+                    SocietyPackageMapper.TryGetFloor(package.FlatNumber.Value) == request.Floor)
                 .OrderBy(package => SocietyPackageMapper.TryGetFloor(package.FlatNumber.Value) ?? int.MaxValue)
                 .ThenBy(package => package.FlatNumber.Value, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             if (routePackages.Count == 0)
             {
-                var scope = command.Floor is null
+                var scope = request.Floor is null
                     ? $"Tower {tower}"
-                    : $"Tower {tower}, floor {command.Floor}";
+                    : $"Tower {tower}, floor {request.Floor}";
                 return new StartTowerRouteResult(
                     true,
                     false,
@@ -93,9 +93,9 @@ namespace HubManagement.Application.PackageHub.Commands
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
 
             var ids = routePackages.Select(package => package.Id).ToList();
-            LogRouteStarted(_logger, command.SocietyId, tower, ids.Count, null);
+            LogRouteStarted(_logger, request.SocietyId, tower, ids.Count, null);
 
-            var floorLabel = command.Floor is null ? "all floors" : $"floor {command.Floor}";
+            var floorLabel = request.Floor is null ? "all floors" : $"floor {request.Floor}";
             return new StartTowerRouteResult(
                 true,
                 true,

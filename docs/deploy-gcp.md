@@ -85,6 +85,16 @@ Optional Variables:
 
 Without `GCP_*` secrets, CI still **builds**; deploy is skipped.
 
+### Deploy job fails in a few seconds (SSH)
+
+If **build** is green but **Deploy to GCP QA** fails almost immediately, GitHub never reached Docker on the VM. Check:
+
+1. `GCP_SSH_KEY` is the **private** key file body (`-----BEGIN ... PRIVATE KEY-----`), not `*.pub`.
+2. `GCP_VM_USER` matches the username prefix in the GCE SSH metadata line (`username:ssh-ed25519 AAAA...`).
+3. `GCP_VM_HOST` is the current external IP (ephemeral IPs change on stop/start) with no `https://`.
+4. VPC firewall allows **tcp:22** from the internet (or at least GitHub Actions).
+5. On the VM: `~/.ssh/authorized_keys` contains the matching public key for that user.
+
 ## 5. DNS for qa-smartpackagehub.com
 
 At your registrar (or Cloud DNS), create **A** records pointing at the VM external IP:

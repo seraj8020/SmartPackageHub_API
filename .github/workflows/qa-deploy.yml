@@ -66,40 +66,77 @@ jobs:
           GCP_VM_USER: ${{ secrets.GCP_VM_USER }}
           GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}
         run: |
-          if [ -n "$GCP_VM_HOST" ] && [ -n "$GCP_VM_USER" ] && [ -n "$GCP_SSH_KEY" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
+          if [ -z "$GCP_VM_HOST" ] || [ -z "$GCP_VM_USER" ] || [ -z "$GCP_SSH_KEY" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Skipping GCP deploy — add secrets GCP_VM_HOST, GCP_VM_USER, GCP_SSH_KEY when the Compute Engine VM is ready."
+            exit 0
           fi
+          # Catch common secret paste mistakes before SSH (do not print secret values).
+          if [[ "$GCP_VM_HOST" == *://* ]] || [[ "$GCP_VM_HOST" == *" "* ]]; then
+            echo "::error::GCP_VM_HOST must be a bare IP/hostname (no https://, no spaces)."
+            exit 1
+          fi
+          if ! printf '%s' "$GCP_SSH_KEY" | tr -d '\r' | grep -qE 'BEGIN (OPENSSH |RSA )?PRIVATE KEY'; then
+            echo "::error::GCP_SSH_KEY must be the private key PEM (-----BEGIN ... PRIVATE KEY-----), not the .pub file."
+            exit 1
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "Deploy target: ${GCP_VM_USER}@${GCP_VM_HOST}"
 
+      # Native ssh (not appleboy) so connection/auth errors are visible in the job log,
+      # and Windows CRLF pasted into GitHub Secrets does not break OpenSSH.
       - name: Docker Compose up on GCE VM
         if: steps.check.outputs.ready == 'true'
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.GCP_VM_HOST }}
-          username: ${{ secrets.GCP_VM_USER }}
-          key: ${{ secrets.GCP_SSH_KEY }}
-          script: |
-            set -euo pipefail
-            DIR="${{ vars.SPH_API_DIR }}"
-            DIR="${DIR:-/opt/sph/SmartPackageHub_API}"
-            if [ ! -d "$DIR" ]; then
-              echo "Missing API clone at $DIR — clone the repo once, copy .env.qa.example → .env.qa, then re-run."
-              exit 1
+        env:
+          GCP_VM_HOST: ${{ secrets.GCP_VM_HOST }}
+          GCP_VM_USER: ${{ secrets.GCP_VM_USER }}
+          GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}
+          SPH_API_DIR: ${{ vars.SPH_API_DIR }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$GCP_SSH_KEY" | tr -d '\r' > ~/.ssh/gcp_deploy
+          chmod 600 ~/.ssh/gcp_deploy
+          ssh-keyscan -T 10 -H "$GCP_VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          DIR="${SPH_API_DIR:-/opt/sph/SmartPackageHub_API}"
+          ssh -i ~/.ssh/gcp_deploy \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 \
+            -o BatchMode=yes \
+            "${GCP_VM_USER}@${GCP_VM_HOST}" \
+            "DIR=$(printf %q "$DIR") bash -s" <<'REMOTE'
+          set -euo pipefail
+          if [ ! -d "$DIR" ]; then
+            echo "Missing API clone at $DIR — clone the repo once, copy .env.qa.example → .env.qa, then re-run."
+            exit 1
+          fi
+          if [ ! -f "$DIR/.env.qa" ]; then
+            echo "Missing $DIR/.env.qa — copy from .env.qa.example and set real passwords."
+            exit 1
+          fi
+          cd "$DIR"
+          git fetch origin
+          git checkout Development
+          git pull --ff-only origin Development
+          docker compose --env-file .env.qa up -d --build
+          docker compose --env-file .env.qa ps
+          set -a
+          # shellcheck disable=SC1091
+          source .env.qa
+          set +a
+          PORT="${API_HOST_PORT:-5000}"
+          echo "Waiting for http://127.0.0.1:${PORT}/healthz ..."
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:${PORT}/healthz"; then
+              echo
+              echo "healthz OK"
+              exit 0
             fi
-            if [ ! -f "$DIR/.env.qa" ]; then
-              echo "Missing $DIR/.env.qa — copy from .env.qa.example and set real passwords."
-              exit 1
-            fi
-            cd "$DIR"
-            git fetch origin
-            git checkout Development
-            git pull --ff-only origin Development
-            docker compose --env-file .env.qa up -d --build
-            docker compose --env-file .env.qa ps
-            set -a
-            # shellcheck disable=SC1091
-            source .env.qa
-            set +a
-            curl -fsS "http://127.0.0.1:${API_HOST_PORT:-5000}/healthz"
+            echo "attempt $i/30 — not ready yet"
+            sleep 5
+          done
+          echo "healthz failed; recent api logs:"
+          docker compose --env-file .env.qa logs --tail=80 api || true
+          exit 1
+          REMOTE

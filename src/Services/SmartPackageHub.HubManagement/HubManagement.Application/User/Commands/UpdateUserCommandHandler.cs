@@ -31,15 +31,27 @@ namespace HubManagement.Application.HubUsers.Commands
             if (user == null)
                 return new UserCommandResult(false, false, false, "User was not found.", null);
 
+            if (!string.IsNullOrWhiteSpace(request.Username))
+            {
+                var username = request.Username.Trim();
+                var usernameTaken = user.Role.Type != RoleType.Resident && _users.GetAll().AsEnumerable().Any(existing =>
+                    existing.Id != user.Id && existing.Role.Type != RoleType.Resident &&
+                    string.Equals(existing.Username, username, StringComparison.OrdinalIgnoreCase));
+                if (usernameTaken)
+                    return new UserCommandResult(true, true, false, "Username already exists.", null);
+                user.ChangeUsername(username);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Email))
             {
+                var email = request.Email.Trim();
                 var emailTaken = _users.GetAll().AsEnumerable().Any(existing =>
                     existing.Id != user.Id &&
-                    string.Equals(existing.ContactInfo?.Email, request.Email, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(existing.ContactInfo?.Email, email, StringComparison.OrdinalIgnoreCase));
                 if (emailTaken)
-                    return new UserCommandResult(true, true, false, "A user with the same username or email already exists", null);
+                    return new UserCommandResult(true, true, false, "Email already exists.", null);
 
-                user.ChangeContact(ContactInfo.Create(request.Email.Trim()));
+                user.ChangeContact(ContactInfo.Create(email));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Role) || request.IsAdmin.HasValue)
@@ -55,7 +67,14 @@ namespace HubManagement.Application.HubUsers.Commands
                 user.ChangeStatus(request.Status);
 
             if (request.PhoneNumber is not null)
+            {
+                var phone = request.PhoneNumber.Trim();
+                var phoneTaken = _users.GetAll().AsEnumerable().Any(existing =>
+                    existing.Id != user.Id && string.Equals(existing.PhoneNumber, phone, StringComparison.OrdinalIgnoreCase));
+                if (phoneTaken)
+                    return new UserCommandResult(true, true, false, "Phone already exists.", null);
                 user.SetPhoneNumber(request.PhoneNumber);
+            }
 
             if (request.SocietyIds is { Count: > 0 })
             {

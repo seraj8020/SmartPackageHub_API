@@ -12,6 +12,11 @@ namespace HubManagement.Application.HubUsers.DTOs
         public string Role { get; set; } = string.Empty;
         public bool IsAdmin { get; set; }
         public string Status { get; set; } = string.Empty;
+        public IReadOnlyCollection<Guid> SocietyIds { get; set; } = Array.Empty<Guid>();
+        public IReadOnlyCollection<string> SocietyNames { get; set; } = Array.Empty<string>();
+        public string? UnitNumber { get; set; }
+        public string? TowerWing { get; set; }
+        public bool IsMember { get; set; }
 
         public static UserDetailsDto From(User user)
         {
@@ -25,7 +30,8 @@ namespace HubManagement.Application.HubUsers.DTOs
                 PhoneNumber = user.PhoneNumber,
                 Role = role.ToString(),
                 IsAdmin = role == RoleType.Admin,
-                Status = user.Status
+                Status = user.Status,
+                SocietyIds = user.Societies.Select(link => link.SocietyId).ToList()
             };
         }
     }

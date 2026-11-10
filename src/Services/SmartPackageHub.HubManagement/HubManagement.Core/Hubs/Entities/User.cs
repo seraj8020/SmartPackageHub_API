@@ -77,6 +77,13 @@ namespace HubManagement.Core.Hubs.Entities
             ContactInfo = contactInfo ?? throw new ArgumentNullException(nameof(contactInfo));
         }
 
+        public void ChangeUsername(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+                throw new ArgumentException("Username is required.", nameof(username));
+            Username = username.Trim();
+        }
+
         public void ChangeRole(Role role)
         {
             Role = role ?? throw new ArgumentNullException(nameof(role));

@@ -9,7 +9,7 @@ using SmartPackageHub.Common.ConfigOptions;
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {
     /// <summary>
-    /// Admin dashboard and reports analytics.
+    /// Admin dashboard and reports analytics , dashboard pull data at end of the day at 6 PM everyday.
     /// Requires Bearer admin session. PlatformAdmin may omit <c>societyId</c> (all societies).
     /// Society Admin is limited to their linked societies.
     /// Dates and rollups use UTC calendar days.

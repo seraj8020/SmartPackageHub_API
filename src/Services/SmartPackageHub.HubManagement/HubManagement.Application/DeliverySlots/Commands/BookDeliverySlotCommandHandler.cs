@@ -104,7 +104,7 @@ namespace HubManagement.Application.DeliverySlots.Commands
                 {
                     Found = true,
                     Succeeded = false,
-                    Message = "6–9 is already the default door window. Choose 9–12, 12–3, or 3–6 to change it.",
+                    Message = "6-9 is already the default door window. Choose 9-12, 12-3, or 3-6 to change it.",
                 };
             }
 

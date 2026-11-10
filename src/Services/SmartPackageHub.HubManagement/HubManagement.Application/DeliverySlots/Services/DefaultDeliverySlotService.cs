@@ -5,12 +5,12 @@ using HubManagement.Application.DeliverySlots.Helpers;
 namespace HubManagement.Application.DeliverySlots.Services
 {
     /// <summary>
-    /// Keeps a 6?9 system default on hub packages until the resident picks a slot.
+    /// Keeps a 6-9 system default on hub packages until the resident picks a slot.
     /// </summary>
     internal static class DefaultDeliverySlotService
     {
         public const string DefaultNotes =
-            "System default door-delivery window (6?9). Available while the package is at the hub until you pick a slot.";
+            "System default door-delivery window (6-9). Available while the package is at the hub until you pick a slot.";
 
         public static bool EnsureDefaultForPackage(
             IRepository<DeliverySlot> slots,
@@ -25,11 +25,11 @@ namespace HubManagement.Application.DeliverySlots.Services
 
             if (activeByPackage.TryGetValue(package.Id, out var active))
             {
-                // Resident already chose a slot ? do not touch it.
+                // Resident already chose a slot - do not touch it.
                 if (!DeliverySlotWindows.IsSystemDefault(active.Status))
                     return false;
 
-                // Default expired (day passed) while package still at hub ? roll to next 6?9.
+                // Default expired (day passed) while package still at hub - roll to next 6-9.
                 if (active.WindowEnd <= utcNow)
                 {
                     var (nextStart, nextEnd) = DeliverySlotWindows.NextDefaultWindow(utcNow);

@@ -51,7 +51,54 @@ internal static class DataSeeder
         EnsureStaffPasswords(context);
         EnsurePlatformAdminRole(context);
         EnsurePlatformAdminEmail(context);
+        EnsureStaffEldoradoLink(context);
         return webApp;
+    }
+
+    /// <summary>
+    /// Ensures staff.eldorado / Staff@123 exists and is linked to Eldorado.
+    /// </summary>
+    private static void EnsureStaffEldoradoLink(HubDbContext context)
+    {
+        const string username = "staff.eldorado";
+        const string email = "staff.eldorado@smartpackagehub.local";
+        const string password = "Staff@123";
+        var eldoradoId = Guid.Parse("937df1d5-5b9c-4fea-8e16-34d5d86cff15");
+
+        if (!context.Societies.Any(s => s.Id == eldoradoId))
+            return;
+
+        var user = context.Users.FirstOrDefault(u => u.Username == username);
+        var changed = false;
+        if (user is null)
+        {
+            user = User.Create(
+                username,
+                ContactInfo.Create(email),
+                Role.Create(RoleType.Staff),
+                "Active",
+                PasswordHasher.Hash(password),
+                "9900783613");
+            context.Users.Add(user);
+            changed = true;
+        }
+        else if (string.IsNullOrWhiteSpace(user.PasswordHash))
+        {
+            user.SetPasswordHash(PasswordHasher.Hash(password));
+            changed = true;
+        }
+
+        if (changed)
+            context.SaveChanges();
+
+        var alreadyLinked = context.UsersSocieties.Any(link =>
+            link.UserId == user.Id && link.SocietyId == eldoradoId);
+        if (alreadyLinked)
+            return;
+
+        context.UsersSocieties.Add(UserSociety.Create(user.Id, eldoradoId));
+        context.SaveChanges();
+        Console.WriteLine("staff.eldorado ready (Eldorado society, password Staff@123).");
     }
 
     /// <summary>

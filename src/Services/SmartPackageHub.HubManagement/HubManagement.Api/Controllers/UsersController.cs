@@ -54,7 +54,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 request.IsAdmin,
                 request.Status,
                 request.Password,
-                request.PhoneNumber)).ConfigureAwait(false);
+                request.PhoneNumber,
+                request.SocietyIds)).ConfigureAwait(false);
             if (result.Conflict)
                 return Conflict(new { Message = result.Message });
             if (!result.Succeeded)
@@ -78,7 +79,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 request.Role,
                 request.IsAdmin,
                 request.Status,
-                request.PhoneNumber)).ConfigureAwait(false);
+                request.PhoneNumber,
+                request.SocietyIds)).ConfigureAwait(false);
             if (!result.Found)
                 return NotFound();
             if (result.Conflict)

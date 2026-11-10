@@ -57,6 +57,18 @@ namespace HubManagement.Application.HubUsers.Commands
             if (request.PhoneNumber is not null)
                 user.SetPhoneNumber(request.PhoneNumber);
 
+            if (request.SocietyIds is { Count: > 0 })
+            {
+                var linked = user.Societies.Select(s => s.SocietyId).ToHashSet();
+                foreach (var societyId in request.SocietyIds.Distinct())
+                {
+                    if (societyId == Guid.Empty || linked.Contains(societyId))
+                        continue;
+                    user.LinkToSociety(societyId);
+                    linked.Add(societyId);
+                }
+            }
+
             static Role? ResolveUpdatedRole(string? role, bool? isAdmin, RoleType current)
             {
                 if (!string.IsNullOrWhiteSpace(role))

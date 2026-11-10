@@ -9,5 +9,6 @@ namespace HubManagement.Application.HubUsers.Commands
         string? Role,
         bool? IsAdmin,
         string? Status,
-        string? PhoneNumber = null) : IUpdateCommand<UserCommandResult>;
+        string? PhoneNumber = null,
+        IReadOnlyList<Guid>? SocietyIds = null) : IUpdateCommand<UserCommandResult>;
 }

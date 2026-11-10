@@ -10,5 +10,7 @@
         public string? Status { get; set; }
         /// <summary>Optional. Required for staff/admin accounts that sign in with username/password.</summary>
         public string? Password { get; set; }
+        /// <summary>Optional societies to link on create (e.g. Eldorado for society staff).</summary>
+        public List<Guid>? SocietyIds { get; set; }
     }
 }

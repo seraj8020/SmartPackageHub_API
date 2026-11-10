@@ -59,6 +59,15 @@ namespace HubManagement.Application.HubUsers.Commands
                 string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim(),
                 passwordHash,
                 request.PhoneNumber);
+            if (request.SocietyIds is { Count: > 0 })
+            {
+                foreach (var societyId in request.SocietyIds.Distinct())
+                {
+                    if (societyId == Guid.Empty)
+                        continue;
+                    user.LinkToSociety(societyId);
+                }
+            }
             _users.Insert(user);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogCreatedUser(_logger, user.Id, null);

@@ -8,14 +8,6 @@
     "status": "Active"
   },
   {
-    "id": "11111111-1111-4111-8111-111111111112",
-    "username": "staff.eldorado",
-    "email": "staff.eldorado@smartpackagehub.local",
-    "phoneNumber": "9900783613",
-    "role": "Staff",
-    "status": "Active"
-  },
-  {
     "id": "22222222-2222-4222-8222-222222222222",
     "username": "society.admin",
     "email": "admin@smartpackagehub.local",

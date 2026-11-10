@@ -10,7 +10,8 @@ namespace HubManagement.Application.HubUsers.Commands
         bool IsAdmin,
         string? Status,
         string? Password = null,
-        string? PhoneNumber = null) : ICreateCommand<UserCommandResult>;
+        string? PhoneNumber = null,
+        IReadOnlyList<Guid>? SocietyIds = null) : ICreateCommand<UserCommandResult>;
 
     
 }

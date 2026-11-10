@@ -9,6 +9,6 @@ namespace HubManagement.Application.HubUsers.DTOs
         public bool? IsAdmin { get; set; }
         public string? Status { get; set; }
         /// <summary>Optional societies to link (existing links are kept; listed ids are added if missing).</summary>
-        public List<Guid>? SocietyIds { get; set; }
+        public IReadOnlyList<Guid>? SocietyIds { get; init; }
     }
 }

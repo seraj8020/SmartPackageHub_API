@@ -132,15 +132,17 @@ namespace HubManagement.Application.DeliverySlots.Commands
 
             var dayStart = request.WindowStart.Date;
             var dayEnd = dayStart.AddDays(1);
+            // Keep the predicate EF-translatable (no IsSystemDefault() call in the expression tree).
             var bookedInWindow = _slots
                 .FetchMulti(slot =>
                     slot.SocietyId == request.SocietyId &&
                     slot.Status != DeliverySlotWindows.StatusCancelled &&
-                    !DeliverySlotWindows.IsSystemDefault(slot.Status) &&
+                    slot.Status != DeliverySlotWindows.StatusDefault &&
                     slot.WindowStart >= dayStart &&
                     slot.WindowStart < dayEnd &&
                     slot.WindowStart == request.WindowStart &&
                     slot.WindowEnd == request.WindowEnd)
+                .AsEnumerable()
                 .Count(slot => activeForPackage == null || slot.Id != activeForPackage.Id);
 
             if (bookedInWindow >= DeliverySlotWindows.CapacityPerWindow)

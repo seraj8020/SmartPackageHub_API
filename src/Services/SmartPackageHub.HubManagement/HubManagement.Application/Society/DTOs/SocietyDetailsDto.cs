@@ -14,6 +14,7 @@ namespace HubManagement.Application.Societies.DTOs
         public string Address { get; set; } = string.Empty;
         public string? ContactEmail { get; set; }
         public string? Phone { get; set; }
+        public DateTime? OnboardedAtUtc { get; set; }
 
         public static SocietyDetailsDto From(Society society)
         {
@@ -35,7 +36,8 @@ namespace HubManagement.Application.Societies.DTOs
                 Country = country,
                 Address = string.Join(", ", new[] { street, city, state, zipCode, country }.Where(part => !string.IsNullOrWhiteSpace(part))),
                 ContactEmail = society.ContactEmail,
-                Phone = society.Phone
+                Phone = society.Phone,
+                OnboardedAtUtc = society.OnboardedAtUtc
             };
         }
     }

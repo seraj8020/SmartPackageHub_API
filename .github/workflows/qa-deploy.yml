@@ -1,0 +1,105 @@
+# QA CI for SmartPackageHub API — runs on Development.
+# Deploy to a Google Compute Engine VM when GCP_* secrets are set.
+# VM must already have: Docker, repo clone, and .env.qa with real secrets.
+# See docs/deploy-gcp.md for one-time VM setup.
+name: QA API
+
+on:
+  push:
+    branches: [Development]
+  pull_request:
+    branches: [Development]
+  workflow_dispatch:
+
+concurrency:
+  group: qa-api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  API_PROJECT: src/Services/SmartPackageHub.HubManagement/HubManagement.Api/HubManagement.Api.csproj
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # Restore/build the API csproj only — repo root has multiple .sln/.slnLaunch
+      # files and a docker-compose.dcproj that breaks bare `dotnet restore`.
+      - name: Restore
+        run: dotnet restore "$API_PROJECT"
+
+      - name: Build
+        run: dotnet build "$API_PROJECT" --configuration Release --no-restore
+
+      # Publish without --no-build so the CI runner always emits a full publish folder.
+      - name: Publish
+        run: dotnet publish "$API_PROJECT" --configuration Release -o publish
+        env:
+          # Ensures appsettings.QA.json is available; runtime still uses ASPNETCORE_ENVIRONMENT on the VM.
+          DOTNET_ENVIRONMENT: QA
+
+      - name: Upload publish output
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-publish
+          path: publish
+          retention-days: 7
+
+  deploy-gcp:
+    name: Deploy to GCP QA (Docker Compose)
+    needs: build
+    if: >
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/Development'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deploy secrets
+        id: check
+        env:
+          GCP_VM_HOST: ${{ secrets.GCP_VM_HOST }}
+          GCP_VM_USER: ${{ secrets.GCP_VM_USER }}
+          GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}
+        run: |
+          if [ -n "$GCP_VM_HOST" ] && [ -n "$GCP_VM_USER" ] && [ -n "$GCP_SSH_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping GCP deploy — add secrets GCP_VM_HOST, GCP_VM_USER, GCP_SSH_KEY when the Compute Engine VM is ready."
+          fi
+
+      - name: Docker Compose up on GCE VM
+        if: steps.check.outputs.ready == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            DIR="${{ vars.SPH_API_DIR }}"
+            DIR="${DIR:-/opt/sph/SmartPackageHub_API}"
+            if [ ! -d "$DIR" ]; then
+              echo "Missing API clone at $DIR — clone the repo once, copy .env.qa.example → .env.qa, then re-run."
+              exit 1
+            fi
+            if [ ! -f "$DIR/.env.qa" ]; then
+              echo "Missing $DIR/.env.qa — copy from .env.qa.example and set real passwords."
+              exit 1
+            fi
+            cd "$DIR"
+            git fetch origin
+            git checkout Development
+            git pull --ff-only origin Development
+            docker compose --env-file .env.qa up -d --build
+            docker compose --env-file .env.qa ps
+            set -a
+            # shellcheck disable=SC1091
+            source .env.qa
+            set +a
+            curl -fsS "http://127.0.0.1:${API_HOST_PORT:-5000}/healthz"

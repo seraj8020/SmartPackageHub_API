@@ -36,6 +36,7 @@ namespace HubManagement.Application.Societies.Commands
                 return new SocietyCommandResult(true, false, addressResult.Message, null);
 
             var society = Society.Create(request.Name.Trim(), addressResult.Address!, request.ContactEmail ?? string.Empty, request.Phone ?? string.Empty);
+            society.MarkOnboarded(DateTime.UtcNow);
             _societies.Insert(society);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogCreatedSociety(_logger, society.Id, null);

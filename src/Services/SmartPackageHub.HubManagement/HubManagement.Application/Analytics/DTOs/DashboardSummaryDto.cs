@@ -7,5 +7,7 @@ namespace HubManagement.Application.Analytics.DTOs
         int PendingPickup,
         int DeliveredToday,
         int ActiveSocieties,
-        string ScopeLabel);
+        string ScopeLabel,
+        DateTime? LastRollupAtUtc,
+        int SocietiesRolledUp);
 }

@@ -1,101 +1,131 @@
+# Backend stack for Google Cloud (Compute Engine) QA/UAT/Prod.
+# Prefer secrets via env file (never commit real passwords):
+#   cp .env.qa.example .env.qa
+#   docker compose --env-file .env.qa up -d --build
+#
+# ASPNETCORE_ENVIRONMENT selects appsettings.{QA|UAT|Production}.json
+
 services:
   postgres:
-    container_name: mypostgres
-    image: postgres:16.4
-    restart: on-failure
+    container_name: sph-postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
     volumes:
       - ./pgdata:/var/lib/postgresql/data/
       - ./postgres-init:/docker-entrypoint-initdb.d
     environment:
-      POSTGRES_DB: PackageHubRevamp
-      POSTGRES_USER: SpHubAdmin
-      POSTGRES_PASSWORD: Admin@123
+      POSTGRES_DB: ${POSTGRES_DB:-smartpackagehub_qa}
+      POSTGRES_USER: ${POSTGRES_USER:-SpHubQaAdmin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME}
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U SpHubAdmin -d PackageHubRevamp"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
     ports:
-      - 5434:5432
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     networks:
-      - backend
-
-  pgadmin:
-    container_name: pgadmin_container
-    image: dpage/pgadmin4
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - 5050:80
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - backend
-    depends_on:
-      postgres:
-        condition: service_started
-    restart: on-failure
+      - sph-net
 
   redis:
-    image: redis:latest
-    container_name: redis
+    image: redis:7-alpine
+    container_name: sph-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-CHANGE_ME}
     ports:
-      - 6379:6379
+      - "${REDIS_HOST_PORT:-6379}:6379"
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD:-CHANGE_ME} ping | grep PONG"]
       interval: 5s
       timeout: 3s
       retries: 5
       start_period: 10s
-    restart: always
+    restart: unless-stopped
     volumes:
-      - redis_data:/docker_data/redis:rw
+      - redis_data:/data
     networks:
-      - backend
+      - sph-net
 
   seq:
     image: datalust/seq:2024.3
-    container_name: seq
-    restart: always
+    container_name: sph-seq
+    restart: unless-stopped
     environment:
       - ACCEPT_EULA=Y
     volumes:
       - ./docker_data/seq:/data
     ports:
-      - 5341:5341
-      - 8081:80
-    healthcheck:
-      test: ["CMD-SHELL", "/seqsvr/Client/seqcli node health -s http://localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
+      - "${SEQ_UI_PORT:-8081}:80"
+      - "${SEQ_INGEST_PORT:-5341}:5341"
     networks:
-      - backend
+      - sph-net
+    profiles:
+      - logging
 
-  seq-input-gelf:
-    image: datalust/seq-input-gelf:latest
-    depends_on:
-      - seq
-    ports:
-      - "12201:12201/udp"
-    environment:
-      SEQ_ADDRESS: "http://seq:5341"
+  api:
+    build:
+      context: .
+      dockerfile: ./src/Services/SmartPackageHub.HubManagement/HubManagement.Api/Dockerfile
+    image: sph-api:${ASPNETCORE_ENVIRONMENT:-QA}
+    container_name: sph-api
     restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-QA}
+      ASPNETCORE_URLS: http://+:8080
+      # Env vars override appsettings*.json (and optional Secrets.json).
+      DbContextSettings__ConnectionString: ${DbContextSettings__ConnectionString}
+      RedisConnectionString__Redis: ${RedisConnectionString__Redis}
+      CorsOrigin: ${CorsOrigin:-http://localhost:8088}
+      Fast2Sms__Enabled: ${Fast2Sms__Enabled:-false}
+      Fast2Sms__ApiKey: ${Fast2Sms__ApiKey:-}
+      Email__Enabled: ${Email__Enabled:-false}
+      Email__HttpApiKey: ${Email__HttpApiKey:-}
+      Email__SmtpUsername: ${Email__SmtpUsername:-}
+      Email__SmtpPassword: ${Email__SmtpPassword:-}
+      SmsPumpingProtection__RecaptchaRequired: ${SmsPumpingProtection__RecaptchaRequired:-false}
+      SmsPumpingProtection__RecaptchaSecretKey: ${SmsPumpingProtection__RecaptchaSecretKey:-}
+      Auth__FixedLoginOtp: ${Auth__FixedLoginOtp:-}
+    ports:
+      - "${API_HOST_PORT:-5000}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
-      - backend
+      - sph-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  # Optional local DB UI — enable with: docker compose --profile tools up -d
+  pgadmin:
+    container_name: sph-pgadmin
+    image: dpage/pgadmin4
+    profiles:
+      - tools
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    ports:
+      - "${PGADMIN_HOST_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - sph-net
+    depends_on:
+      - postgres
+    restart: on-failure
 
 volumes:
   pgadmin_data:
   redis_data:
 
 networks:
-  backend:
-    name: backend
+  sph-net:
+    name: sph-net
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16

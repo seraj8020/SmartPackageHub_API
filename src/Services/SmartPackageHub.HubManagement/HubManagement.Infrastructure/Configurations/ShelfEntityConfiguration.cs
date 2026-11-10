@@ -18,6 +18,8 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(p => p.IsColdStorage).IsRequired();
             builder.Property(p => p.Capacity).IsRequired();
 
+            builder.HasIndex(e => new { e.SocietyId, e.Code }).IsUnique();
+
             builder.OwnsOne(e => e.Location, locBuilder =>
             {
                 locBuilder.Property(l => l.Zone).HasColumnName("Zone").IsRequired().HasMaxLength(50);

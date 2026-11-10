@@ -6,7 +6,7 @@ using SmartPackageHub.Applications.Abstractions.Repositories;
 namespace HubManagement.Application.HubResidents.Queries
 {
     public sealed class GetResidentVacationHoldQueryHandler
-        : QueryHandler<GetResidentVacationHoldQuery, VacationHoldDto?>
+        : QueryHandler<GetResidentVacationHoldQuery, GetResidentVacationHoldResult>
     {
         private readonly IRepository<VacationHold> _holds;
         private readonly IRepository<Resident> _residents;
@@ -20,12 +20,12 @@ namespace HubManagement.Application.HubResidents.Queries
             _residents = residents;
         }
 
-        protected override async Task<VacationHoldDto?> HandleAsync(GetResidentVacationHoldQuery request)
+        protected override async Task<GetResidentVacationHoldResult> HandleAsync(GetResidentVacationHoldQuery request)
         {
             ArgumentNullException.ThrowIfNull(request);
             var resident = await _residents.GetByIdAsync(request.ResidentId).ConfigureAwait(false);
             if (resident is null)
-                return null;
+                return new GetResidentVacationHoldResult(false, null);
 
             var today = DateTime.UtcNow.Date;
             var holds = await _holds.ListAsync(
@@ -37,19 +37,21 @@ namespace HubManagement.Application.HubResidents.Queries
                 .FirstOrDefault(hold => hold.ToDate >= today);
 
             if (active is null)
-                return null;
+                return new GetResidentVacationHoldResult(true, null);
 
-            return new VacationHoldDto
-            {
-                Id = active.Id,
-                SocietyId = active.SocietyId,
-                ResidentId = active.ResidentId,
-                StartDate = active.FromDate,
-                EndDate = active.ToDate,
-                IsActive = active.IsActive,
-                TowerWing = resident.TowerWing,
-                FlatNumber = resident.Unit?.Value,
-            };
+            return new GetResidentVacationHoldResult(
+                true,
+                new VacationHoldDto
+                {
+                    Id = active.Id,
+                    SocietyId = active.SocietyId,
+                    ResidentId = active.ResidentId,
+                    StartDate = active.FromDate,
+                    EndDate = active.ToDate,
+                    IsActive = active.IsActive,
+                    TowerWing = resident.TowerWing,
+                    FlatNumber = resident.Unit?.Value,
+                });
         }
     }
 }

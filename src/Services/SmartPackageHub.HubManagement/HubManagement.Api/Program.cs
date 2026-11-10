@@ -19,6 +19,18 @@ using HubManagement.Application.Intake.Services;
 using SmartPackageHub.Common.ConfigOptions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Layered config (later wins):
+//   appsettings.json
+//   → appsettings.{Environment}.json
+//   → appsettings.{Environment}.Secrets.json  (gitignored; copy from *.Secrets.json.example)
+//   → environment variables / Docker Compose .env
+//   → user secrets (Development; enabled via UserSecretsId in the csproj)
+builder.Configuration.AddJsonFile(
+    $"appsettings.{builder.Environment.EnvironmentName}.Secrets.json",
+    optional: true,
+    reloadOnChange: true);
+
 var services = builder.Services;
 // Add services to the container.
 builder.AddHostLogging();

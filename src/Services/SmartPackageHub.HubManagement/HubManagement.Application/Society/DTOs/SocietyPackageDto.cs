@@ -16,6 +16,7 @@ namespace HubManagement.Application.Societies.DTOs
         public string? Category { get; set; }
         public double Weight { get; set; }
         public string? TowerWing { get; set; }
+        public int? Floor { get; set; }
         public string FlatNumber { get; set; } = string.Empty;
         public string? ShelfCode { get; set; }
         public int? ShelfCapacity { get; set; }

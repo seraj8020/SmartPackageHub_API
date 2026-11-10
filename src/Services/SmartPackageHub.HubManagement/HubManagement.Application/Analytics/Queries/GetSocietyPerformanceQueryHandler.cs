@@ -32,7 +32,7 @@ namespace HubManagement.Application.Analytics.Queries
             var toDay = AnalyticsScope.TodayUtc();
             var fromDay = toDay.AddDays(-(days - 1));
             var from = AnalyticsScope.StartOfDayUtc(fromDay);
-            var to = AnalyticsScope.EndOfDayUtc(toDay);
+            var toExclusive = AnalyticsScope.StartOfDayUtc(toDay.AddDays(1));
 
             var societies = _societies.GetAll().AsEnumerable()
                 .Where(s => AnalyticsScope.Includes(request.SocietyId, s.Id))
@@ -49,14 +49,11 @@ namespace HubManagement.Application.Analytics.Queries
             {
                 var societyPackages = packages.Where(p => p.SocietyId == society.Id).ToList();
                 var societyDeliveries = deliveries.Where(d => d.SocietyId == society.Id).ToList();
-                var societyDeliveredAt = AnalyticsMetricsCalculator.FirstDeliveryByPackage(societyDeliveries);
-                var received = AnalyticsMetricsCalculator.CountReceived(societyPackages, from, to);
-                var delivered = AnalyticsMetricsCalculator.CountDelivered(societyDeliveries, from, to);
-                var pending = AnalyticsMetricsCalculator.CountPendingOpenAtEndOfDay(
-                    societyPackages, societyDeliveredAt, to);
-                var avgHold = AnalyticsMetricsCalculator.AverageHoldDays(societyPackages, societyDeliveries, from, to);
-                var rate = AnalyticsMetricsCalculator.MemberPickupRateOfReceivedPercent(
-                    societyPackages, societyDeliveredAt, from, to);
+                var received = AnalyticsMetricsCalculator.CountReceived(societyPackages, from, toExclusive);
+                var delivered = AnalyticsMetricsCalculator.CountDelivered(societyDeliveries, from, toExclusive);
+                var pending = AnalyticsMetricsCalculator.CountPending(societyPackages);
+                var avgHold = AnalyticsMetricsCalculator.AverageHoldDays(societyPackages, societyDeliveries, from, toExclusive);
+                var rate = AnalyticsMetricsCalculator.MemberPickupRatePercent(received, delivered);
                 return new SocietyPerformanceDto(
                     society.Id,
                     society.Name,

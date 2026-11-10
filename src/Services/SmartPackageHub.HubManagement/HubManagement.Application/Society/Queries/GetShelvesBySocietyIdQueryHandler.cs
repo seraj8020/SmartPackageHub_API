@@ -40,6 +40,9 @@ namespace HubManagement.Application.Societies.Queries
                     TowerOrWing = shelf.TowerOrWing,
                     IsColdStorage = shelf.IsColdStorage,
                     Capacity = shelf.Capacity,
+                    Zone = shelf.Location?.Zone ?? string.Empty,
+                    Aisle = shelf.Location?.Aisle ?? string.Empty,
+                    Tier = shelf.Location?.Tier ?? 0,
                 })
                 .ToList();
         }

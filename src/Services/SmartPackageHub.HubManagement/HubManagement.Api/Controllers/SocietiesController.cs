@@ -1,4 +1,6 @@
 using HubManagement.Application.HubResidents.DTOs;
+using HubManagement.Application.PackageHub.Commands;
+using HubManagement.Application.PackageHub.DTOs;
 using HubManagement.Application.Societies.Commands;
 using HubManagement.Application.Societies.DTOs;
 using HubManagement.Application.Societies.Queries;
@@ -109,6 +111,59 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(shelves);
         }
 
+        [HttpPost("{societyid:guid}/shelves")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(SocietyShelfDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> CreateShelf(Guid societyid, [FromBody] CreateShelfRequest request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var result = await _mediator.Send(new CreateShelfCommand(
+                societyid,
+                request.Code,
+                request.TowerOrWing,
+                request.IsColdStorage,
+                request.Capacity,
+                request.Zone,
+                request.Aisle,
+                request.Tier)).ConfigureAwait(false);
+
+            if (!result.Found)
+                return NotFound(new { Message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { Message = result.Message });
+
+            return Ok(result.Shelf);
+        }
+
+        [HttpPut("{societyid:guid}/shelves/{shelfid:guid}")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(SocietyShelfDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> UpdateShelf(Guid societyid, Guid shelfid, [FromBody] UpdateShelfRequest request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            var result = await _mediator.Send(new UpdateShelfCommand(
+                societyid,
+                shelfid,
+                request.Code,
+                request.TowerOrWing,
+                request.IsColdStorage,
+                request.Capacity,
+                request.Zone,
+                request.Aisle,
+                request.Tier)).ConfigureAwait(false);
+
+            if (!result.Found)
+                return NotFound(new { Message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { Message = result.Message });
+
+            return Ok(result.Shelf);
+        }
+
         [HttpGet("{societyid:guid}/packages")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(List<ResidentPackageDto>), StatusCodes.Status200OK)]
@@ -130,6 +185,35 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         {
             var inventory = await _mediator.Send(new GetShelfInventoryQuery(societyid)).ConfigureAwait(false);
             return inventory == null ? NotFound() : Ok(inventory);
+        }
+
+        [HttpPost("{societyid:guid}/tower-route/start")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> StartTowerRoute(
+            Guid societyid,
+            [FromBody] StartTowerRouteRequest? request)
+        {
+            var result = await _mediator.Send(
+                new StartTowerRouteCommand(
+                    societyid,
+                    request?.TowerWing ?? string.Empty,
+                    request?.Floor),
+                HttpContext.RequestAborted).ConfigureAwait(false);
+
+            if (!result.SocietyFound)
+                return NotFound(new { Message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { Message = result.Message });
+
+            return Ok(new
+            {
+                message = result.Message,
+                dispatchedCount = result.DispatchedCount,
+                packageIds = result.PackageIds,
+            });
         }
 
         [HttpGet("{societyid:guid}/dispatchedpackages")]

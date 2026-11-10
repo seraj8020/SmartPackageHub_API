@@ -1,7 +1,6 @@
 # QA CI for SmartPackageHub API — runs on Development.
-# Deploy to a Google Compute Engine VM when GCP_* secrets are set.
-# VM must already have: Docker, repo clone, and .env.qa with real secrets.
-# See docs/deploy-gcp.md for one-time VM setup.
+# Build always runs. GCP deploy is opt-in via repo Variable ENABLE_GCP_DEPLOY=true
+# (plus GCP_* secrets). See docs/deploy-gcp.md.
 name: QA API
 
 on:
@@ -51,12 +50,14 @@ jobs:
           path: publish
           retention-days: 7
 
+  # Opt-in: set repo Variable ENABLE_GCP_DEPLOY=true when SSH secrets + VM are ready.
   deploy-gcp:
     name: Deploy to GCP QA (Docker Compose)
     needs: build
     if: >
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == 'refs/heads/Development'
+      github.ref == 'refs/heads/Development' &&
+      vars.ENABLE_GCP_DEPLOY == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check deploy secrets
@@ -67,9 +68,8 @@ jobs:
           GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}
         run: |
           if [ -z "$GCP_VM_HOST" ] || [ -z "$GCP_VM_USER" ] || [ -z "$GCP_SSH_KEY" ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping GCP deploy — add secrets GCP_VM_HOST, GCP_VM_USER, GCP_SSH_KEY when the Compute Engine VM is ready."
-            exit 0
+            echo "::error::ENABLE_GCP_DEPLOY=true but GCP_VM_HOST / GCP_VM_USER / GCP_SSH_KEY secrets are missing."
+            exit 1
           fi
           # Catch common secret paste mistakes before SSH (do not print secret values).
           if [[ "$GCP_VM_HOST" == *://* ]] || [[ "$GCP_VM_HOST" == *" "* ]]; then
@@ -80,13 +80,10 @@ jobs:
             echo "::error::GCP_SSH_KEY must be the private key PEM (-----BEGIN ... PRIVATE KEY-----), not the .pub file."
             exit 1
           fi
-          echo "ready=true" >> "$GITHUB_OUTPUT"
           echo "Deploy target: ${GCP_VM_USER}@${GCP_VM_HOST}"
 
-      # Native ssh (not appleboy) so connection/auth errors are visible in the job log,
-      # and Windows CRLF pasted into GitHub Secrets does not break OpenSSH.
+      # Native ssh so connection/auth errors are visible; strip CRLF from Windows-pasted keys.
       - name: Docker Compose up on GCE VM
-        if: steps.check.outputs.ready == 'true'
         env:
           GCP_VM_HOST: ${{ secrets.GCP_VM_HOST }}
           GCP_VM_USER: ${{ secrets.GCP_VM_USER }}

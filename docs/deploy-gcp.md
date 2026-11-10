@@ -79,11 +79,12 @@ Optional Variables:
 
 | Variable | Default |
 |----------|---------|
+| `ENABLE_GCP_DEPLOY` | unset — **required `true` to run the deploy job** |
 | `SPH_API_DIR` | `/opt/sph/SmartPackageHub_API` |
 | `SPH_UI_DIR` | `/opt/sph/SmartPackageHub_UI` |
 | `QA_API_BASE_URL` | Overrides UI build-time API URL in CI |
 
-Without `GCP_*` secrets, CI still **builds**; deploy is skipped.
+CI **build** always runs. Deploy stays skipped until you set Variable `ENABLE_GCP_DEPLOY=true` (Settings → Secrets and variables → Actions → Variables) **and** the `GCP_*` secrets are correct.
 
 ### Deploy job fails in a few seconds (SSH)
 

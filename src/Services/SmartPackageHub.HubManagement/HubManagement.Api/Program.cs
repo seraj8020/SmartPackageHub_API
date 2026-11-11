@@ -70,6 +70,12 @@ services.AddHttpContextAccessor();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 services.AddAuthorization();
 var connectionString = builder.Configuration["DbContextSettings:ConnectionString"];
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "Database connection string is missing. Configure DbContextSettings:ConnectionString in user secrets, " +
+        "appsettings.Development.Secrets.json, or the DbContextSettings__ConnectionString environment variable.");
+}
 services.AddDbContextPool<HubDbContext>(opts =>
 {
     opts.UseNpgsql(connectionString);
@@ -116,9 +122,7 @@ services.AddSingleton<HubManagement.Application.Auth.Services.PlatformAdminSessi
 services.AddSwaggerDocs();
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy("Application is running"))
-    .AddNpgSql(
-        connectionString
-        ?? throw new InvalidOperationException("DbContextSettings:ConnectionString was not found"));
+    .AddNpgSql(connectionString);
 
 var corsOriginUrl = builder.Configuration["CorsOrigin"] ?? throw new InvalidOperationException("CorsOrigin section was not found");
 services

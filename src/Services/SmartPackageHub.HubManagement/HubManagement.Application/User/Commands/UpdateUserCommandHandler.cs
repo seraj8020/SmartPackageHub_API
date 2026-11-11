@@ -31,80 +31,91 @@ namespace HubManagement.Application.HubUsers.Commands
             if (user == null)
                 return new UserCommandResult(false, false, false, "User was not found.", null);
 
-            if (!string.IsNullOrWhiteSpace(request.Username))
-            {
-                var username = request.Username.Trim();
-                var usernameTaken = user.Role.Type != RoleType.Resident && _users.GetAll().AsEnumerable().Any(existing =>
-                    existing.Id != user.Id && existing.Role.Type != RoleType.Resident &&
-                    string.Equals(existing.Username, username, StringComparison.OrdinalIgnoreCase));
-                if (usernameTaken)
-                    return new UserCommandResult(true, true, false, "Username already exists.", null);
-                user.ChangeUsername(username);
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Email))
-            {
-                var email = request.Email.Trim();
-                var emailTaken = _users.GetAll().AsEnumerable().Any(existing =>
-                    existing.Id != user.Id &&
-                    string.Equals(existing.ContactInfo?.Email, email, StringComparison.OrdinalIgnoreCase));
-                if (emailTaken)
-                    return new UserCommandResult(true, true, false, "Email already exists.", null);
-
-                user.ChangeContact(ContactInfo.Create(email));
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Role) || request.IsAdmin.HasValue)
-            {
-                var role = ResolveUpdatedRole(request.Role, request.IsAdmin, user.Role.Type);
-                if (role == null)
-                    return new UserCommandResult(true, false, false, "Role must be Admin, Courier, Resident, or Staff.", null);
-
-                user.ChangeRole(role);
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Status))
-                user.ChangeStatus(request.Status);
-
-            if (request.PhoneNumber is not null)
-            {
-                var phone = request.PhoneNumber.Trim();
-                var phoneTaken = _users.GetAll().AsEnumerable().Any(existing =>
-                    existing.Id != user.Id && string.Equals(existing.PhoneNumber, phone, StringComparison.OrdinalIgnoreCase));
-                if (phoneTaken)
-                    return new UserCommandResult(true, true, false, "Phone already exists.", null);
-                user.SetPhoneNumber(request.PhoneNumber);
-            }
-
-            if (request.SocietyIds is { Count: > 0 })
-            {
-                var linked = user.Societies.Select(s => s.SocietyId).ToHashSet();
-                foreach (var societyId in request.SocietyIds.Distinct())
-                {
-                    if (societyId == Guid.Empty || linked.Contains(societyId))
-                        continue;
-                    user.LinkToSociety(societyId);
-                    linked.Add(societyId);
-                }
-            }
-
-            static Role? ResolveUpdatedRole(string? role, bool? isAdmin, RoleType current)
-            {
-                if (!string.IsNullOrWhiteSpace(role))
-                    return CreateUserCommandHandler.ResolveRole(role, null, current);
-
-                if (isAdmin == true)
-                    return Role.Create(RoleType.Admin);
-
-                if (isAdmin == false && current == RoleType.Admin)
-                    return Role.Create(RoleType.Staff);
-
-                return Role.Create(current);
-            }
+            var updateResult = ApplyRequestedChanges(request, user);
+            if (updateResult is not null)
+                return updateResult;
 
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogUserUpdated(_logger, user.Id, null);
             return new UserCommandResult(true, false, true, "User updated.", UserDetailsDto.From(user));
+        }
+
+        private UserCommandResult? ApplyRequestedChanges(UpdateUserCommand request, User user)
+        {
+            var usernameResult = UpdateUsername(request.Username, user);
+            if (usernameResult is not null) return usernameResult;
+            var emailResult = UpdateEmail(request.Email, user);
+            if (emailResult is not null) return emailResult;
+            var roleResult = UpdateRole(request.Role, request.IsAdmin, user);
+            if (roleResult is not null) return roleResult;
+            if (!string.IsNullOrWhiteSpace(request.Status)) user.ChangeStatus(request.Status);
+            var phoneResult = UpdatePhone(request.PhoneNumber, user);
+            if (phoneResult is not null) return phoneResult;
+            LinkSocieties(request.SocietyIds, user);
+            return null;
+        }
+
+        private UserCommandResult? UpdateUsername(string? requestedUsername, User user)
+        {
+            if (string.IsNullOrWhiteSpace(requestedUsername)) return null;
+            var username = requestedUsername.Trim();
+            var taken = user.Role.Type != RoleType.Resident && _users.GetAll().AsEnumerable().Any(existing =>
+                existing.Id != user.Id && existing.Role.Type != RoleType.Resident &&
+                string.Equals(existing.Username, username, StringComparison.OrdinalIgnoreCase));
+            if (taken) return new UserCommandResult(true, true, false, "Username already exists.", null);
+            user.ChangeUsername(username);
+            return null;
+        }
+
+        private UserCommandResult? UpdateEmail(string? requestedEmail, User user)
+        {
+            if (string.IsNullOrWhiteSpace(requestedEmail)) return null;
+            var email = requestedEmail.Trim();
+            var taken = _users.GetAll().AsEnumerable().Any(existing => existing.Id != user.Id &&
+                string.Equals(existing.ContactInfo?.Email, email, StringComparison.OrdinalIgnoreCase));
+            if (taken) return new UserCommandResult(true, true, false, "Email already exists.", null);
+            user.ChangeContact(ContactInfo.Create(email));
+            return null;
+        }
+
+        private static UserCommandResult? UpdateRole(string? requestedRole, bool? isAdmin, User user)
+        {
+            if (string.IsNullOrWhiteSpace(requestedRole) && !isAdmin.HasValue) return null;
+            var role = ResolveUpdatedRole(requestedRole, isAdmin, user.Role.Type);
+            if (role is null) return new UserCommandResult(true, false, false, "Role must be Admin, Courier, Resident, or Staff.", null);
+            user.ChangeRole(role);
+            return null;
+        }
+
+        private UserCommandResult? UpdatePhone(string? requestedPhone, User user)
+        {
+            if (requestedPhone is null) return null;
+            var phone = requestedPhone.Trim();
+            var taken = _users.GetAll().AsEnumerable().Any(existing => existing.Id != user.Id &&
+                string.Equals(existing.PhoneNumber, phone, StringComparison.OrdinalIgnoreCase));
+            if (taken) return new UserCommandResult(true, true, false, "Phone already exists.", null);
+            user.SetPhoneNumber(requestedPhone);
+            return null;
+        }
+
+        private static void LinkSocieties(IReadOnlyList<Guid>? societyIds, User user)
+        {
+            if (societyIds is not { Count: > 0 }) return;
+            var linked = user.Societies.Select(society => society.SocietyId).ToHashSet();
+            foreach (var societyId in societyIds.Distinct())
+            {
+                if (societyId == Guid.Empty || !linked.Add(societyId)) continue;
+                user.LinkToSociety(societyId);
+            }
+        }
+
+        private static Role? ResolveUpdatedRole(string? role, bool? isAdmin, RoleType current)
+        {
+            if (!string.IsNullOrWhiteSpace(role))
+                return CreateUserCommandHandler.ResolveRole(role, null, current);
+            if (isAdmin == true) return Role.Create(RoleType.Admin);
+            if (isAdmin == false && current == RoleType.Admin) return Role.Create(RoleType.Staff);
+            return Role.Create(current);
         }
     }
 }

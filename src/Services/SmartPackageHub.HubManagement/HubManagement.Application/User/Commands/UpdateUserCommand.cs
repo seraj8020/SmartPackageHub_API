@@ -5,6 +5,7 @@ namespace HubManagement.Application.HubUsers.Commands
 {
     public sealed record UpdateUserCommand(
         Guid UserId,
+        string? Username,
         string? Email,
         string? Role,
         bool? IsAdmin,

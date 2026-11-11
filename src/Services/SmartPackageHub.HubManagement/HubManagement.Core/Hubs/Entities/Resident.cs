@@ -95,6 +95,27 @@ namespace HubManagement.Core.Hubs.Entities
             Unit = newUnit ?? throw new ArgumentNullException(nameof(newUnit));
         }
 
+        public void UpdateAdminManagedDetails(string fullName, string phoneNumber, string towerWing, string unitNumber, bool isActive, Guid societyId)
+        {
+            if (string.IsNullOrWhiteSpace(fullName))
+                throw new ArgumentException("Name cannot be empty.", nameof(fullName));
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                throw new ArgumentException("Mobile number cannot be empty.", nameof(phoneNumber));
+            if (string.IsNullOrWhiteSpace(towerWing))
+                throw new ArgumentException("Tower or wing cannot be empty.", nameof(towerWing));
+            if (string.IsNullOrWhiteSpace(unitNumber))
+                throw new ArgumentException("Flat number cannot be empty.", nameof(unitNumber));
+            if (societyId == Guid.Empty)
+                throw new ArgumentException("Society is required.", nameof(societyId));
+
+            FullName = fullName.Trim();
+            PhoneNumber = phoneNumber.Trim();
+            TowerWing = towerWing.Trim();
+            Unit = UnitNumber.Create(unitNumber);
+            IsActive = isActive;
+            SocietyId = societyId;
+        }
+
         public void AddMembership(Membership membership)
         {
             ArgumentNullException.ThrowIfNull(membership);

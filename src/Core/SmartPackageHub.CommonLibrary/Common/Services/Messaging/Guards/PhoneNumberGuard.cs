@@ -12,7 +12,6 @@ namespace SmartPackageHub.Common.Services.Messaging.Guards
             tenDigitLocal = string.Empty;
             if (string.IsNullOrWhiteSpace(raw))
                 return false;
-
             var digits = DigitsOnly().Replace(raw, string.Empty);
             if (digits.StartsWith("91", StringComparison.Ordinal) && digits.Length == 12)
                 digits = digits[2..];

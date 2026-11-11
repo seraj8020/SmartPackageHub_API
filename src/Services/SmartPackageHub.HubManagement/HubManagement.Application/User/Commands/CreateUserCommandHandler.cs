@@ -17,11 +17,13 @@ namespace HubManagement.Application.HubUsers.Commands
                 new EventId(1, nameof(CreateUserCommandHandler)),
                 "Created user {UserId}");
         private readonly IRepository<User> _users;
+        private readonly IRepository<Society> _societies;
         private readonly ILogger<CreateUserCommandHandler> _logger;
 
-        public CreateUserCommandHandler(IRepository<User> users, ILogger<CreateUserCommandHandler> logger, IUnitOfWork unitOfWork) : base(unitOfWork)
+        public CreateUserCommandHandler(IRepository<User> users, IRepository<Society> societies, ILogger<CreateUserCommandHandler> logger, IUnitOfWork unitOfWork) : base(unitOfWork)
         {
             _users = users;
+            _societies = societies;
             _logger = logger;
         }
 
@@ -32,13 +34,17 @@ namespace HubManagement.Application.HubUsers.Commands
                 return new UserCommandResult(true, false, false, "Username is required", null);
             if (string.IsNullOrWhiteSpace(request.Email))
                 return new UserCommandResult(true, false, false, "Email is required", null);
-
-            if (UserExists(request.Username, request.Email, null))
-                return new UserCommandResult(true, true, false, "A user with the same username or email already exists", null);
+            if (!request.SocietyId.HasValue || request.SocietyId.Value == Guid.Empty)
+                return new UserCommandResult(true, false, false, "Society is required.", null);
+            if (await _societies.GetByIdAsync(request.SocietyId.Value).ConfigureAwait(false) is null)
+                return new UserCommandResult(true, false, false, "Selected society was not found.", null);
 
             var role = ResolveRole(request.Role, request.IsAdmin, RoleType.Staff);
             if (role == null)
                 return new UserCommandResult(true, false, false, "Role must be Admin, Courier, Resident, or Staff.", null);
+
+            if (UserExists(request.Username, request.Email, null, role.Type != RoleType.Resident))
+                return new UserCommandResult(true, true, false, "A user with the same username or email already exists", null);
 
             string? passwordHash = null;
             if (!string.IsNullOrWhiteSpace(request.Password))
@@ -68,17 +74,22 @@ namespace HubManagement.Application.HubUsers.Commands
                     user.LinkToSociety(societyId);
                 }
             }
+            else if (request.SocietyId.HasValue && request.SocietyId.Value != Guid.Empty)
+            {
+                user.LinkToSociety(request.SocietyId.Value);
+            }
             _users.Insert(user);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogCreatedUser(_logger, user.Id, null);
             return new UserCommandResult(true, false, true, "User created.", UserDetailsDto.From(user));
         }
 
-        private bool UserExists(string username, string email, Guid? exceptUserId)
+        private bool UserExists(string username, string email, Guid? exceptUserId, bool enforceUsernameUniqueness)
         {
             return _users.GetAll().AsEnumerable().Any(user =>
                 user.Id != exceptUserId &&
-                (string.Equals(user.Username, username, StringComparison.OrdinalIgnoreCase) ||
+                ((enforceUsernameUniqueness && user.Role.Type != RoleType.Resident &&
+                  string.Equals(user.Username, username.Trim(), StringComparison.OrdinalIgnoreCase)) ||
                  string.Equals(user.ContactInfo?.Email, email, StringComparison.OrdinalIgnoreCase)));
         }
 

@@ -11,7 +11,8 @@ namespace HubManagement.Application.HubUsers.Commands
         string? Status,
         string? Password = null,
         string? PhoneNumber = null,
-        IReadOnlyList<Guid>? SocietyIds = null) : ICreateCommand<UserCommandResult>;
+        IReadOnlyList<Guid>? SocietyIds = null,
+        Guid? SocietyId = null) : ICreateCommand<UserCommandResult>;
 
     
 }

@@ -7,12 +7,6 @@ namespace HubManagement.Application.Intake.Queries
 {
     public sealed class GetIntakeCarriersQueryHandler : QueryHandler<GetIntakeCarriersQuery, List<string>>
     {
-        private static readonly string[] FallbackCarriers =
-        [
-            "Amazon", "Flipkart", "Delhivery", "DTDC", "BlueDart",
-            "Xpressbees", "Shadowfax", "Meesho", "Other"
-        ];
-
         private readonly IRepository<CourierAgent> _agents;
 
         public GetIntakeCarriersQueryHandler(IMapper mapper, IRepository<CourierAgent> agents) : base(mapper)
@@ -35,9 +29,7 @@ namespace HubManagement.Application.Intake.Queries
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (carriers.Count == 0)
-                return Task.FromResult(FallbackCarriers.ToList());
-
+            // Keep a single free-text option so staff can still intake unknown carriers.
             if (!carriers.Exists(name => string.Equals(name, "Other", StringComparison.OrdinalIgnoreCase)))
                 carriers.Add("Other");
 

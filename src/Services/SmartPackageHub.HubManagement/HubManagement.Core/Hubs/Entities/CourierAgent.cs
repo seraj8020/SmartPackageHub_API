@@ -49,13 +49,21 @@ namespace HubManagement.Core.Hubs.Entities
             IsActive = true;
         }
 
-        public void UpdateDetails(string agentName, string phone, string? vehicleNumber, string? employeeOrBadgeNumber)
+        public void UpdateDetails(
+            string carrierName,
+            string agentName,
+            string phone,
+            string? vehicleNumber,
+            string? employeeOrBadgeNumber)
         {
+            if (string.IsNullOrWhiteSpace(carrierName))
+                throw new ArgumentException("Carrier name cannot be empty.", nameof(carrierName));
             if (string.IsNullOrWhiteSpace(agentName))
                 throw new ArgumentException("Agent name cannot be empty.", nameof(agentName));
             if (string.IsNullOrWhiteSpace(phone))
                 throw new ArgumentException("Phone number cannot be empty.", nameof(phone));
 
+            CarrierName = carrierName.Trim();
             AgentName = agentName.Trim();
             Phone = phone.Trim();
             VehicleNumber = vehicleNumber?.Trim();

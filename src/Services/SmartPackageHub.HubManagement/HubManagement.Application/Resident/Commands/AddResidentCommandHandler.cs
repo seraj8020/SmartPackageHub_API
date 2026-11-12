@@ -102,6 +102,8 @@ namespace HubManagement.Application.HubResidents.Commands
                     }
                 }
 
+                // Prefer the Uri overload (CA2234). Empty/null picUrl is fine.
+                Uri? avatar = request.picUrl;
                 var resident = Resident.Create(
                     request.societyId,
                     userId,
@@ -110,7 +112,7 @@ namespace HubManagement.Application.HubResidents.Commands
                     request.towerWing,
                     request.flatnumber,
                     request.isMember,
-                    request.picUrl,
+                    avatar,
                     request.isActive);
                 _repository.Insert(resident);
                 await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);

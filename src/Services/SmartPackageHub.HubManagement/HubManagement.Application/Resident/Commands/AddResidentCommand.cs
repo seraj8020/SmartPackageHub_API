@@ -4,7 +4,10 @@ using SmartPackageHub.Applications.Abstractions.Commands;
 namespace HubManagement.Application.HubResidents.Commands
 {
     /// <summary>
-    /// Registers a resident profile linked to an existing user account.
+    /// Registers a resident profile.
+    /// When <paramref name="userId"/> is empty, creates a linked Resident-role user (self-registration).
+    /// When <paramref name="userId"/> is set, links the profile to that existing user (admin/staff path).
+    /// <paramref name="picUrl"/> accepts a URL string, empty string, or null — never requires a valid absolute URI.
     /// </summary>
     public sealed record AddResidentCommand(
         Guid societyId,
@@ -14,6 +17,6 @@ namespace HubManagement.Application.HubResidents.Commands
         string towerWing,
         string flatnumber,
         bool isMember,
-        Uri? picUrl,
+        string? picUrl,
         bool isActive) : ICreateCommand<AddResidentResult>;
 }

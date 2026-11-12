@@ -64,7 +64,7 @@ namespace HubManagement.Application.HubResidents.Commands
                 var userId = request.userId;
                 if (userId == Guid.Empty)
                 {
-                    // Self-registration: create the linked Resident-role user here.
+                    // Self-registration path used by mobile web + Expo app.
                     var email = $"{phone}@resident.smartpackagehub.local";
                     var emailTaken = _users.GetAll().AsEnumerable().Any(user =>
                         string.Equals(user.ContactInfo?.Email, email, StringComparison.OrdinalIgnoreCase));
@@ -87,6 +87,19 @@ namespace HubManagement.Application.HubResidents.Commands
                     user.LinkToSociety(request.societyId);
                     _users.Insert(user);
                     userId = user.Id;
+                }
+                else
+                {
+                    // Existing admin/staff path: keep requiring a real user id.
+                    var existingUser = await _users.GetByIdAsync(userId).ConfigureAwait(false);
+                    if (existingUser is null)
+                    {
+                        return new AddResidentResult(
+                            false,
+                            false,
+                            null,
+                            "Society and user are required.");
+                    }
                 }
 
                 var resident = Resident.Create(

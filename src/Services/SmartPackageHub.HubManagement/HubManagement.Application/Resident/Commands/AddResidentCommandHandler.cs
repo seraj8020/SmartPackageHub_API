@@ -1,5 +1,7 @@
 using HubManagement.Application.HubResidents.DTOs;
 using HubManagement.Core.Hubs.Entities;
+using HubManagement.Core.Hubs.Models;
+using HubManagement.Core.Hubs.ValueObjects;
 using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
@@ -17,14 +19,17 @@ namespace HubManagement.Application.HubResidents.Commands
                 "Created Resident: {ResidentId}");
 
         private readonly IRepository<Resident> _repository;
+        private readonly IRepository<User> _users;
         private readonly ILogger<AddResidentCommandHandler> _logger;
 
         public AddResidentCommandHandler(
             IRepository<Resident> repository,
+            IRepository<User> users,
             ILogger<AddResidentCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
             _repository = repository;
+            _users = users;
             _logger = logger;
         }
 
@@ -34,8 +39,8 @@ namespace HubManagement.Application.HubResidents.Commands
         {
             ArgumentNullException.ThrowIfNull(request);
 
-            if (request.societyId == Guid.Empty || request.userId == Guid.Empty)
-                return new AddResidentResult(false, false, null, "Society and user are required.");
+            if (request.societyId == Guid.Empty)
+                return new AddResidentResult(false, false, null, "Society is required.");
 
             if (!PhoneNumberGuard.TryNormalizeIndiaMobile(request.phoneNo, out var phone))
                 return new AddResidentResult(false, false, null, "Enter a valid 10-digit mobile number.");
@@ -56,9 +61,37 @@ namespace HubManagement.Application.HubResidents.Commands
 
             try
             {
+                var userId = request.userId;
+                if (userId == Guid.Empty)
+                {
+                    // Self-registration: create the linked Resident-role user here.
+                    var email = $"{phone}@resident.smartpackagehub.local";
+                    var emailTaken = _users.GetAll().AsEnumerable().Any(user =>
+                        string.Equals(user.ContactInfo?.Email, email, StringComparison.OrdinalIgnoreCase));
+                    if (emailTaken)
+                    {
+                        return new AddResidentResult(
+                            false,
+                            true,
+                            null,
+                            "An account with this mobile number already exists.");
+                    }
+
+                    var user = User.Create(
+                        $"resident-{phone}",
+                        ContactInfo.Create(email),
+                        Role.Create(RoleType.Resident),
+                        "Active",
+                        passwordHash: null,
+                        phoneNumber: phone);
+                    user.LinkToSociety(request.societyId);
+                    _users.Insert(user);
+                    userId = user.Id;
+                }
+
                 var resident = Resident.Create(
                     request.societyId,
-                    request.userId,
+                    userId,
                     request.fullname,
                     phone,
                     request.towerWing,
@@ -72,6 +105,10 @@ namespace HubManagement.Application.HubResidents.Commands
                 return new AddResidentResult(true, false, resident.Id, "Resident registered.");
             }
             catch (ArgumentException ex)
+            {
+                return new AddResidentResult(false, false, null, ex.Message);
+            }
+            catch (InvalidOperationException ex)
             {
                 return new AddResidentResult(false, false, null, ex.Message);
             }

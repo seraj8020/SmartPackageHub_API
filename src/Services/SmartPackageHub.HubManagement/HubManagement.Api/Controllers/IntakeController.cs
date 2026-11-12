@@ -63,6 +63,20 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(shelf);
         }
 
+        /// <summary>
+        /// Distinct active carrier names for staff intake / scan courier dropdown.
+        /// </summary>
+        [HttpGet("carriers")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
+        public async Task<ActionResult> Carriers([FromQuery] Guid? societyId, CancellationToken cancellationToken)
+        {
+            var carriers = await _mediator
+                .Send(new GetIntakeCarriersQuery(societyId), cancellationToken)
+                .ConfigureAwait(false);
+            return Ok(carriers);
+        }
+
         [HttpPost("confirm")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(ConfirmIntakeResponse), StatusCodes.Status200OK)]
@@ -78,6 +92,27 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 return NotFound(new { Message = result.Error });
             if (result.StatusCode == 409)
                 return Conflict(new { Message = result.Error });
+
+            return Ok(result.Body);
+        }
+
+        /// <summary>
+        /// Confirm multiple scanned packages in one call (offline mobile queue flush).
+        /// Each item uses the same rules as POST confirm, including clientRequestId idempotency.
+        /// Partial success returns HTTP 200 with per-item status codes.
+        /// </summary>
+        [HttpPost("batch-intake")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(BatchIntakeResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult> BatchIntake([FromBody] BatchIntakeRequest request)
+        {
+            var result = await _mediator
+                .Send(new BatchIntakeCommand(request ?? new BatchIntakeRequest()))
+                .ConfigureAwait(false);
+
+            if (result.StatusCode == 400)
+                return BadRequest(new { Message = result.Error });
 
             return Ok(result.Body);
         }

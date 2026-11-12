@@ -109,7 +109,6 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("AgentName")
-                        .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
@@ -129,7 +128,6 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<string>("Phone")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 

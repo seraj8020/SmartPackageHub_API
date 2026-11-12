@@ -13,8 +13,8 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 
             builder.Property(e => e.SocietyId).IsRequired();
             builder.Property(e => e.CarrierName).IsRequired().HasMaxLength(100);
-            builder.Property(e => e.AgentName).IsRequired().HasMaxLength(150);
-            builder.Property(e => e.Phone).IsRequired().HasMaxLength(50);
+            builder.Property(e => e.AgentName).HasMaxLength(150);
+            builder.Property(e => e.Phone).HasMaxLength(50);
             builder.Property(e => e.VehicleNumber).HasMaxLength(50);
             builder.Property(e => e.EmployeeOrBadgeNumber).HasMaxLength(50);
             builder.Property(e => e.IsActive).IsRequired();

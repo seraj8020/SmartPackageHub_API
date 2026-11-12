@@ -1,6 +1,8 @@
 using HubManagement.Application.Auth.Services;
 using HubManagement.Application.Couriers.DTOs;
+using HubManagement.Application.Intake.Queries;
 using HubManagement.Core.Hubs.Entities;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartPackageHub.Common.ConfigOptions;
@@ -15,45 +17,26 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
     {
         private readonly HubDbContext _db;
         private readonly PlatformAdminSessionStore _sessions;
+        private readonly IMediator _mediator;
 
-        public CouriersController(HubDbContext db, PlatformAdminSessionStore sessions)
+        public CouriersController(HubDbContext db, PlatformAdminSessionStore sessions, IMediator mediator)
         {
             _db = db;
             _sessions = sessions;
+            _mediator = mediator;
         }
 
         /// <summary>
-        /// Distinct carrier names for intake dropdowns (staff / public read).
+        /// Distinct carrier names (alias of GET /intake/carriers for older clients).
         /// </summary>
         [HttpGet("carriers")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
         public async Task<ActionResult> GetCarriers([FromQuery] Guid? societyId, CancellationToken cancellationToken)
         {
-            var query = _db.CourierAgents.AsNoTracking().Where(agent => agent.IsActive);
-            if (societyId is Guid sid && sid != Guid.Empty)
-                query = query.Where(agent => agent.SocietyId == sid);
-
-            var carriers = await query
-                .Select(agent => agent.CarrierName)
-                .Distinct()
-                .OrderBy(name => name)
-                .ToListAsync(cancellationToken)
+            var carriers = await _mediator
+                .Send(new GetIntakeCarriersQuery(societyId), cancellationToken)
                 .ConfigureAwait(false);
-
-            if (carriers.Count == 0)
-            {
-                carriers =
-                [
-                    "Amazon", "Flipkart", "Delhivery", "DTDC", "BlueDart",
-                    "Xpressbees", "Shadowfax", "Meesho", "Other"
-                ];
-            }
-            else if (!carriers.Exists(name => string.Equals(name, "Other", StringComparison.OrdinalIgnoreCase)))
-            {
-                carriers.Add("Other");
-            }
-
             return Ok(carriers);
         }
 
@@ -89,9 +72,11 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
 
             var rows = agents.Select(agent =>
             {
-                var hit = blacklists.FirstOrDefault(item =>
-                    item.SocietyId == agent.SocietyId &&
-                    PhonesMatch(item.Phone, agent.Phone));
+                var hit = string.IsNullOrWhiteSpace(agent.Phone)
+                    ? null
+                    : blacklists.FirstOrDefault(item =>
+                        item.SocietyId == agent.SocietyId &&
+                        PhonesMatch(item.Phone, agent.Phone));
                 return ToDto(agent, societies.GetValueOrDefault(agent.SocietyId) ?? string.Empty, hit);
             }).ToList();
 
@@ -110,40 +95,21 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             if (!TryResolveSocietyWrite(session!, request.SocietyId, out var societyId, out var societyError))
                 return societyError!;
 
-            if (string.IsNullOrWhiteSpace(request.CarrierName) ||
-                string.IsNullOrWhiteSpace(request.AgentName) ||
-                string.IsNullOrWhiteSpace(request.Phone))
+            var validationError = await ValidateCreateAsync(request, societyId, cancellationToken).ConfigureAwait(false);
+            if (validationError is not null) return validationError;
+
+            string? phone = null;
+            if (!string.IsNullOrWhiteSpace(request.Phone) &&
+                !PhoneNumberGuard.TryNormalizeIndiaMobile(request.Phone, out phone))
             {
-                return BadRequest(new { Message = "Carrier, agent name, and phone are required." });
-            }
-
-            if (!PhoneNumberGuard.TryNormalizeIndiaMobile(request.Phone, out var phone))
                 return BadRequest(new { Message = "Enter a valid 10-digit Indian mobile number." });
-
-            if (!await _db.Societies.AnyAsync(society => society.Id == societyId, cancellationToken).ConfigureAwait(false))
-                return BadRequest(new { Message = "Selected society was not found." });
-
-            var duplicate = await _db.CourierAgents.AsNoTracking()
-                .AnyAsync(
-                    agent => agent.SocietyId == societyId && agent.Phone == phone,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            if (duplicate)
-                return Conflict(new { Message = "A courier with this mobile number already exists in the society." });
-
-            var blacklisted = await _db.CourierBlacklists.AsNoTracking()
-                .AnyAsync(
-                    item => item.IsActive && item.SocietyId == societyId && item.Phone == phone,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            if (blacklisted)
-                return Conflict(new { Message = "This mobile number is blacklisted for the society." });
+            }
 
             try
             {
                 var agent = CourierAgent.Create(
                     societyId,
-                    request.CarrierName,
+                    request.CarrierName!,
                     request.AgentName,
                     phone,
                     request.VehicleNumber,
@@ -180,23 +146,23 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             if (!CanAccessSociety(session!, agent.SocietyId))
                 return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You cannot manage couriers outside your society." });
 
-            if (string.IsNullOrWhiteSpace(request.CarrierName) ||
-                string.IsNullOrWhiteSpace(request.AgentName) ||
-                string.IsNullOrWhiteSpace(request.Phone))
+            if (string.IsNullOrWhiteSpace(request.CarrierName))
+                return BadRequest(new { Message = "Courier name is required." });
+
+            string? phone = null;
+            if (!string.IsNullOrWhiteSpace(request.Phone))
             {
-                return BadRequest(new { Message = "Carrier, agent name, and phone are required." });
+                if (!PhoneNumberGuard.TryNormalizeIndiaMobile(request.Phone, out phone))
+                    return BadRequest(new { Message = "Enter a valid 10-digit Indian mobile number." });
+
+                var phoneTaken = await _db.CourierAgents.AsNoTracking()
+                    .AnyAsync(
+                        item => item.SocietyId == agent.SocietyId && item.Id != id && item.Phone == phone,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (phoneTaken)
+                    return Conflict(new { Message = "Another courier already uses this mobile number in the society." });
             }
-
-            if (!PhoneNumberGuard.TryNormalizeIndiaMobile(request.Phone, out var phone))
-                return BadRequest(new { Message = "Enter a valid 10-digit Indian mobile number." });
-
-            var phoneTaken = await _db.CourierAgents.AsNoTracking()
-                .AnyAsync(
-                    item => item.SocietyId == agent.SocietyId && item.Id != id && item.Phone == phone,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            if (phoneTaken)
-                return Conflict(new { Message = "Another courier already uses this mobile number in the society." });
 
             try
             {
@@ -244,6 +210,9 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             if (agent is null) return NotFound(new { Message = "Courier was not found." });
             if (!CanAccessSociety(session!, agent.SocietyId))
                 return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You cannot manage couriers outside your society." });
+
+            if (string.IsNullOrWhiteSpace(agent.Phone))
+                return BadRequest(new { Message = "Add a mobile number before blacklisting this courier." });
 
             var reason = string.IsNullOrWhiteSpace(request.Reason)
                 ? "Blacklisted by admin"
@@ -456,14 +425,62 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return true;
         }
 
+        private async Task<ActionResult?> ValidateCreateAsync(
+            CreateCourierAgentRequest request,
+            Guid societyId,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(request.CarrierName))
+                return BadRequest(new { Message = "Courier name is required." });
+
+            if (!await _db.Societies.AnyAsync(society => society.Id == societyId, cancellationToken).ConfigureAwait(false))
+                return BadRequest(new { Message = "Selected society was not found." });
+
+            if (!string.IsNullOrWhiteSpace(request.Phone))
+            {
+                if (!PhoneNumberGuard.TryNormalizeIndiaMobile(request.Phone, out var phone))
+                    return BadRequest(new { Message = "Enter a valid 10-digit Indian mobile number." });
+
+                var duplicate = await _db.CourierAgents.AsNoTracking()
+                    .AnyAsync(agent => agent.SocietyId == societyId && agent.Phone == phone, cancellationToken)
+                    .ConfigureAwait(false);
+                if (duplicate)
+                    return Conflict(new { Message = "A courier with this mobile number already exists in the society." });
+
+                var blacklisted = await _db.CourierBlacklists.AsNoTracking()
+                    .AnyAsync(
+                        item => item.IsActive && item.SocietyId == societyId && item.Phone == phone,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (blacklisted)
+                    return Conflict(new { Message = "This mobile number is blacklisted for the society." });
+
+                return null;
+            }
+
+            var carrierName = request.CarrierName.Trim();
+            var existingNames = await _db.CourierAgents.AsNoTracking()
+                .Where(agent => agent.SocietyId == societyId)
+                .Select(agent => agent.CarrierName)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (existingNames.Exists(name => string.Equals(name, carrierName, StringComparison.OrdinalIgnoreCase)))
+                return Conflict(new { Message = "This courier name already exists in the society." });
+
+            return null;
+        }
+
         private static BadRequestObjectResult BadRequestResult(string message) =>
             new(new { Message = message });
 
         private static ObjectResult ForbiddenResult(string message) =>
             new(new { Message = message }) { StatusCode = StatusCodes.Status403Forbidden };
 
-        private static bool PhonesMatch(string left, string right)
+        private static bool PhonesMatch(string? left, string? right)
         {
+            if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+                return false;
+
             if (PhoneNumberGuard.TryNormalizeIndiaMobile(left, out var a) &&
                 PhoneNumberGuard.TryNormalizeIndiaMobile(right, out var b))
             {

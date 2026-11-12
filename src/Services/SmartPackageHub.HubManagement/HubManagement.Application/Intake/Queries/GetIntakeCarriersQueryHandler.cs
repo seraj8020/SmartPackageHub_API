@@ -18,9 +18,10 @@ namespace HubManagement.Application.Intake.Queries
         {
             ArgumentNullException.ThrowIfNull(request);
 
-            var agents = request.SocietyId is Guid societyId && societyId != Guid.Empty
+            // Materialize first — Distinct/OrderBy with StringComparer cannot translate to SQL.
+            var agents = (request.SocietyId is Guid societyId && societyId != Guid.Empty
                 ? _agents.FetchMulti(agent => agent.IsActive && agent.SocietyId == societyId, noTracking: true)
-                : _agents.FetchMulti(agent => agent.IsActive, noTracking: true);
+                : _agents.FetchMulti(agent => agent.IsActive, noTracking: true)).ToList();
 
             var carriers = agents
                 .Select(agent => agent.CarrierName)

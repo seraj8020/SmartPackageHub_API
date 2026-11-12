@@ -21,12 +21,12 @@ namespace HubManagement.Application.Intake.Commands
         }
 
         public override async Task<IntakeStatusResult<BatchIntakeResponse>> Handle(
-            BatchIntakeCommand command,
+            BatchIntakeCommand request,
             CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(command);
+            ArgumentNullException.ThrowIfNull(request);
 
-            var items = command.Request?.Items ?? new List<ConfirmIntakeRequest>();
+            var items = request.Request?.Items ?? new List<ConfirmIntakeRequest>();
             if (items.Count == 0)
             {
                 return new IntakeStatusResult<BatchIntakeResponse>(

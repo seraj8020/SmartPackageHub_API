@@ -43,11 +43,25 @@ namespace HubManagement.Application.Intake.Queries
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
                 var byName = ResidentMatcher.Search(societyResidents, request.Name.Trim());
-                if (byName.Count > 0)
+                if (byName.Count == 1)
+                    return Task.FromResult(new MatchResponse { Status = "matched", Matches = byName.Select(ResidentMatcher.ToDto).ToList() });
+                if (byName.Count > 1)
                     return Task.FromResult(new MatchResponse { Status = "ambiguous", Matches = byName.Select(ResidentMatcher.ToDto).ToList() });
+
+                // OCR often returns a partial name ("fozia"); try each token ≥4 chars.
+                foreach (var token in request.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    if (token.Length < 4)
+                        continue;
+                    var tokenHits = ResidentMatcher.Search(societyResidents, token);
+                    if (tokenHits.Count == 1)
+                        return Task.FromResult(new MatchResponse { Status = "matched", Matches = tokenHits.Select(ResidentMatcher.ToDto).ToList() });
+                    if (tokenHits.Count > 1)
+                        return Task.FromResult(new MatchResponse { Status = "ambiguous", Matches = tokenHits.Select(ResidentMatcher.ToDto).ToList() });
+                }
             }
 
-            return Task.FromResult(new MatchResponse { Status = "missing", Matches =new List<ResidentMatchDto>() });
+            return Task.FromResult(new MatchResponse { Status = "missing", Matches = new List<ResidentMatchDto>() });
         }
     }
 }

@@ -23,6 +23,12 @@ namespace HubManagement.Application.Intake.Commands
                 new EventId(1, nameof(ConfirmIntakeCommandHandler)),
                 "Confirmed intake {IntakeId} for AWB {Awb}");
 
+        private static readonly Action<ILogger, Guid, string?, Exception?> LogPhotoLinkFailed =
+            LoggerMessage.Define<Guid, string?>(
+                LogLevel.Warning,
+                new EventId(2, nameof(ConfirmIntakeCommandHandler)),
+                "Intake {IntakeId} saved but photo link failed for AWB {Awb}");
+
         private readonly IRepository<Package> _packages;
         private readonly IRepository<PackageIntake> _intakes;
         private readonly IRepository<PackageImage> _images;
@@ -282,18 +288,16 @@ namespace HubManagement.Application.Intake.Commands
 
         private static string DetermineMatchStatus(string? requestedStatus, Resident? resident, bool ambiguous)
         {
-            var matchStatus = requestedStatus?.Trim().ToLowerInvariant();
-            if (matchStatus is "matched" or "ambiguous" or "manual" or "missing")
+            var matchStatus = requestedStatus?.Trim().ToUpperInvariant();
+            return matchStatus switch
             {
-                return matchStatus;
-            }
-
-            if (resident == null)
-            {
-                return ambiguous ? "ambiguous" : "missing";
-            }
-
-            return "matched";
+                "MATCHED" => "matched",
+                "AMBIGUOUS" => "ambiguous",
+                "MANUAL" => "manual",
+                "MISSING" => "missing",
+                _ when resident == null => ambiguous ? "ambiguous" : "missing",
+                _ => "matched",
+            };
         }
 
         private async Task<IntakeStatusResult<ConfirmIntakeResponse>> PersistAndConfirmAsync(
@@ -390,10 +394,11 @@ namespace HubManagement.Application.Intake.Commands
             {
                 await LinkPhotoAsync(IntakeText.Clean(request.ClientPhotoId, 80), package.PackageIntake.Id, package.Id, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex)
+#pragma warning disable CA1031 // Photo link must not fail an already-committed intake.
+            catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
             {
-                // Package is already persisted — do not turn a photo-link failure into HTTP 500.
-                _logger.LogWarning(ex, "Intake {IntakeId} saved but photo link failed for AWB {Awb}", package.PackageIntake.Id, awb);
+                LogPhotoLinkFailed(_logger, package.PackageIntake.Id, awb, ex);
             }
             // Only COD needs an immediate resident notice (approve/reject). Pickup OTP waits for shelving.
             if (request.IsCod)

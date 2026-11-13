@@ -74,9 +74,10 @@ namespace HubManagement.Application.Intake.Commands
                     else
                         response.Failed++;
                 }
-                catch (Exception ex)
+#pragma warning disable CA1031 // Isolate one parcel failure so the rest of the batch can still sync.
+                catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
                 {
-                    // Keep the batch alive so one bad parcel does not 500 the whole flush.
                     response.Failed++;
                     response.Results.Add(new BatchIntakeItemResult
                     {

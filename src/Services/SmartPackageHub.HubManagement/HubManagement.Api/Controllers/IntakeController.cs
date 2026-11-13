@@ -90,7 +90,9 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             {
                 result = await _mediator.Send(new ConfirmIntakeCommand(request ?? new ConfirmIntakeRequest())).ConfigureAwait(false);
             }
-            catch (Exception ex)
+#pragma warning disable CA1031 // Map unexpected domain failures to a stable JSON 500 for mobile clients.
+            catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, new
                 {

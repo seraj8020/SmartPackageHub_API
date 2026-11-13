@@ -48,7 +48,7 @@ namespace HubManagement.Application.Intake.Commands
                 byte[] bytes;
                 try
                 {
-                    bytes = Convert.FromBase64String(request.Request.ImageBase64);
+                    bytes = Convert.FromBase64String(StripDataUrl(request.Request.ImageBase64));
                 }
                 catch (FormatException)
                 {
@@ -74,6 +74,17 @@ namespace HubManagement.Application.Intake.Commands
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogSaveDamageImageConfirmed(_logger, intake.Id, intake.PackageId.ToString(), null);
             return new DamageSaveResult(true, null);
+        }
+
+        /// <summary>
+        /// Mobile/web often send a data URL (data:image/jpeg;base64,...) — strip the prefix for Convert.FromBase64String.
+        /// </summary>
+        private static string StripDataUrl(string value)
+        {
+            var trimmed = value.Trim();
+            var marker = "base64,";
+            var index = trimmed.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            return index >= 0 ? trimmed[(index + marker.Length)..] : trimmed;
         }
     }
 }

@@ -41,8 +41,15 @@ RUN dotnet publish "./HubManagement.Api.csproj" -c $BUILD_CONFIGURATION -o /app/
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+COPY src/Services/SmartPackageHub.HubManagement/HubManagement.Api/docker-entrypoint.sh /docker-entrypoint.sh
+
+# Parcel/damage photos write under App_Data; entrypoint chowns volume for non-root `app`.
+USER root
+RUN mkdir -p /app/App_Data \
+  && chown -R app:app /app/App_Data \
+  && chmod +x /docker-entrypoint.sh
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8080/healthz || exit 1
 
-ENTRYPOINT ["dotnet", "HubManagement.Api.dll"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

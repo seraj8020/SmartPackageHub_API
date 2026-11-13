@@ -200,7 +200,17 @@ namespace HubManagement.Application.Intake.Commands
                 return null;
             }
 
-            await LinkPhotoAsync(IntakeText.Clean(request.ClientPhotoId, 80), prior.Id, priorPackage.Id, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await LinkPhotoAsync(IntakeText.Clean(request.ClientPhotoId, 80), prior.Id, priorPackage.Id, cancellationToken).ConfigureAwait(false);
+            }
+#pragma warning disable CA1031 // Idempotent replay must still return 200 if photo link cannot write.
+            catch (Exception ex) when (ex is not OperationCanceledException)
+#pragma warning restore CA1031
+            {
+                LogPhotoLinkFailed(_logger, prior.Id, priorPackage.CourierAwb, ex);
+            }
+
             return new IntakeStatusResult<ConfirmIntakeResponse>(200, null, await MapAsync(prior, priorPackage, null).ConfigureAwait(false));
         }
 

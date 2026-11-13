@@ -17,6 +17,7 @@ namespace SmartPackageHub.Common.Services.Storage.Services
         {
             ArgumentNullException.ThrowIfNull(environment);
             _root = Path.Combine(environment.ContentRootPath, "App_Data");
+            Directory.CreateDirectory(_root);
         }
 
         public async Task<StoredParcelPhoto> SaveAsync(

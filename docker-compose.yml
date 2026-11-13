@@ -92,6 +92,9 @@ services:
       Auth__FixedLoginOtp: ${Auth__FixedLoginOtp:-}
     ports:
       - "${API_HOST_PORT:-5000}:8080"
+    volumes:
+      # Writable photo/blob store for non-root `app` user (see Dockerfile).
+      - api_data:/app/App_Data
     depends_on:
       postgres:
         condition: service_healthy
@@ -129,6 +132,7 @@ volumes:
   pgadmin_data:
   redis_data:
   postgres_data:
+  api_data:
 
 networks:
   sph-net:

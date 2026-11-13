@@ -163,6 +163,9 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
 
         [HttpPost("{id:guid}/damage")]
         [MapToApiVersion(ApiVersions.V2)]
+        // Base64 JSON is ~4/3 of JPEG size; allow up to ~5MB decoded image.
+        [RequestSizeLimit(8_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 8_000_000)]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -55,7 +55,8 @@ namespace HubManagement.Application.Intake.Commands
                     return new DamageSaveResult(false, "Damage photo was not valid base64");
                 }
 
-                if (bytes.Length > 1_500_000)
+                // Phone cameras often produce 2–4MB JPEGs; keep a hard cap for abuse, not phone defaults.
+                if (bytes.Length > 5_000_000)
                     return new DamageSaveResult(false, "Damage photo is too large");
 
                 var key = await _photos.SaveDamageAsync(request.IntakeId, bytes, cancellationToken).ConfigureAwait(false);

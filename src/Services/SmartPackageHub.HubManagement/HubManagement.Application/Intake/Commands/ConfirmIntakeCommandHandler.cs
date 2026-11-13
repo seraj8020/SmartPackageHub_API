@@ -282,7 +282,7 @@ namespace HubManagement.Application.Intake.Commands
 
         private static string DetermineMatchStatus(string? requestedStatus, Resident? resident, bool ambiguous)
         {
-            var matchStatus = requestedStatus?.Trim().ToUpperInvariant();
+            var matchStatus = requestedStatus?.Trim().ToLowerInvariant();
             if (matchStatus is "matched" or "ambiguous" or "manual" or "missing")
             {
                 return matchStatus;
@@ -386,7 +386,15 @@ namespace HubManagement.Application.Intake.Commands
             _packages.Insert(package);
 
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
-            await LinkPhotoAsync(IntakeText.Clean(request.ClientPhotoId, 80), package.PackageIntake.Id, package.Id, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await LinkPhotoAsync(IntakeText.Clean(request.ClientPhotoId, 80), package.PackageIntake.Id, package.Id, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // Package is already persisted — do not turn a photo-link failure into HTTP 500.
+                _logger.LogWarning(ex, "Intake {IntakeId} saved but photo link failed for AWB {Awb}", package.PackageIntake.Id, awb);
+            }
             // Only COD needs an immediate resident notice (approve/reject). Pickup OTP waits for shelving.
             if (request.IsCod)
                 _queue.Enqueue(package.PackageIntake.Id);
@@ -402,6 +410,7 @@ namespace HubManagement.Application.Intake.Commands
             return _agents.GetAll().AsEnumerable().FirstOrDefault(agent =>
                 agent.IsActive &&
                 agent.SocietyId == societyId &&
+                !string.IsNullOrWhiteSpace(agent.CarrierName) &&
                 (courier.Contains(agent.CarrierName, StringComparison.OrdinalIgnoreCase) ||
                  agent.CarrierName.Contains(courier, StringComparison.OrdinalIgnoreCase)));
         }

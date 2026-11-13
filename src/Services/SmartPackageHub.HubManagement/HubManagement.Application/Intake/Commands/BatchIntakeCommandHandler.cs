@@ -52,25 +52,44 @@ namespace HubManagement.Application.Intake.Commands
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var payload = item ?? new ConfirmIntakeRequest();
-                var result = await _mediator
-                    .Send(new ConfirmIntakeCommand(payload), cancellationToken)
-                    .ConfigureAwait(false);
-
-                var succeeded = result.StatusCode >= 200 && result.StatusCode < 300 && result.Body != null;
-                response.Results.Add(new BatchIntakeItemResult
+                try
                 {
-                    ClientRequestId = payload.ClientRequestId,
-                    Awb = result.Body?.Awb ?? payload.Awb ?? payload.Barcode,
-                    Succeeded = succeeded,
-                    StatusCode = result.StatusCode,
-                    Error = result.Error,
-                    Intake = result.Body,
-                });
+                    var result = await _mediator
+                        .Send(new ConfirmIntakeCommand(payload), cancellationToken)
+                        .ConfigureAwait(false);
 
-                if (succeeded)
-                    response.Succeeded++;
-                else
+                    var succeeded = result.StatusCode >= 200 && result.StatusCode < 300 && result.Body != null;
+                    response.Results.Add(new BatchIntakeItemResult
+                    {
+                        ClientRequestId = payload.ClientRequestId,
+                        Awb = result.Body?.Awb ?? payload.Awb ?? payload.Barcode,
+                        Succeeded = succeeded,
+                        StatusCode = result.StatusCode,
+                        Error = result.Error,
+                        Intake = result.Body,
+                    });
+
+                    if (succeeded)
+                        response.Succeeded++;
+                    else
+                        response.Failed++;
+                }
+                catch (Exception ex)
+                {
+                    // Keep the batch alive so one bad parcel does not 500 the whole flush.
                     response.Failed++;
+                    response.Results.Add(new BatchIntakeItemResult
+                    {
+                        ClientRequestId = payload.ClientRequestId,
+                        Awb = payload.Awb ?? payload.Barcode,
+                        Succeeded = false,
+                        StatusCode = 500,
+                        Error = string.IsNullOrWhiteSpace(ex.Message)
+                            ? "Intake failed unexpectedly"
+                            : ex.Message,
+                        Intake = null,
+                    });
+                }
             }
 
             // Partial success still returns 200 with per-item status codes.

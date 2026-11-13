@@ -56,7 +56,8 @@ namespace HubManagement.Application.PackageHub.Services
         {
             var name = Limit(First(recipientName, resident?.FullName) ?? "Unassigned", 150);
             var wing = Limit(First(tower, resident?.TowerWing) ?? "NA", 100);
-            var unit = Limit(First(flat, resident?.Unit?.Value) ?? "NA", 50);
+            // UnitNumber only allows letters/digits/space/hyphen — scrub OCR junk so confirm does not 500.
+            var unit = SanitizeUnit(Limit(First(flat, resident?.Unit?.Value) ?? "NA", 50));
             var partner = Limit(string.IsNullOrWhiteSpace(courier) ? "Courier" : courier.Trim(), 100);
             string resolvedCategory;
             if (!string.IsNullOrWhiteSpace(category))
@@ -100,5 +101,12 @@ namespace HubManagement.Application.PackageHub.Services
 
         private static string? First(params string?[] values) =>
             values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+
+        private static string SanitizeUnit(string value)
+        {
+            var chars = value.Where(ch => char.IsLetterOrDigit(ch) || ch is ' ' or '-').ToArray();
+            var cleaned = new string(chars).Trim();
+            return string.IsNullOrWhiteSpace(cleaned) ? "NA" : cleaned;
+        }
     }
 }

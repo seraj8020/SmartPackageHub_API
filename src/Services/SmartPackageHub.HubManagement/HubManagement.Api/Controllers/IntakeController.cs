@@ -85,13 +85,27 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> Confirm([FromBody] ConfirmIntakeRequest request)
         {
-            var result = await _mediator.Send(new ConfirmIntakeCommand(request ?? new ConfirmIntakeRequest())).ConfigureAwait(false);
+            IntakeStatusResult<ConfirmIntakeResponse> result;
+            try
+            {
+                result = await _mediator.Send(new ConfirmIntakeCommand(request ?? new ConfirmIntakeRequest())).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    Message = string.IsNullOrWhiteSpace(ex.Message) ? "Intake failed unexpectedly" : ex.Message,
+                });
+            }
+
             if (result.StatusCode == 400)
                 return BadRequest(new { Message = result.Error });
             if (result.StatusCode == 404)
                 return NotFound(new { Message = result.Error });
             if (result.StatusCode == 409)
                 return Conflict(new { Message = result.Error });
+            if (result.StatusCode >= 500)
+                return StatusCode(result.StatusCode, new { Message = result.Error ?? "Intake failed" });
 
             return Ok(result.Body);
         }

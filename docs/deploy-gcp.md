@@ -115,6 +115,41 @@ VPC firewall (or VM tags) should allow:
 - `tcp:80` / `tcp:443` if using Caddy
 - Or `tcp:5000` / `tcp:8088` for direct host-port access during smoke tests
 
+## 7. Parcel photos on Google Cloud Storage
+
+QA/Prod should use GCS instead of the Docker `api_data` volume (`App_Data`).
+
+1. Create a bucket (once), same region as the VM if possible:
+
+```bash
+gcloud storage buckets create gs://sph-qa-parcel-photos \
+  --project=YOUR_PROJECT_ID \
+  --location=asia-south1 \
+  --uniform-bucket-level-access
+```
+
+2. Grant the **GCE VM service account** write access (Console → VM → details → service account, or `gcloud compute instances describe`):
+
+```bash
+gcloud storage buckets add-iam-policy-binding gs://sph-qa-parcel-photos \
+  --member="serviceAccount:YOUR_VM_SA@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin"
+```
+
+3. In `/opt/sph/SmartPackageHub_API/.env.qa` set:
+
+```bash
+ParcelPhotoStorage__Provider=Gcs
+ParcelPhotoStorage__Bucket=sph-qa-parcel-photos
+ParcelPhotoStorage__ObjectPrefix=qa/
+```
+
+4. Redeploy the API (`./scripts/deploy-qa.sh`). The API uses Application Default Credentials from the VM SA — no JSON key file in the container.
+
+Object layout matches the old local store: `qa/parcel-blobs/{guid}.jpg`, `.meta.json`, `.link`, and `qa/damage/{intakeId}.jpg`.
+
+Local laptop/dev keeps `Provider=Local` (default in `appsettings.json`).
+
 ## Notes
 
 - Same Docker Compose files as local/QA; only the host moved from OCI to GCE.

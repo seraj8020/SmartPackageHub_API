@@ -90,6 +90,9 @@ services:
       SmsPumpingProtection__RecaptchaRequired: ${SmsPumpingProtection__RecaptchaRequired:-false}
       SmsPumpingProtection__RecaptchaSecretKey: ${SmsPumpingProtection__RecaptchaSecretKey:-}
       Auth__FixedLoginOtp: ${Auth__FixedLoginOtp:-}
+      ParcelPhotoStorage__Provider: ${ParcelPhotoStorage__Provider:-Local}
+      ParcelPhotoStorage__Bucket: ${ParcelPhotoStorage__Bucket:-}
+      ParcelPhotoStorage__ObjectPrefix: ${ParcelPhotoStorage__ObjectPrefix:-}
     ports:
       - "${API_HOST_PORT:-5000}:8080"
     volumes:

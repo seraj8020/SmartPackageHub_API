@@ -85,7 +85,7 @@ services.AddDbContextPool<HubDbContext>(opts =>
     }
 });
 services.AddSingleton<IntakeNotificationChannel>();
-services.AddLocalParcelPhotoStore();
+services.AddParcelPhotoStore(builder.Configuration);
 services.AddOutboundMessaging(builder.Configuration);
 services.AddHubManagementWorkers();
 services.AddRateLimiter(options =>

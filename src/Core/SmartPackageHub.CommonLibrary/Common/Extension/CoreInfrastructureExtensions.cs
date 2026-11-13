@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using SmartPackageHub.Common.Services.Storage.Abstractions;
+using SmartPackageHub.Common.Services.Storage.Options;
 using SmartPackageHub.Common.Services.Storage.Services;
 
 namespace SmartPackageHub.Common.Extension
@@ -14,13 +16,34 @@ namespace SmartPackageHub.Common.Extension
             services.AddRedis(configuration)
                 .AddHttpContextAccessor()
                 .AddSwaggerDocs()
-                .AddLocalParcelPhotoStore();
+                .AddParcelPhotoStore(configuration);
             return services;
         }
 
         /// <summary>
-        /// Local App_Data blob store for parcel / damage photos.
+        /// Parcel / damage photos: Local App_Data (dev) or Google Cloud Storage (QA/Prod).
         /// </summary>
+        public static IServiceCollection AddParcelPhotoStore(
+            this IServiceCollection services,
+            IConfiguration configuration)
+        {
+            ArgumentNullException.ThrowIfNull(configuration);
+            services.Configure<ParcelPhotoStorageOptions>(
+                configuration.GetSection(ParcelPhotoStorageOptions.SectionName));
+
+            services.AddSingleton<IParcelPhotoStore>(sp =>
+            {
+                var options = sp.GetRequiredService<IOptions<ParcelPhotoStorageOptions>>().Value;
+                if (options.IsGcs)
+                    return ActivatorUtilities.CreateInstance<GcsParcelPhotoStore>(sp);
+
+                return ActivatorUtilities.CreateInstance<LocalBlobPhotoStore>(sp);
+            });
+
+            return services;
+        }
+
+        /// <summary>Backward-compatible alias for older Program.cs call sites.</summary>
         public static IServiceCollection AddLocalParcelPhotoStore(this IServiceCollection services)
         {
             services.AddSingleton<IParcelPhotoStore, LocalBlobPhotoStore>();

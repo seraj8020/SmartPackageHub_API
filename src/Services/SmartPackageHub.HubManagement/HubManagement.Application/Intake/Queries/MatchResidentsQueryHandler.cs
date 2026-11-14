@@ -31,44 +31,74 @@ namespace HubManagement.Application.Intake.Queries
                 residents = residents.Where(resident => resident.SocietyId == societyId);
 
             var societyResidents = residents.ToList();
+
+            var byUnit = MatchByUnit(societyResidents, tower, flat);
+            if (byUnit != null)
+                return Task.FromResult(byUnit);
+
+            var byName = MatchByName(societyResidents, request.Name);
+            if (byName != null)
+                return Task.FromResult(byName);
+
+            return Task.FromResult(new MatchResponse { Status = "missing", Matches = new List<ResidentMatchDto>() });
+        }
+
+        private static MatchResponse? MatchByUnit(List<Resident> societyResidents, string? tower, string? flat)
+        {
             if (tower != null && flat != null)
             {
                 var hits = ResidentMatcher.ByTowerAndFlat(societyResidents, tower, flat).Take(8).ToList();
-                if (hits.Count == 1)
-                    return Task.FromResult(new MatchResponse { Status = "matched", Matches = hits.Select(ResidentMatcher.ToDto).ToList() });
-                if (hits.Count > 1)
-                    return Task.FromResult(new MatchResponse { Status = "ambiguous", Matches = hits.Select(ResidentMatcher.ToDto).ToList() });
+                return ToUnitResponse(hits);
             }
 
-            if (!string.IsNullOrWhiteSpace(request.Name))
+            // Many Indian labels print only "Flat 905" with no tower/wing.
+            if (tower == null && flat != null)
             {
-                var byName = ResidentMatcher.Search(societyResidents, request.Name.Trim());
-                if (byName.Count == 1)
-                    return Task.FromResult(new MatchResponse { Status = "matched", Matches = byName.Select(ResidentMatcher.ToDto).ToList() });
-                if (byName.Count > 1)
-                    return Task.FromResult(new MatchResponse { Status = "ambiguous", Matches = byName.Select(ResidentMatcher.ToDto).ToList() });
-
-                // OCR often returns a partial name ("fozia"); try each token ≥4 chars.
-                foreach (var token in request.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                {
-                    if (token.Length < 4)
-                        continue;
-                    var tokenHits = ResidentMatcher.Search(societyResidents, token);
-                    if (tokenHits.Count == 1)
-                        return Task.FromResult(new MatchResponse { Status = "matched", Matches = tokenHits.Select(ResidentMatcher.ToDto).ToList() });
-                    if (tokenHits.Count > 1)
-                        return Task.FromResult(new MatchResponse { Status = "ambiguous", Matches = tokenHits.Select(ResidentMatcher.ToDto).ToList() });
-                }
-
-                // OCR glue/mangle: FehenKh ≈ Rehan Khan (no tower/flat on this label read).
-                var fuzzy = ResidentMatcher.FuzzyByName(societyResidents, request.Name.Trim());
-                if (fuzzy.Count == 1)
-                    return Task.FromResult(new MatchResponse { Status = "matched", Matches = fuzzy.Select(ResidentMatcher.ToDto).ToList() });
-                if (fuzzy.Count > 1)
-                    return Task.FromResult(new MatchResponse { Status = "ambiguous", Matches = fuzzy.Select(ResidentMatcher.ToDto).ToList() });
+                var byFlat = societyResidents
+                    .Where(resident => ResidentMatcher.FlatEquals(resident.Unit?.Value, flat))
+                    .OrderByDescending(resident => resident.IsActive)
+                    .ThenBy(resident => resident.FullName, StringComparer.OrdinalIgnoreCase)
+                    .Take(8)
+                    .ToList();
+                return ToUnitResponse(byFlat);
             }
 
-            return Task.FromResult(new MatchResponse { Status = "missing", Matches = new List<ResidentMatchDto>() });
+            return null;
+        }
+
+        private static MatchResponse? MatchByName(List<Resident> societyResidents, string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+
+            var trimmed = name.Trim();
+            var byName = ResidentMatcher.Search(societyResidents, trimmed);
+            var named = ToUnitResponse(byName);
+            if (named != null)
+                return named;
+
+            // OCR often returns a partial name ("fozia"); try each token ≥4 chars.
+            foreach (var token in trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (token.Length < 4)
+                    continue;
+                var tokenHits = ResidentMatcher.Search(societyResidents, token);
+                var tokenResponse = ToUnitResponse(tokenHits);
+                if (tokenResponse != null)
+                    return tokenResponse;
+            }
+
+            // OCR glue/mangle: FehenKh ≈ Rehan Khan (no tower/flat on this label read).
+            return ToUnitResponse(ResidentMatcher.FuzzyByName(societyResidents, trimmed));
+        }
+
+        private static MatchResponse? ToUnitResponse(List<Resident> hits)
+        {
+            if (hits.Count == 1)
+                return new MatchResponse { Status = "matched", Matches = hits.Select(ResidentMatcher.ToDto).ToList() };
+            if (hits.Count > 1)
+                return new MatchResponse { Status = "ambiguous", Matches = hits.Select(ResidentMatcher.ToDto).ToList() };
+            return null;
         }
     }
 }

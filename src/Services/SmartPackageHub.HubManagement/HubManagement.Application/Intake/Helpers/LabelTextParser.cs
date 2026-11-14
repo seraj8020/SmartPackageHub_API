@@ -123,8 +123,35 @@ namespace HubManagement.Application.Intake.Helpers
             if (string.IsNullOrWhiteSpace(value))
                 return null;
 
-            var cleaned = Regex.Replace(value.Trim(), @"^(?:tower|twr|block|blk)\s*", "", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture, RegexTimeout).Trim().ToUpperInvariant();
-            return Regex.IsMatch(cleaned, @"^[A-Z0-9]{1,4}$", RegexOptions.ExplicitCapture, RegexTimeout) ? cleaned : null;
+            var cleaned = Regex.Replace(
+                    value.Trim(),
+                    @"^(?:tower|twr|wing|block|blk)\s*",
+                    "",
+                    RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+                    RegexTimeout)
+                .Trim()
+                .ToUpperInvariant();
+
+            cleaned = cleaned switch
+            {
+                "NORTH" => "N",
+                "SOUTH" => "S",
+                "EAST" => "E",
+                "WEST" => "W",
+                "NORTHEAST" => "NE",
+                "NORTHWEST" => "NW",
+                "SOUTHEAST" => "SE",
+                "SOUTHWEST" => "SW",
+                _ => cleaned
+            };
+
+            if (Regex.IsMatch(cleaned, @"^T\d{1,2}$", RegexOptions.ExplicitCapture, RegexTimeout))
+                cleaned = cleaned[1..];
+
+            // Alphabetical / numerical / thematic names (Lotus, Ganga, …) up to 12 chars.
+            return Regex.IsMatch(cleaned, @"^[A-Z0-9]{1,12}$", RegexOptions.ExplicitCapture, RegexTimeout)
+                ? cleaned
+                : null;
         }
 
         public static string? CleanFlat(string? value)
@@ -132,10 +159,20 @@ namespace HubManagement.Application.Intake.Helpers
             if (string.IsNullOrWhiteSpace(value))
                 return null;
 
-            var trimmed = value.Trim();
-            var unit = Regex.Match(trimmed, @"^(?<tower>[A-Za-z])\s*[-/]?\s*(?<flat>\d{3,4})$", RegexOptions.ExplicitCapture, RegexTimeout);
+            var trimmed = value.Trim().ToUpperInvariant().Replace(" ", "").Replace("-", "").Replace(".", "");
+            var unit = Regex.Match(trimmed, @"^(?<tower>[A-Za-z])(?<flat>\d{3,4})$", RegexOptions.ExplicitCapture, RegexTimeout);
             if (unit.Success)
                 return unit.Groups["flat"].Value;
+
+            // Ground / penthouse / duplex: G01, PH1, D101
+            var special = Regex.Match(trimmed, @"^(?<flat>(?:PH|G|D)\d{1,3}[A-Z]?)$", RegexOptions.ExplicitCapture, RegexTimeout);
+            if (special.Success)
+                return special.Groups["flat"].Value;
+
+            // Alphanumeric society units (e.g. 3M, 12A) — keep letter suffix.
+            var alpha = Regex.Match(trimmed, @"^(?<flat>\d{1,3}[A-Z])$", RegexOptions.ExplicitCapture, RegexTimeout);
+            if (alpha.Success)
+                return alpha.Groups["flat"].Value;
 
             var digits = Regex.Match(trimmed, @"\d{2,4}", RegexOptions.ExplicitCapture, RegexTimeout);
             return digits.Success ? digits.Value : null;

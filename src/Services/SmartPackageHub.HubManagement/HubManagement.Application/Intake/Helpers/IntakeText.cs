@@ -19,8 +19,8 @@ namespace HubManagement.Application.Intake.Helpers
         private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
 
         private static readonly Regex UnitRegex = new(
-            @"^(?<tower>[A-Za-z0-9]{1,4})\s*[-/]\s*(?<flat>\d{2,4})$",
-            RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+            @"^(?<tower>[A-Za-z0-9]{1,12})\s*[-/]\s*(?<flat>(?:PH|G|D)?-?\d{1,4}[A-Za-z]?)$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
             RegexTimeout);
 
         public static void SplitUnit(ref string? tower, ref string? flat)

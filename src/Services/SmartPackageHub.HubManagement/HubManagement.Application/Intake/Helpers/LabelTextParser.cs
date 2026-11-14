@@ -159,7 +159,10 @@ namespace HubManagement.Application.Intake.Helpers
             if (string.IsNullOrWhiteSpace(value))
                 return null;
 
-            var trimmed = value.Trim().ToUpperInvariant().Replace(" ", "").Replace("-", "").Replace(".", "");
+            var trimmed = value.Trim().ToUpperInvariant()
+                .Replace(" ", "", StringComparison.Ordinal)
+                .Replace("-", "", StringComparison.Ordinal)
+                .Replace(".", "", StringComparison.Ordinal);
             var unit = Regex.Match(trimmed, @"^(?<tower>[A-Za-z])(?<flat>\d{3,4})$", RegexOptions.ExplicitCapture, RegexTimeout);
             if (unit.Success)
                 return unit.Groups["flat"].Value;

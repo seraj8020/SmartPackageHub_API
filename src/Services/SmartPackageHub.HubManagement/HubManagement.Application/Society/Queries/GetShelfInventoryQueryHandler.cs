@@ -44,6 +44,7 @@ namespace HubManagement.Application.Societies.Queries
                 {
                     Id = shelf.Id,
                     Code = shelf.Code,
+                    TowerOrWing = shelf.TowerOrWing,
                     Capacity = shelf.Capacity,
                     PackageCount = stored.Count,
                     IsFull = shelf.Capacity > 0 && stored.Count >= shelf.Capacity,

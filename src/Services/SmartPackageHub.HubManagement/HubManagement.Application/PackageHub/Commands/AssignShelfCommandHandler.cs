@@ -126,6 +126,20 @@ namespace HubManagement.Application.PackageHub.Commands
                 string.Equals(item.Code, requestedCode, StringComparison.OrdinalIgnoreCase));
             var wasSuggested = shelf == null;
 
+            // Ambient shelves must match the resident tower; cold shelves are society-shared.
+            if (shelf != null &&
+                !shelf.IsColdStorage &&
+                !string.IsNullOrWhiteSpace(package.TowerWing) &&
+                !ResidentMatcher.TowerEquals(shelf.TowerOrWing, package.TowerWing))
+            {
+                return new AssignShelfResult
+                {
+                    Found = true,
+                    Succeeded = false,
+                    Message = $"Shelf {shelf.Code} belongs to tower {shelf.TowerOrWing}, not resident tower {package.TowerWing}.",
+                };
+            }
+
             if (shelf == null)
             {
                 var societyPackages = _packages.FetchMulti(item => item.SocietyId == package.SocietyId).ToList();
@@ -133,7 +147,8 @@ namespace HubManagement.Application.PackageHub.Commands
                     societyShelves,
                     societyPackages,
                     package.SocietyId,
-                    request.IsColdStorage || package.IsColdStorage);
+                    request.IsColdStorage || package.IsColdStorage,
+                    package.TowerWing);
             }
 
             if (shelf != null)
@@ -226,7 +241,7 @@ namespace HubManagement.Application.PackageHub.Commands
         private static string BuildAssignShelfMessage(Shelf? shelf, bool wasSuggested)
         {
             if (shelf == null)
-                return "No shelf is configured for this society. Package remains received and shelf is unassigned.";
+                return "No shelf is configured for this resident's tower. Package remains received and shelf is unassigned.";
             if (wasSuggested)
                 return $"Requested shelf was unavailable. Package shelved at {shelf.Code}.";
             return "Package shelved. Pickup OTP queued for the resident.";

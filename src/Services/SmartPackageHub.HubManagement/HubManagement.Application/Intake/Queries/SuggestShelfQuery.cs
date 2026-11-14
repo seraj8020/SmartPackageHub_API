@@ -3,5 +3,8 @@ using SmartPackageHub.Applications.Abstractions.Queries;
 
 namespace HubManagement.Application.Intake.Queries
 {
-    public sealed record SuggestShelfQuery(Guid? SocietyId) : Query<ShelfResponse?>;
+    public sealed record SuggestShelfQuery(
+        Guid? SocietyId,
+        string? TowerOrWing = null,
+        bool? RequiresColdStorage = null) : Query<ShelfResponse?>;
 }

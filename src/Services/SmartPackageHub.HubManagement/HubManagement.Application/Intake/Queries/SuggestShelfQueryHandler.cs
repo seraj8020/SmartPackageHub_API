@@ -1,10 +1,11 @@
 using System.Globalization;
 using AutoMapper;
+using HubManagement.Application.Intake.Converters;
 using HubManagement.Application.Intake.DTOs;
+using HubManagement.Application.Intake.Helpers;
 using HubManagement.Core.Hubs.Entities;
 using SmartPackageHub.Applications.Abstractions.Queries;
 using SmartPackageHub.Applications.Abstractions.Repositories;
-using HubManagement.Application.Intake.Helpers;
 
 namespace HubManagement.Application.Intake.Queries
 {
@@ -23,19 +24,34 @@ namespace HubManagement.Application.Intake.Queries
         {
             ArgumentNullException.ThrowIfNull(request);
             var societyId = request.SocietyId;
-            // Prefer hub UI-style codes (A-1) over legacy codes (PFP-A-01) when both exist.
             var societyShelves = (societyId == null
                 ? _shelves.GetAll(noTracking: true)
                 : _shelves.FetchMulti(shelf => shelf.SocietyId == societyId, noTracking: true)).ToList();
-            var preferred = societyShelves
-                .Where(shelf => !shelf.IsColdStorage && IsHubUiShelfCode(shelf.Code))
+
+            var wantsCold = request.RequiresColdStorage == true;
+            // Ambient: scope to resident tower. Cold: society-shared (not tower-filtered).
+            var scoped = wantsCold || string.IsNullOrWhiteSpace(request.TowerOrWing)
+                ? societyShelves
+                : societyShelves
+                    .Where(shelf =>
+                        !shelf.IsColdStorage &&
+                        ResidentMatcher.TowerEquals(shelf.TowerOrWing, request.TowerOrWing))
+                    .ToList();
+
+            var preferred = scoped
+                .Where(shelf => shelf.IsColdStorage == wantsCold && IsHubUiShelfCode(shelf.Code))
                 .ToList();
-            var candidates = preferred.Count > 0 ? preferred : societyShelves;
+            var candidates = preferred.Count > 0 ? preferred : scoped;
             var packages = (societyId == null
                 ? _packages.GetAll(noTracking: true)
                 : _packages.FetchMulti(package => package.SocietyId == societyId, noTracking: true)).ToList();
 
-            var shelf = ShelfSuggester.Suggest(candidates, packages, societyId);
+            var shelf = ShelfSuggester.Suggest(
+                candidates,
+                packages,
+                societyId,
+                wantsCold,
+                request.TowerOrWing);
             if (shelf == null)
                 return Task.FromResult<ShelfResponse?>(null);
 

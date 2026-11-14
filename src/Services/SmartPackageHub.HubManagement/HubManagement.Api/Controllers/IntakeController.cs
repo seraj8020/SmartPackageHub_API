@@ -54,9 +54,14 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(ShelfResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> Shelf([FromQuery] Guid? societyId)
+        public async Task<ActionResult> Shelf(
+            [FromQuery] Guid? societyId,
+            [FromQuery] string? towerOrWing = null,
+            [FromQuery] bool? isColdStorage = null)
         {
-            var shelf = await _mediator.Send(new SuggestShelfQuery(societyId)).ConfigureAwait(false);
+            var shelf = await _mediator
+                .Send(new SuggestShelfQuery(societyId, towerOrWing, isColdStorage))
+                .ConfigureAwait(false);
             if (shelf == null)
                 return NotFound(new { Message = "No shelf is available" });
 

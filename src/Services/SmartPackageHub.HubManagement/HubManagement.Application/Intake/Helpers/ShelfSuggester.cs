@@ -1,3 +1,4 @@
+using HubManagement.Application.Intake.Converters;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 
@@ -9,9 +10,11 @@ namespace HubManagement.Application.Intake.Helpers
             IEnumerable<Shelf> shelves,
             IEnumerable<Package> openPackages,
             Guid? societyId,
-            bool requiresColdStorage = false)
+            bool requiresColdStorage = false,
+            string? towerOrWing = null)
         {
             var candidates = shelves.Where(shelf => societyId == null || shelf.SocietyId == societyId).ToList();
+
             var suitable = requiresColdStorage
                 ? candidates.Where(shelf => shelf.IsColdStorage).ToList()
                 : candidates.Where(shelf => !shelf.IsColdStorage).ToList();
@@ -19,6 +22,16 @@ namespace HubManagement.Application.Intake.Helpers
             // when only the other type of shelf exists.
             if (suitable.Count > 0)
                 candidates = suitable;
+
+            // Ambient shelves are tower-scoped; cold shelves are shared society-wide.
+            if (!requiresColdStorage &&
+                candidates.TrueForAll(shelf => !shelf.IsColdStorage) &&
+                !string.IsNullOrWhiteSpace(towerOrWing))
+            {
+                candidates = candidates
+                    .Where(shelf => ResidentMatcher.TowerEquals(shelf.TowerOrWing, towerOrWing))
+                    .ToList();
+            }
 
             if (candidates.Count == 0)
                 return null;

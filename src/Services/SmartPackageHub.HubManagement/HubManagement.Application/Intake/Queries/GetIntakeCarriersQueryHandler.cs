@@ -26,13 +26,13 @@ namespace HubManagement.Application.Intake.Queries
             var carriers = agents
                 .Select(agent => agent.CarrierName)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Where(name => !string.Equals(name, "Other", StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            // Keep a single free-text option so staff can still intake unknown carriers.
-            if (!carriers.Exists(name => string.Equals(name, "Other", StringComparison.OrdinalIgnoreCase)))
-                carriers.Add("Other");
+            // Always last — not alphabetical — so the dropdown opens A–Z then Other.
+            carriers.Add("Other");
 
             return Task.FromResult(carriers);
         }

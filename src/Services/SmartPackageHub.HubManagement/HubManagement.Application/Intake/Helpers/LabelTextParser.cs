@@ -145,10 +145,11 @@ namespace HubManagement.Application.Intake.Helpers
                 _ => cleaned
             };
 
+            // Compact T3 / Twr-3 → numeric. Keep AWHO "3T" as-is (DB often stores 3T).
             if (Regex.IsMatch(cleaned, @"^T\d{1,2}$", RegexOptions.ExplicitCapture, RegexTimeout))
                 cleaned = cleaned[1..];
 
-            // Alphabetical / numerical / thematic names (Lotus, Ganga, …) up to 12 chars.
+            // Alphabetical / numerical / AWHO "3T" / thematic names up to 12 chars.
             return Regex.IsMatch(cleaned, @"^[A-Z0-9]{1,12}$", RegexOptions.ExplicitCapture, RegexTimeout)
                 ? cleaned
                 : null;

@@ -42,8 +42,33 @@ namespace HubManagement.Application.Intake.Converters
             if (cleanedResident != null && comparer.Equals(cleanedResident, cleanedWanted))
                 return true;
 
+            // AWHO: DB "3T" vs OCR/wanted "3" (or the reverse).
+            if (AwhoTowerEquals(cleanedResident ?? residentTower, cleanedWanted))
+                return true;
+
             var last = residentTower.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
             return last != null && comparer.Equals(last, cleanedWanted);
+        }
+
+        private static bool AwhoTowerEquals(string? left, string? right)
+        {
+            if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+                return false;
+
+            static string Core(string value)
+            {
+                var v = value.Trim().ToUpperInvariant();
+                if (v.Length is >= 2 and <= 3 &&
+                    v[^1] == 'T' &&
+                    v[..^1].All(char.IsDigit))
+                {
+                    return v[..^1];
+                }
+
+                return v;
+            }
+
+            return string.Equals(Core(left), Core(right), StringComparison.OrdinalIgnoreCase);
         }
 
         public static bool FlatEquals(string? residentFlat, string? wanted)

@@ -59,6 +59,13 @@ namespace HubManagement.Application.Intake.Queries
                     if (tokenHits.Count > 1)
                         return Task.FromResult(new MatchResponse { Status = "ambiguous", Matches = tokenHits.Select(ResidentMatcher.ToDto).ToList() });
                 }
+
+                // OCR glue/mangle: FehenKh ≈ Rehan Khan (no tower/flat on this label read).
+                var fuzzy = ResidentMatcher.FuzzyByName(societyResidents, request.Name.Trim());
+                if (fuzzy.Count == 1)
+                    return Task.FromResult(new MatchResponse { Status = "matched", Matches = fuzzy.Select(ResidentMatcher.ToDto).ToList() });
+                if (fuzzy.Count > 1)
+                    return Task.FromResult(new MatchResponse { Status = "ambiguous", Matches = fuzzy.Select(ResidentMatcher.ToDto).ToList() });
             }
 
             return Task.FromResult(new MatchResponse { Status = "missing", Matches = new List<ResidentMatchDto>() });

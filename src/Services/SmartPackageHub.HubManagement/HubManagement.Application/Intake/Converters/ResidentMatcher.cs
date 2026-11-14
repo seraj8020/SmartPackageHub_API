@@ -90,5 +90,76 @@ namespace HubManagement.Application.Intake.Converters
                 .Take(8)
                 .ToList();
         }
+
+        /// <summary>
+        /// OCR often glues/mangles names (FehenKh ≈ Rehan Khan). Match on compacted letters
+        /// with a small edit distance so tower/flat can still hydrate from the resident.
+        /// </summary>
+        public static List<Resident> FuzzyByName(IEnumerable<Resident> residents, string? query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return new List<Resident>();
+
+            var needle = CompactLetters(query);
+            if (needle.Length < 5)
+                return new List<Resident>();
+
+            // Flipkart OCR glue (FehenKh ↔ RehanKhan) often needs distance 3.
+            var maxDistance = needle.Length >= 7 ? 3 : 2;
+
+            return residents
+                .Select(resident =>
+                {
+                    var hay = CompactLetters(resident.FullName);
+                    var distance = hay.Length == 0 ? int.MaxValue : LetterEditDistance(needle, hay);
+                    return (resident, distance, hay);
+                })
+                .Where(row =>
+                    row.hay.Length >= 5 &&
+                    (row.hay.Contains(needle, StringComparison.Ordinal) ||
+                     needle.Contains(row.hay, StringComparison.Ordinal) ||
+                     row.distance <= maxDistance))
+                .OrderBy(row => row.distance)
+                .ThenByDescending(row => row.resident.IsActive)
+                .ThenBy(row => row.resident.FullName, StringComparer.OrdinalIgnoreCase)
+                .Select(row => row.resident)
+                .Take(8)
+                .ToList();
+        }
+
+        private static string CompactLetters(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            return string.Concat(value.Where(char.IsLetter).Select(char.ToLowerInvariant));
+        }
+
+        private static int LetterEditDistance(string a, string b)
+        {
+            if (a.Length == 0) return b.Length;
+            if (b.Length == 0) return a.Length;
+
+            var prev = new int[b.Length + 1];
+            var curr = new int[b.Length + 1];
+            for (var j = 0; j <= b.Length; j++)
+                prev[j] = j;
+
+            for (var i = 1; i <= a.Length; i++)
+            {
+                curr[0] = i;
+                for (var j = 1; j <= b.Length; j++)
+                {
+                    var cost = a[i - 1] == b[j - 1] ? 0 : 1;
+                    curr[j] = Math.Min(
+                        Math.Min(curr[j - 1] + 1, prev[j] + 1),
+                        prev[j - 1] + cost);
+                }
+
+                (prev, curr) = (curr, prev);
+            }
+
+            return prev[b.Length];
+        }
     }
 }

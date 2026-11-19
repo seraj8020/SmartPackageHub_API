@@ -155,23 +155,10 @@ if (!Directory.Exists(seedDataDirectory))
     seedDataDirectory = Path.Combine(Directory.GetCurrentDirectory(), "SeedData");
 }
 
-var  seedFileTypes = new Dictionary<string, Type>(StringComparer.Ordinal)
+// Only platform.admin is seeded; societies and other entities are created via admin portal.
+var seedFileTypes = new Dictionary<string, Type>(StringComparer.Ordinal)
 {
-    ["Societies.json"] = typeof(SocietySeed),
-    ["Users.json"] = typeof(UserSeed),
-    ["UserSocieties.json"] = typeof(UserSocietySeed),
-    ["Residents.json"] = typeof(ResidentSeed),
-    ["Memberships.json"] = typeof(MembershipSeed),
-    ["Shelves.json"] = typeof(ShelfSeed),
-    ["CourierAgents.json"] = typeof(CourierAgentSeed),
-    ["SecureBags.json"] = typeof(SecureBagSeed),
-    ["DigitalSignOffReceipts.json"] = typeof(DigitalSignOffReceiptSeed),
-    ["Packages.json"] = typeof(PackageSeed),
-    ["PackageIntakes.json"] = typeof(PackageIntakeSeed),
-    ["PackageImages.json"] = typeof(PackageImageSeed),
-    ["AnalyticsDailies.json"] = typeof(AnalyticsDailySeed),
-    ["Deliveries.json"] = typeof(DeliverySeed),
-    ["DeliverySlots.json"] = typeof(DeliverySlotSeed)
+    ["Users.json"] = typeof(UserSeed)
 };
 
 

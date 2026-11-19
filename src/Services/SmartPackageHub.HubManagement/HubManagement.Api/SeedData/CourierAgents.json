@@ -1,5 +1,0 @@
-[
-  { "id": "c1000000-0000-4000-8000-000000000001", "societyId": "0ec36849-05c7-4ded-9614-8343891542af", "carrierName": "Amazon", "agentName": "Ravi Kumar", "phone": "9000000001", "vehicleNumber": "KA01AB1234", "employeeOrBadgeNumber": "AMZ-441" },
-  { "id": "c1000000-0000-4000-8000-000000000002", "societyId": "7199e325-70fd-4763-98b5-8db65cbdaf2a", "carrierName": "Flipkart", "agentName": "Sneha Rao", "phone": "9000000002", "vehicleNumber": "KA02CD5678", "employeeOrBadgeNumber": "FK-228" },
-  { "id": "c1000000-0000-4000-8000-000000000003", "societyId": "937df1d5-5b9c-4fea-8e16-34d5d86cff15", "carrierName": "DTDC", "agentName": "Imran Shaikh", "phone": "9000000003", "vehicleNumber": "KA03EF9012", "employeeOrBadgeNumber": "DTDC-119" }
-]

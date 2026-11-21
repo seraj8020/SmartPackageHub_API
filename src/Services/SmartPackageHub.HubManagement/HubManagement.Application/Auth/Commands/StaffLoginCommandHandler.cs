@@ -12,14 +12,17 @@ namespace HubManagement.Application.Auth.Commands
     {
         private readonly IRepository<User> _users;
         private readonly IRepository<UserSociety> _userSocieties;
+        private readonly StaffSessionStore _sessions;
 
         public StaffLoginCommandHandler(
             IRepository<User> users,
             IRepository<UserSociety> userSocieties,
+            StaffSessionStore sessions,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
             _users = users;
             _userSocieties = userSocieties;
+            _sessions = sessions;
         }
 
         public override Task<StaffLoginResult> Handle(
@@ -68,15 +71,29 @@ namespace HubManagement.Application.Auth.Commands
                 .Distinct()
                 .ToList();
 
-            return Task.FromResult(new StaffLoginResult(
+            var token = AuthTokenFactory.CreateOpaqueToken();
+            return CreateSessionResultAsync(token, user.Id, user.Username, role.ToString(), societyIds, cancellationToken);
+        }        private async Task<StaffLoginResult> CreateSessionResultAsync(
+            string token,
+            Guid userId,
+            string username,
+            string role,
+            List<Guid> societyIds,
+            CancellationToken cancellationToken)
+        {
+            await _sessions.SetSessionAsync(
+                token,
+                new StaffSession(userId, role, societyIds),
+                cancellationToken).ConfigureAwait(false);
+            return new StaffLoginResult(
                 true,
-                AuthTokenFactory.CreateOpaqueToken(),
-                user.Id,
-                user.Username,
-                role.ToString(),
+                token,
+                userId,
+                username,
+                role,
                 societyIds,
-                societyIds.FirstOrDefault(),
-                "Signed in."));
+                societyIds.Count > 0 ? societyIds[0] : null,
+                "Signed in.");
         }
     }
 }

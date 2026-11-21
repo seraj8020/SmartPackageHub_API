@@ -1,13 +1,14 @@
-# QA CI for SmartPackageHub API — runs on Development.
-# Build always runs. GCP deploy is opt-in via repo Variable ENABLE_GCP_DEPLOY=true
+# QA CI for SmartPackageHub API — runs on QA only (not Development).
+# Feature work merges into Development; promote to QA to build/deploy.
+# Build always runs on QA. GCP deploy is opt-in via repo Variable ENABLE_GCP_DEPLOY=true
 # (plus GCP_* secrets). See docs/deploy-gcp.md.
 name: QA API
 
 on:
   push:
-    branches: [Development]
+    branches: [QA]
   pull_request:
-    branches: [Development]
+    branches: [QA]
   workflow_dispatch:
 
 concurrency:
@@ -19,6 +20,10 @@ env:
 
 jobs:
   build:
+    # Safety: never build/deploy from Development even if workflow_dispatch selects it.
+    if: >
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/QA'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +61,7 @@ jobs:
     needs: build
     if: >
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == 'refs/heads/Development' &&
+      github.ref == 'refs/heads/QA' &&
       vars.ENABLE_GCP_DEPLOY == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -135,8 +140,8 @@ jobs:
           fi
           cd "$DIR"
           git fetch origin
-          git checkout Development
-          git pull --ff-only origin Development
+          git checkout QA
+          git pull --ff-only origin QA
           docker compose --env-file .env.qa up -d --build
           docker compose --env-file .env.qa ps
           set -a

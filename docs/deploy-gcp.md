@@ -84,7 +84,7 @@ Optional Variables:
 | `SPH_UI_DIR` | `/opt/sph/SmartPackageHub_UI` |
 | `QA_API_BASE_URL` | Overrides UI build-time API URL in CI |
 
-CI **build** always runs. Deploy stays skipped until you set Variable `ENABLE_GCP_DEPLOY=true` (Settings → Secrets and variables → Actions → Variables) **and** the `GCP_*` secrets are correct.
+CI **build** runs only on the **`QA`** branch (push, PR into `QA`, or `workflow_dispatch` on `QA`). Pushes to **`Development` do not trigger** GitHub Actions. Deploy stays skipped until you set Variable `ENABLE_GCP_DEPLOY=true` (Settings → Secrets and variables → Actions → Variables) **and** the `GCP_*` secrets are correct. On the VM, deploy checks out **`QA`**.
 
 ### Deploy job fails in a few seconds (SSH)
 

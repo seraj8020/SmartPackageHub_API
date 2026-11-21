@@ -21,6 +21,8 @@ cd SmartPackageHub_API
 git checkout Development
 ```
 
+Branch flow: merge feature branches into **`Development`**. Promote to **`QA`** to trigger GitHub Actions build/deploy to GCP. Pushes to `Development` do **not** run CI.
+
 All paths below assume your current directory is the repository root (`SmartPackageHub_API`), unless a step says otherwise.
 
 ## 2. Install and start Docker Desktop

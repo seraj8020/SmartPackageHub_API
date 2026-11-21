@@ -118,6 +118,7 @@ services.Configure<AnalyticsRollupOptions>(
     builder.Configuration.GetSection(AnalyticsRollupOptions.SectionName));
 services.AddSingleton<IFeatureFlags, FeatureFlagsService>();
 services.AddSingleton<HubManagement.Application.Auth.Services.PlatformAdminSessionStore>();
+services.AddSingleton<HubManagement.Application.Auth.Services.StaffSessionStore>();
 
 services.AddSwaggerDocs();
 builder.Services.AddHealthChecks()

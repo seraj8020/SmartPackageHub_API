@@ -1,5 +1,6 @@
 using HubManagement.Application.Auth.Commands;
 using HubManagement.Application.Auth.DTOs;
+using HubManagement.Application.Auth.Services;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -12,10 +13,12 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
     public sealed class AuthController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly StaffSessionStore _staffSessions;
 
-        public AuthController(IMediator mediator)
+        public AuthController(IMediator mediator, StaffSessionStore staffSessions)
         {
             _mediator = mediator;
+            _staffSessions = staffSessions;
         }
 
         /// <summary>
@@ -116,6 +119,36 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 SocietyIds = result.SocietyIds,
                 result.PrimarySocietyId,
                 Message = result.Message
+            });
+        }
+
+        /// <summary>
+        /// Lightweight staff session probe for mobile cold-start. Returns 401 when Redis session is gone.
+        /// </summary>
+        [HttpGet("staff/session")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult> GetStaffSession(CancellationToken cancellationToken)
+        {
+            var authorization = Request.Headers.Authorization.ToString();
+            var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                ? authorization["Bearer ".Length..].Trim()
+                : null;
+            if (string.IsNullOrWhiteSpace(token))
+                return Unauthorized(new { Message = "Staff sign-in required." });
+
+            var session = await _staffSessions
+                .GetSessionAsync(token, cancellationToken)
+                .ConfigureAwait(false);
+            if (session is null)
+                return Unauthorized(new { Message = "Staff sign-in required." });
+
+            return Ok(new
+            {
+                userId = session.UserId,
+                role = session.Role,
+                societyIds = session.SocietyIds,
             });
         }
 

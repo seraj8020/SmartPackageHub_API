@@ -1,7 +1,12 @@
 using HubManagement.Application.Intake.DTOs;
+using HubManagement.Core.Hubs.Entities;
+using SmartPackageHub.Applications.Abstractions.Repositories;
+using HubManagement.Application.Auth.Services;
 using HubManagement.Application.PackageHub.Commands;
 using HubManagement.Application.PackageHub.DTOs;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using SmartPackageHub.Common.ConfigOptions;
 
@@ -12,15 +17,21 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
     public class PackagesController : ControllerBase
     {
         readonly IMediator _mediator;
-        public PackagesController(IMediator mediator)
+        readonly StaffSessionStore _staffSessions;
+        readonly IRepository<Package> _packages;
+        public PackagesController(IMediator mediator, StaffSessionStore staffSessions, IRepository<Package> packages)
         {
             _mediator = mediator;
+            _staffSessions = staffSessions;
+            _packages = packages;
         }
 
         [HttpPost]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(PackageDetailsDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> Create([FromBody] CreatePackageRequest request)
@@ -39,6 +50,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [HttpPut("{packageId:guid}/dispatch")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> DispatchPackages(Guid packageId)
@@ -47,13 +60,54 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(result);
         }
 
+        [HttpPost("{packageId:guid}/pickup-otp")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [EnableRateLimiting("otp-sms")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+        public async Task<ActionResult> GeneratePickupOtp(Guid packageId, CancellationToken cancellationToken)
+        {
+            var authorizationError = await AuthorizeStaffPackageAsync(packageId, cancellationToken).ConfigureAwait(false);
+            if (authorizationError is not null)
+                return authorizationError;
+
+            var result = await _mediator.Send(
+                new GeneratePackagePickupOtpCommand(packageId), cancellationToken).ConfigureAwait(false);
+            if (!result.Found)
+                return NotFound(new { Message = result.Message });
+            if (result.Conflict)
+                return Conflict(new { succeeded = false, message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { succeeded = false, message = result.Message });
+
+            return Ok(new
+            {
+                succeeded = true,
+                pickupOtp = result.PickupOtp,
+                smsQueued = result.SmsQueued,
+                message = result.Message,
+            });
+        }
+
         [HttpPost("{packageId:guid}/deliver")]
         [MapToApiVersion(ApiVersions.V2)]
+        [EnableRateLimiting("otp-sms")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> DeliverPackages([FromRoute] Guid packageId, [FromBody] DeliverPackageRequest request)
         {
+            var authorizationError = await AuthorizeStaffPackageAsync(packageId, HttpContext.RequestAborted).ConfigureAwait(false);
+            if (authorizationError is not null)
+                return authorizationError;
             var result = await _mediator.Send(new DeliverPackageCommand(packageId, request)).ConfigureAwait(false);
             if (!result.Found)
                 return NotFound(new { Message = result.Message });
@@ -70,6 +124,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> ApproveCod(Guid packageId)
@@ -82,6 +138,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> RejectCod(Guid packageId)
@@ -94,6 +152,8 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(ConfirmIntakeResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> AssignShelf(Guid packageId, [FromBody] AssignShelfRequest? request)
@@ -113,6 +173,29 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(result.Receipt);
         }
 
+        private async Task<ActionResult?> AuthorizeStaffPackageAsync(Guid packageId, CancellationToken cancellationToken)
+        {
+            var authorization = Request.Headers.Authorization.ToString();
+            var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                ? authorization["Bearer ".Length..].Trim()
+                : null;
+            if (string.IsNullOrWhiteSpace(token))
+                return Unauthorized(new { succeeded = false, message = "Staff sign-in required." });
+
+            var staffSession = await _staffSessions.GetSessionAsync(token, cancellationToken).ConfigureAwait(false);
+            if (staffSession is null)
+                return Unauthorized(new { succeeded = false, message = "Staff sign-in required." });
+            if (!string.Equals(staffSession.Role, "Staff", StringComparison.OrdinalIgnoreCase))
+                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff access required." });
+
+            var package = await _packages.GetByIdAsync(packageId).ConfigureAwait(false);
+            if (package is null)
+                return NotFound(new { succeeded = false, message = "Package was not found." });
+            if (!staffSession.SocietyIds.Contains(package.SocietyId))
+                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff is not assigned to this package's society." });
+
+            return null;
+        }
         private ActionResult MapCodResult(CodResponseResult result)
         {
             if (!result.Found)

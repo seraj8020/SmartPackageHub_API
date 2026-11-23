@@ -6,6 +6,8 @@ namespace HubManagement.Application.Societies.DTOs
         public Guid Id { get; set; }
         public string Code { get; set; } = string.Empty;
         public string TowerOrWing { get; set; } = string.Empty;
+        /// <summary>Shelf location zone (may differ from tower/wing label).</summary>
+        public string Zone { get; set; } = string.Empty;
         public int Capacity { get; set; }
         public int PackageCount { get; set; }
         public bool IsFull { get; set; }

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -176,6 +177,54 @@ namespace SmartPackageHub.Common.Services.Storage.Services
                 .ConfigureAwait(false);
             LogUploaded(_logger, objectName, _bucket, null);
             return key;
+        }
+
+        public async Task<ParcelPhotoReadUrl?> CreateReadUrlAsync(
+            string storageKey,
+            TimeSpan lifetime,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(storageKey))
+                return null;
+            if (lifetime <= TimeSpan.Zero)
+                lifetime = TimeSpan.FromMinutes(15);
+
+            var objectName = ObjectName(storageKey.Trim());
+            var credential = await Google.Apis.Auth.OAuth2.GoogleCredential
+                .GetApplicationDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var signer = UrlSigner.FromCredential(credential);
+            var expiresAt = DateTime.UtcNow.Add(lifetime);
+            var url = await signer.SignAsync(
+                    _bucket,
+                    objectName,
+                    lifetime,
+                    HttpMethod.Get,
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            return new ParcelPhotoReadUrl(new Uri(url), expiresAt);
+        }
+
+        public async Task<byte[]?> ReadBytesAsync(string storageKey, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(storageKey))
+                return null;
+
+            var objectName = ObjectName(storageKey.Trim());
+            try
+            {
+                var stream = new MemoryStream();
+                await using (stream.ConfigureAwait(false))
+                {
+                    await _storage.DownloadObjectAsync(_bucket, objectName, stream, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    return stream.ToArray();
+                }
+            }
+            catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return null;
+            }
         }
 
         private async Task UploadBytesAsync(

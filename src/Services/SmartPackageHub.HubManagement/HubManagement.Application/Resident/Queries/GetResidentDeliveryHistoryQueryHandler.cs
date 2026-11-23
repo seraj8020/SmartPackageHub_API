@@ -11,16 +11,19 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<Delivery> _deliveries;
         private readonly IRepository<Package> _packages;
+        private readonly IRepository<PackageIntake> _intakes;
 
         public GetResidentDeliveryHistoryQueryHandler(
             IMapper mapper,
             IRepository<Resident> residents,
             IRepository<Delivery> deliveries,
-            IRepository<Package> packages) : base(mapper)
+            IRepository<Package> packages,
+            IRepository<PackageIntake> intakes) : base(mapper)
         {
             _residents = residents;
             _deliveries = deliveries;
             _packages = packages;
+            _intakes = intakes;
         }
 
         protected override async Task<List<DeliveryHistoryDto>?> HandleAsync(GetResidentDeliveryHistoryQuery request)
@@ -53,6 +56,16 @@ namespace HubManagement.Application.HubResidents.Queries
                     .AsEnumerable()
                     .ToDictionary(p => p.Id);
 
+            // Bool-only — note/photo stay on package detail to keep history cheap.
+            var damagedByPackage = packageIds.Count == 0
+                ? new HashSet<Guid>()
+                : (await _intakes.ListAsync(
+                        intake => packageIds.Contains(intake.PackageId) && intake.IsDamaged,
+                        cancellationToken: default,
+                        noTracking: true).ConfigureAwait(false))
+                    .Select(intake => intake.PackageId)
+                    .ToHashSet();
+
             return deliveries
                 .Select(d =>
                 {
@@ -67,7 +80,8 @@ namespace HubManagement.Application.HubResidents.Queries
                         Status = d.Status.Value,
                         PkgNumber = package?.PkgNumber ?? string.Empty,
                         Courier = package?.CourierPartner,
-                        Category = package?.Category
+                        Category = package?.Category,
+                        IsDamaged = damagedByPackage.Contains(d.PackageId),
                     };
                 })
                 .ToList();

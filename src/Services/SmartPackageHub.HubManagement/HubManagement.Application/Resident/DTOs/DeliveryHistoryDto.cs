@@ -11,5 +11,8 @@ namespace HubManagement.Application.HubResidents.DTOs
         public string PkgNumber { get; set; } = string.Empty;
         public string? Courier { get; set; }
         public string? Category { get; set; }
+
+        /// <summary>True when hub intake recorded damage. Note/photo load via package detail only.</summary>
+        public bool IsDamaged { get; set; }
     }
 }

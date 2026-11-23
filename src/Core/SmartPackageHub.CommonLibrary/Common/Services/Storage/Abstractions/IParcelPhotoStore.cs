@@ -16,5 +16,17 @@ namespace SmartPackageHub.Common.Services.Storage.Abstractions
             int sortOrder,
             ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Time-limited read URL for a stored object key (e.g. damage/{intakeId}.jpg).
+        /// Returns null when the provider cannot mint a public URL (local disk) — callers should use an authenticated proxy.
+        /// </summary>
+        Task<ParcelPhotoReadUrl?> CreateReadUrlAsync(
+            string storageKey,
+            TimeSpan lifetime,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Reads raw bytes for a stored object key when a signed URL is unavailable (local/dev).</summary>
+        Task<byte[]?> ReadBytesAsync(string storageKey, CancellationToken cancellationToken = default);
     }
 }

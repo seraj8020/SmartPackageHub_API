@@ -14,16 +14,19 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<Package> _packages;
         private readonly IRepository<DeliverySlot> _slots;
+        private readonly IRepository<PackageIntake> _intakes;
 
         public GetResidentPackagesQueryHandler(
             IMapper mapper,
             IRepository<Resident> residents,
             IRepository<Package> packages,
-            IRepository<DeliverySlot> slots) : base(mapper)
+            IRepository<DeliverySlot> slots,
+            IRepository<PackageIntake> intakes) : base(mapper)
         {
             _residents = residents;
             _packages = packages;
             _slots = slots;
+            _intakes = intakes;
         }
 
         protected override async Task<List<ResidentPackageDto>?> HandleAsync(GetResidentPackagesQuery request)
@@ -63,6 +66,14 @@ namespace HubManagement.Application.HubResidents.Queries
                 .GroupBy(slot => slot.PackageId)
                 .ToDictionary(group => group.Key, group => group.OrderByDescending(slot => slot.WindowStart).First());
 
+            // Bool-only damage flag — never load note/photo bytes on the inbox list.
+            var damagedByPackage = (await _intakes.ListAsync(
+                    intake => packageIds.Contains(intake.PackageId) && intake.IsDamaged,
+                    cancellationToken: default,
+                    noTracking: true).ConfigureAwait(false))
+                .Select(intake => intake.PackageId)
+                .ToHashSet();
+
             return waiting
                 .OrderByDescending(p => p.RecievedAt)
                 .Select(p =>
@@ -89,6 +100,7 @@ namespace HubManagement.Application.HubResidents.Queries
                             ? null
                             : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
                         PreferredDeliveryMethod = p.PreferredDeliveryMethod,
+                        IsDamaged = damagedByPackage.Contains(p.Id),
                     };
                 }).ToList();
         }

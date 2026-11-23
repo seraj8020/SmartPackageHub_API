@@ -115,6 +115,30 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             return key;
         }
 
+        public Task<ParcelPhotoReadUrl?> CreateReadUrlAsync(
+            string storageKey,
+            TimeSpan lifetime,
+            CancellationToken cancellationToken = default)
+        {
+            // Local disk has no public signed URL — callers use the authenticated damage-photo proxy.
+            _ = storageKey;
+            _ = lifetime;
+            _ = cancellationToken;
+            return Task.FromResult<ParcelPhotoReadUrl?>(null);
+        }
+
+        public async Task<byte[]?> ReadBytesAsync(string storageKey, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(storageKey))
+                return null;
+
+            var path = PhysicalPath(storageKey.Trim());
+            if (!File.Exists(path))
+                return null;
+
+            return await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+        }
+
         private string PhysicalPath(string key) =>
             Path.Combine(_root, key.Replace('/', Path.DirectorySeparatorChar));
 

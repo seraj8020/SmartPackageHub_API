@@ -77,6 +77,55 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(packages);
         }
 
+        /// <summary>
+        /// Package detail for the owning resident — includes hub intake damage note + signed/proxy photo URL when damaged.
+        /// Call only when opening a damaged package (list/history carry <c>isDamaged</c> only).
+        /// </summary>
+        [HttpGet("{id:guid}/packages/{packageId:guid}")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(ResidentPackageDetailDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetPackageDetail(Guid id, Guid packageId)
+        {
+            var detail = await _mediator.Send(new GetResidentPackageDetailQuery(id, packageId)).ConfigureAwait(false);
+            if (detail is null)
+                return NotFound();
+
+            return Ok(detail);
+        }
+
+        /// <summary>
+        /// Lightweight refresh of the damage photo URL after a signed URL expires — avoids reloading full package detail.
+        /// </summary>
+        [HttpGet("{id:guid}/packages/{packageId:guid}/damage-photo-url")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(DamagePhotoUrlDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetDamagePhotoUrl(Guid id, Guid packageId)
+        {
+            var result = await _mediator.Send(new GetResidentDamagePhotoUrlQuery(id, packageId)).ConfigureAwait(false);
+            if (result is null)
+                return NotFound();
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Authenticated stream of the damage photo (local/dev, or when signed URLs are unavailable).
+        /// </summary>
+        [HttpGet("{id:guid}/packages/{packageId:guid}/damage-photo")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetDamagePhoto(Guid id, Guid packageId)
+        {
+            var result = await _mediator.Send(new GetResidentDamagePhotoBytesQuery(id, packageId)).ConfigureAwait(false);
+            if (result is null)
+                return NotFound();
+
+            return File(result.Content.ToArray(), result.ContentType);
+        }
+
         [HttpPost("{id:guid}/otp")]
         [MapToApiVersion(ApiVersions.V2)]
         [EnableRateLimiting("otp-sms")]

@@ -17,6 +17,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(p => p.EntityId).IsRequired();
             builder.Property(p => p.Action).IsRequired().HasMaxLength(100);
             builder.Property(p => p.ExecutedAt).IsRequired();
+            builder.Property(p => p.Details).HasColumnType("text");
 
             builder.HasOne<Society>()
                 .WithMany()

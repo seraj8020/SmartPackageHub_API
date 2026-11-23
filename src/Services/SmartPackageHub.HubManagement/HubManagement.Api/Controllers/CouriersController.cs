@@ -1,13 +1,11 @@
 using HubManagement.Application.Auth.Services;
+using HubManagement.Application.Courier.Commands;
+using HubManagement.Application.Courier.Queries;
 using HubManagement.Application.Couriers.DTOs;
 using HubManagement.Application.Intake.Queries;
-using HubManagement.Core.Hubs.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using SmartPackageHub.Common.ConfigOptions;
-using SmartPackageHub.Common.Services.Messaging.Guards;
-using SmartPackageHub.HubManagement.Infrastructure;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {
@@ -15,13 +13,11 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
     [Route("api/v{version:apiVersion}/couriers")]
     public sealed class CouriersController : ControllerBase
     {
-        private readonly HubDbContext _db;
         private readonly PlatformAdminSessionStore _sessions;
         private readonly IMediator _mediator;
 
-        public CouriersController(HubDbContext db, PlatformAdminSessionStore sessions, IMediator mediator)
+        public CouriersController(PlatformAdminSessionStore sessions, IMediator mediator)
         {
-            _db = db;
             _sessions = sessions;
             _mediator = mediator;
         }
@@ -46,41 +42,11 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         public async Task<ActionResult> List([FromQuery] Guid? societyId, CancellationToken cancellationToken)
         {
             if (!TryGetAdminSession(out var session, out var authError)) return authError!;
-            if (!TryResolveSocietyFilter(session!, societyId, out var filterSocietyId, out var societyError))
-                return societyError!;
 
-            var agentsQuery = _db.CourierAgents.AsNoTracking().AsQueryable();
-            if (filterSocietyId.HasValue)
-                agentsQuery = agentsQuery.Where(agent => agent.SocietyId == filterSocietyId.Value);
-
-            var agents = await agentsQuery
-                .OrderBy(agent => agent.CarrierName)
-                .ThenBy(agent => agent.AgentName)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            var societyIds = agents.Select(agent => agent.SocietyId).Distinct().ToList();
-            var societies = await _db.Societies.AsNoTracking()
-                .Where(society => societyIds.Contains(society.Id))
-                .ToDictionaryAsync(society => society.Id, society => society.Name, cancellationToken)
-                .ConfigureAwait(false);
-
-            var blacklists = await _db.CourierBlacklists.AsNoTracking()
-                .Where(item => item.IsActive && (!filterSocietyId.HasValue || item.SocietyId == filterSocietyId.Value))
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            var rows = agents.Select(agent =>
-            {
-                var hit = string.IsNullOrWhiteSpace(agent.Phone)
-                    ? null
-                    : blacklists.FirstOrDefault(item =>
-                        item.SocietyId == agent.SocietyId &&
-                        PhonesMatch(item.Phone, agent.Phone));
-                return ToDto(agent, societies.GetValueOrDefault(agent.SocietyId) ?? string.Empty, hit);
-            }).ToList();
-
-            return Ok(rows);
+            var result = await _mediator.Send(
+                new ListCourierAgentsQuery(session!.Role, session.SocietyIds, societyId),
+                cancellationToken).ConfigureAwait(false);
+            return MapListResult(result);
         }
 
         [HttpPost]
@@ -92,41 +58,11 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         {
             if (!TryGetAdminSession(out var session, out var authError)) return authError!;
             ArgumentNullException.ThrowIfNull(request);
-            if (!TryResolveSocietyWrite(session!, request.SocietyId, out var societyId, out var societyError))
-                return societyError!;
 
-            var validationError = await ValidateCreateAsync(request, societyId, cancellationToken).ConfigureAwait(false);
-            if (validationError is not null) return validationError;
-
-            string? phone = null;
-            if (!string.IsNullOrWhiteSpace(request.Phone) &&
-                !PhoneNumberGuard.TryNormalizeIndiaMobile(request.Phone, out phone))
-            {
-                return BadRequest(new { Message = "Enter a valid 10-digit Indian mobile number." });
-            }
-
-            try
-            {
-                var agent = CourierAgent.Create(
-                    societyId,
-                    request.CarrierName!,
-                    request.AgentName,
-                    phone,
-                    request.VehicleNumber,
-                    request.EmployeeOrBadgeNumber);
-                _db.CourierAgents.Add(agent);
-                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                var societyName = await _db.Societies.AsNoTracking()
-                    .Where(society => society.Id == societyId)
-                    .Select(society => society.Name)
-                    .FirstAsync(cancellationToken)
-                    .ConfigureAwait(false);
-                return StatusCode(StatusCodes.Status201Created, ToDto(agent, societyName, null));
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { Message = ex.Message });
-            }
+            var result = await _mediator.Send(
+                new CreateCourierAgentCommand(session!.Role, session.SocietyIds, request),
+                cancellationToken).ConfigureAwait(false);
+            return MapAgentCommandResult(result, StatusCodes.Status201Created);
         }
 
         [HttpPut("{id:guid}")]
@@ -140,58 +76,10 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             if (!TryGetAdminSession(out var session, out var authError)) return authError!;
             ArgumentNullException.ThrowIfNull(request);
 
-            var agent = await _db.CourierAgents.FirstOrDefaultAsync(item => item.Id == id, cancellationToken)
-                .ConfigureAwait(false);
-            if (agent is null) return NotFound(new { Message = "Courier was not found." });
-            if (!CanAccessSociety(session!, agent.SocietyId))
-                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You cannot manage couriers outside your society." });
-
-            if (string.IsNullOrWhiteSpace(request.CarrierName))
-                return BadRequest(new { Message = "Courier name is required." });
-
-            string? phone = null;
-            if (!string.IsNullOrWhiteSpace(request.Phone))
-            {
-                if (!PhoneNumberGuard.TryNormalizeIndiaMobile(request.Phone, out phone))
-                    return BadRequest(new { Message = "Enter a valid 10-digit Indian mobile number." });
-
-                var phoneTaken = await _db.CourierAgents.AsNoTracking()
-                    .AnyAsync(
-                        item => item.SocietyId == agent.SocietyId && item.Id != id && item.Phone == phone,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                if (phoneTaken)
-                    return Conflict(new { Message = "Another courier already uses this mobile number in the society." });
-            }
-
-            try
-            {
-                agent.UpdateDetails(
-                    request.CarrierName,
-                    request.AgentName,
-                    phone,
-                    request.VehicleNumber,
-                    request.EmployeeOrBadgeNumber);
-                if (request.IsActive == true) agent.Activate();
-                if (request.IsActive == false) agent.Deactivate();
-                await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-                var societyName = await _db.Societies.AsNoTracking()
-                    .Where(society => society.Id == agent.SocietyId)
-                    .Select(society => society.Name)
-                    .FirstAsync(cancellationToken)
-                    .ConfigureAwait(false);
-                var hit = await _db.CourierBlacklists.AsNoTracking()
-                    .FirstOrDefaultAsync(
-                        item => item.IsActive && item.SocietyId == agent.SocietyId && item.Phone == agent.Phone,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                return Ok(ToDto(agent, societyName, hit));
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { Message = ex.Message });
-            }
+            var result = await _mediator.Send(
+                new UpdateCourierAgentCommand(id, session!.Role, session.SocietyIds, request),
+                cancellationToken).ConfigureAwait(false);
+            return MapAgentCommandResult(result, StatusCodes.Status200OK);
         }
 
         [HttpPost("{id:guid}/blacklist")]
@@ -205,55 +93,10 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             if (!TryGetAdminSession(out var session, out var authError)) return authError!;
             ArgumentNullException.ThrowIfNull(request);
 
-            var agent = await _db.CourierAgents.FirstOrDefaultAsync(item => item.Id == id, cancellationToken)
-                .ConfigureAwait(false);
-            if (agent is null) return NotFound(new { Message = "Courier was not found." });
-            if (!CanAccessSociety(session!, agent.SocietyId))
-                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You cannot manage couriers outside your society." });
-
-            if (string.IsNullOrWhiteSpace(agent.Phone))
-                return BadRequest(new { Message = "Add a mobile number before blacklisting this courier." });
-
-            var reason = string.IsNullOrWhiteSpace(request.Reason)
-                ? "Blacklisted by admin"
-                : request.Reason.Trim();
-
-            var existing = await _db.CourierBlacklists
-                .FirstOrDefaultAsync(
-                    item => item.IsActive && item.SocietyId == agent.SocietyId && item.Phone == agent.Phone,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            if (existing is not null)
-                return Conflict(new { Message = "This courier is already blacklisted." });
-
-            var entry = CourierBlacklist.Create(
-                agent.SocietyId,
-                agent.CarrierName,
-                agent.AgentName,
-                agent.Phone,
-                reason);
-            agent.Deactivate();
-            _db.CourierBlacklists.Add(entry);
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-            var societyName = await _db.Societies.AsNoTracking()
-                .Where(society => society.Id == agent.SocietyId)
-                .Select(society => society.Name)
-                .FirstAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            return Ok(new CourierBlacklistDto
-            {
-                Id = entry.Id,
-                SocietyId = entry.SocietyId,
-                SocietyName = societyName,
-                CarrierName = entry.CarrierName,
-                AgentName = entry.AgentName,
-                Phone = entry.Phone,
-                Reason = entry.Reason,
-                BlacklistedAt = entry.BlacklistedAt,
-                IsActive = entry.IsActive,
-            });
+            var result = await _mediator.Send(
+                new BlacklistCourierAgentCommand(id, session!.Role, session.SocietyIds, request),
+                cancellationToken).ConfigureAwait(false);
+            return MapBlacklistCommandResult(result);
         }
 
         [HttpGet("blacklist")]
@@ -264,36 +107,11 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             CancellationToken cancellationToken)
         {
             if (!TryGetAdminSession(out var session, out var authError)) return authError!;
-            if (!TryResolveSocietyFilter(session!, societyId, out var filterSocietyId, out var societyError))
-                return societyError!;
 
-            var query = _db.CourierBlacklists.AsNoTracking().Where(item => item.IsActive);
-            if (filterSocietyId.HasValue)
-                query = query.Where(item => item.SocietyId == filterSocietyId.Value);
-
-            var rows = await query
-                .OrderByDescending(item => item.BlacklistedAt)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            var societyIds = rows.Select(item => item.SocietyId).Distinct().ToList();
-            var societies = await _db.Societies.AsNoTracking()
-                .Where(society => societyIds.Contains(society.Id))
-                .ToDictionaryAsync(society => society.Id, society => society.Name, cancellationToken)
-                .ConfigureAwait(false);
-
-            return Ok(rows.Select(item => new CourierBlacklistDto
-            {
-                Id = item.Id,
-                SocietyId = item.SocietyId,
-                SocietyName = societies.GetValueOrDefault(item.SocietyId) ?? string.Empty,
-                CarrierName = item.CarrierName,
-                AgentName = item.AgentName,
-                Phone = item.Phone,
-                Reason = item.Reason,
-                BlacklistedAt = item.BlacklistedAt,
-                IsActive = item.IsActive,
-            }).ToList());
+            var result = await _mediator.Send(
+                new ListCourierBlacklistQuery(session!.Role, session.SocietyIds, societyId),
+                cancellationToken).ConfigureAwait(false);
+            return MapListResult(result);
         }
 
         [HttpPost("blacklist/{id:guid}/lift")]
@@ -303,23 +121,10 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         {
             if (!TryGetAdminSession(out var session, out var authError)) return authError!;
 
-            var entry = await _db.CourierBlacklists.FirstOrDefaultAsync(item => item.Id == id, cancellationToken)
-                .ConfigureAwait(false);
-            if (entry is null) return NotFound(new { Message = "Blacklist entry was not found." });
-            if (!CanAccessSociety(session!, entry.SocietyId))
-                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You cannot manage couriers outside your society." });
-
-            entry.Deactivate();
-
-            var agent = await _db.CourierAgents
-                .FirstOrDefaultAsync(
-                    item => item.SocietyId == entry.SocietyId && item.Phone == entry.Phone,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            agent?.Activate();
-
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            return Ok(new { Message = "Blacklist lifted." });
+            var result = await _mediator.Send(
+                new LiftCourierBlacklistCommand(id, session!.Role, session.SocietyIds),
+                cancellationToken).ConfigureAwait(false);
+            return MapMessageCommandResult(result);
         }
 
         private bool TryGetAdminSession(out PlatformAdminSession? session, out ActionResult? error)
@@ -346,165 +151,63 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return true;
         }
 
-        private static bool CanAccessSociety(PlatformAdminSession session, Guid societyId)
+        private static ActionResult MapListResult<T>(CourierListResult<T> result)
         {
-            if (string.Equals(session.Role, "PlatformAdmin", StringComparison.OrdinalIgnoreCase))
-                return true;
-            return session.SocietyIds.Contains(societyId);
-        }
-
-        private static bool TryResolveSocietyFilter(
-            PlatformAdminSession session,
-            Guid? requestedSocietyId,
-            out Guid? societyId,
-            out ActionResult? error)
-        {
-            societyId = null;
-            error = null;
-            var isPlatform = string.Equals(session.Role, "PlatformAdmin", StringComparison.OrdinalIgnoreCase);
-            if (isPlatform)
-            {
-                societyId = requestedSocietyId is Guid id && id != Guid.Empty ? id : null;
-                return true;
-            }
-
-            if (session.SocietyIds.Count == 0)
-            {
-                error = ForbiddenResult("No society is linked to this admin.");
-                return false;
-            }
-
-            if (requestedSocietyId is Guid asked && asked != Guid.Empty && !session.SocietyIds.Contains(asked))
-            {
-                error = ForbiddenResult("You cannot view couriers for that society.");
-                return false;
-            }
-
-            societyId = requestedSocietyId is Guid value && value != Guid.Empty
-                ? value
-                : session.SocietyIds[0];
-            return true;
-        }
-
-        private static bool TryResolveSocietyWrite(
-            PlatformAdminSession session,
-            Guid? requestedSocietyId,
-            out Guid societyId,
-            out ActionResult? error)
-        {
-            societyId = Guid.Empty;
-            error = null;
-            var isPlatform = string.Equals(session.Role, "PlatformAdmin", StringComparison.OrdinalIgnoreCase);
-            if (isPlatform)
-            {
-                if (requestedSocietyId is null || requestedSocietyId == Guid.Empty)
+            if (result.Forbidden)
+                return new ObjectResult(new { Message = result.Message })
                 {
-                    error = BadRequestResult("Select a society.");
-                    return false;
-                }
-
-                societyId = requestedSocietyId.Value;
-                return true;
-            }
-
-            if (session.SocietyIds.Count == 0)
-            {
-                error = ForbiddenResult("No society is linked to this admin.");
-                return false;
-            }
-
-            if (requestedSocietyId is Guid asked && asked != Guid.Empty && !session.SocietyIds.Contains(asked))
-            {
-                error = ForbiddenResult("You cannot manage couriers for that society.");
-                return false;
-            }
-
-            societyId = requestedSocietyId is Guid value && value != Guid.Empty
-                ? value
-                : session.SocietyIds[0];
-            return true;
+                    StatusCode = StatusCodes.Status403Forbidden,
+                };
+            return new OkObjectResult(result.Items);
         }
 
-        private async Task<ActionResult?> ValidateCreateAsync(
-            CreateCourierAgentRequest request,
-            Guid societyId,
-            CancellationToken cancellationToken)
+        private static ActionResult MapAgentCommandResult(CourierCommandResult result, int successStatusCode)
         {
-            if (string.IsNullOrWhiteSpace(request.CarrierName))
-                return BadRequest(new { Message = "Courier name is required." });
+            if (result.Forbidden)
+                return new ObjectResult(new { Message = result.Message })
+                {
+                    StatusCode = StatusCodes.Status403Forbidden,
+                };
+            if (!result.Found)
+                return new NotFoundObjectResult(new { Message = result.Message });
+            if (result.Conflict)
+                return new ConflictObjectResult(new { Message = result.Message });
+            if (!result.Succeeded)
+                return new BadRequestObjectResult(new { Message = result.Message });
 
-            if (!await _db.Societies.AnyAsync(society => society.Id == societyId, cancellationToken).ConfigureAwait(false))
-                return BadRequest(new { Message = "Selected society was not found." });
-
-            if (!string.IsNullOrWhiteSpace(request.Phone))
-            {
-                if (!PhoneNumberGuard.TryNormalizeIndiaMobile(request.Phone, out var phone))
-                    return BadRequest(new { Message = "Enter a valid 10-digit Indian mobile number." });
-
-                var duplicate = await _db.CourierAgents.AsNoTracking()
-                    .AnyAsync(agent => agent.SocietyId == societyId && agent.Phone == phone, cancellationToken)
-                    .ConfigureAwait(false);
-                if (duplicate)
-                    return Conflict(new { Message = "A courier with this mobile number already exists in the society." });
-
-                var blacklisted = await _db.CourierBlacklists.AsNoTracking()
-                    .AnyAsync(
-                        item => item.IsActive && item.SocietyId == societyId && item.Phone == phone,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                if (blacklisted)
-                    return Conflict(new { Message = "This mobile number is blacklisted for the society." });
-
-                return null;
-            }
-
-            var carrierName = request.CarrierName.Trim();
-            var existingNames = await _db.CourierAgents.AsNoTracking()
-                .Where(agent => agent.SocietyId == societyId)
-                .Select(agent => agent.CarrierName)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-            if (existingNames.Exists(name => string.Equals(name, carrierName, StringComparison.OrdinalIgnoreCase)))
-                return Conflict(new { Message = "This courier name already exists in the society." });
-
-            return null;
+            return new ObjectResult(result.Agent) { StatusCode = successStatusCode };
         }
 
-        private static BadRequestObjectResult BadRequestResult(string message) =>
-            new(new { Message = message });
-
-        private static ObjectResult ForbiddenResult(string message) =>
-            new(new { Message = message }) { StatusCode = StatusCodes.Status403Forbidden };
-
-        private static bool PhonesMatch(string? left, string? right)
+        private static ActionResult MapBlacklistCommandResult(CourierCommandResult result)
         {
-            if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
-                return false;
+            if (result.Forbidden)
+                return new ObjectResult(new { Message = result.Message })
+                {
+                    StatusCode = StatusCodes.Status403Forbidden,
+                };
+            if (!result.Found)
+                return new NotFoundObjectResult(new { Message = result.Message });
+            if (result.Conflict)
+                return new ConflictObjectResult(new { Message = result.Message });
+            if (!result.Succeeded)
+                return new BadRequestObjectResult(new { Message = result.Message });
 
-            if (PhoneNumberGuard.TryNormalizeIndiaMobile(left, out var a) &&
-                PhoneNumberGuard.TryNormalizeIndiaMobile(right, out var b))
-            {
-                return string.Equals(a, b, StringComparison.Ordinal);
-            }
-
-            return string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);
+            return new OkObjectResult(result.Blacklist);
         }
 
-        private static CourierAgentDto ToDto(CourierAgent agent, string societyName, CourierBlacklist? blacklist) =>
-            new()
-            {
-                Id = agent.Id,
-                SocietyId = agent.SocietyId,
-                SocietyName = societyName,
-                CarrierName = agent.CarrierName,
-                AgentName = agent.AgentName,
-                Phone = agent.Phone,
-                VehicleNumber = agent.VehicleNumber,
-                EmployeeOrBadgeNumber = agent.EmployeeOrBadgeNumber,
-                IsActive = agent.IsActive,
-                IsBlacklisted = blacklist is not null,
-                BlacklistReason = blacklist?.Reason,
-                CreatedAt = agent.CreatedAt,
-            };
+        private static ActionResult MapMessageCommandResult(CourierCommandResult result)
+        {
+            if (result.Forbidden)
+                return new ObjectResult(new { Message = result.Message })
+                {
+                    StatusCode = StatusCodes.Status403Forbidden,
+                };
+            if (!result.Found)
+                return new NotFoundObjectResult(new { Message = result.Message });
+            if (!result.Succeeded)
+                return new BadRequestObjectResult(new { Message = result.Message });
+
+            return new OkObjectResult(new { Message = result.Message });
+        }
     }
 }

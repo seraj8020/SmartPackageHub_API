@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using HubManagement.Application.PackageHub.DTOs;
+using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using SmartPackageHub.Applications.Abstractions.Commands;
@@ -52,6 +53,16 @@ namespace HubManagement.Application.PackageHub.Commands
             var package = await _packages.GetByIdAsync(request.PackageId).ConfigureAwait(false);
             if (package == null)
                 return new GeneratePackagePickupOtpResult { Found = false, Message = "Package was not found." };
+
+            if (!PackageStaffGuard.HasSocietyAccess(package, request.StaffSocietyIds))
+            {
+                return new GeneratePackagePickupOtpResult
+                {
+                    Found = true,
+                    Forbidden = true,
+                    Message = "Staff is not assigned to this package's society.",
+                };
+            }
 
             if (package.Status != PackageStatus.Dispatched)
                 return new GeneratePackagePickupOtpResult

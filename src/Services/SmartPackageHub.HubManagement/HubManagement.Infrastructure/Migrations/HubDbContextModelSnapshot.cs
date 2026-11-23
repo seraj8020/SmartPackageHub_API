@@ -77,6 +77,9 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Details")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("EntityId")
                         .HasColumnType("uuid");
 
@@ -751,6 +754,127 @@ namespace HubManagement.Infrastructure.Migrations
                     b.ToTable("PackageIntakes", (string)null);
                 });
 
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.PackageReturn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CourierPickupAwb")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CourierPickupNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)");
+
+                    b.Property<Guid>("PackageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReceivedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ResidentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ShelfAssignedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ShelfId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SocietyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PackageId")
+                        .HasDatabaseName("IX_PackageReturns_PackageId");
+
+                    b.HasIndex("PackageId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PackageReturns_PackageId_Open")
+                        .HasFilter("\"Status\" IN ('ReturnRequested', 'ReturnReceived', 'ReturnShelved')");
+
+                    b.HasIndex("ReceivedByStaffUserId");
+
+                    b.HasIndex("ShelfId");
+
+                    b.HasIndex("ResidentId", "Status")
+                        .HasDatabaseName("IX_PackageReturns_ResidentId_Status");
+
+                    b.HasIndex("SocietyId", "Status", "RequestedAtUtc")
+                        .HasDatabaseName("IX_PackageReturns_SocietyId_Status_RequestedAtUtc");
+
+                    b.ToTable("PackageReturns", (string)null);
+                });
+
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.PackageReturnImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("ByteSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CapturedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ReturnId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SHA256Hash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReturnId")
+                        .HasDatabaseName("IX_PackageReturnImages_ReturnId");
+
+                    b.HasIndex("ReturnId", "SortOrder")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PackageReturnImages_ReturnId_SortOrder");
+
+                    b.ToTable("PackageReturnImages", (string)null);
+                });
+
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.Resident", b =>
                 {
                     b.Property<Guid>("Id")
@@ -955,6 +1079,11 @@ namespace HubManagement.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<TimeOnly>("CollectionReminderLocalTime")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("time without time zone")
+                        .HasDefaultValue(new TimeOnly(10, 0, 0));
+
                     b.Property<string>("ContactEmail")
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
@@ -969,13 +1098,52 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("(now() AT TIME ZONE 'utc')");
 
+                    b.Property<int>("OverdueAfterHours")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(24);
+
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("Asia/Kolkata");
+
                     b.HasKey("Id");
 
                     b.ToTable("Societies", (string)null);
+                });
+
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.SocietyCarrierReturnPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CarrierName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("ReturnWindowDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(7);
+
+                    b.Property<Guid>("SocietyId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SocietyId", "CarrierName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SocietyCarrierReturnPolicies_SocietyId_CarrierName");
+
+                    b.ToTable("SocietyCarrierReturnPolicies", (string)null);
                 });
 
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.User", b =>
@@ -1131,6 +1299,25 @@ namespace HubManagement.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.OwnsOne("HubManagement.Core.Hubs.ValueObjects.DeliveryAttemptOutcome", "FailureReason", b1 =>
+                        {
+                            b1.Property<Guid>("DeliveryId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("Value")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("FailureReason");
+
+                            b1.HasKey("DeliveryId");
+
+                            b1.ToTable("Deliveries");
+
+                            b1.WithOwner()
+                                .HasForeignKey("DeliveryId");
+                        });
+
                     b.OwnsOne("HubManagement.Core.Hubs.ValueObjects.DeliveryStatus", "Status", b1 =>
                         {
                             b1.Property<Guid>("DeliveryId")
@@ -1149,6 +1336,8 @@ namespace HubManagement.Infrastructure.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("DeliveryId");
                         });
+
+                    b.Navigation("FailureReason");
 
                     b.Navigation("Status")
                         .IsRequired();
@@ -1614,6 +1803,48 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasForeignKey("StaffUserId");
                 });
 
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.PackageReturn", b =>
+                {
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Package", null)
+                        .WithMany()
+                        .HasForeignKey("PackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HubManagement.Core.Hubs.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReceivedByStaffUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Shelf", null)
+                        .WithMany()
+                        .HasForeignKey("ShelfId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Society", null)
+                        .WithMany()
+                        .HasForeignKey("SocietyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.PackageReturnImage", b =>
+                {
+                    b.HasOne("HubManagement.Core.Hubs.Entities.PackageReturn", "Return")
+                        .WithMany("Images")
+                        .HasForeignKey("ReturnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Return");
+                });
+
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.Resident", b =>
                 {
                     b.HasOne("HubManagement.Core.Hubs.Entities.Society", null)
@@ -1778,6 +2009,15 @@ namespace HubManagement.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.SocietyCarrierReturnPolicy", b =>
+                {
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Society", null)
+                        .WithMany()
+                        .HasForeignKey("SocietyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.User", b =>
                 {
                     b.OwnsOne("HubManagement.Core.Hubs.ValueObjects.ContactInfo", "ContactInfo", b1 =>
@@ -1865,6 +2105,11 @@ namespace HubManagement.Infrastructure.Migrations
 
                     b.Navigation("PackageIntake")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.PackageReturn", b =>
+                {
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.Resident", b =>

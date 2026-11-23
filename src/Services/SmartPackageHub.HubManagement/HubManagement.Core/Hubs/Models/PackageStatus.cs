@@ -5,6 +5,13 @@ namespace HubManagement.Core.Hubs.Models
         Received,
         Shelved,
         Dispatched,//For Handover
-        Delivered
+        Delivered,
+
+        // Return lifecycle (mirrors PackageReturnStatus for package list filters).
+        ReturnRequested,
+        ReturnReceived,
+        ReturnShelved,
+        ReturnPickedByCourier,
+        ReturnClosed,
     }
 }

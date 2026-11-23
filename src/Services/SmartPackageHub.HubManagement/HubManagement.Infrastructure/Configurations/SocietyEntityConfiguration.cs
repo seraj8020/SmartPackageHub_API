@@ -16,6 +16,9 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
                 .HasDefaultValueSql("(now() AT TIME ZONE 'utc')");
             builder.Property(p => p.ContactEmail).HasMaxLength(150);
             builder.Property(p => p.Phone).HasMaxLength(50);
+            builder.Property(e => e.OverdueAfterHours).IsRequired().HasDefaultValue(24);
+            builder.Property(e => e.CollectionReminderLocalTime).IsRequired().HasDefaultValue(new TimeOnly(10, 0));
+            builder.Property(e => e.TimeZoneId).IsRequired().HasMaxLength(100).HasDefaultValue("Asia/Kolkata");
 
             builder.OwnsOne(e => e.Address, addrBuilder =>
             {

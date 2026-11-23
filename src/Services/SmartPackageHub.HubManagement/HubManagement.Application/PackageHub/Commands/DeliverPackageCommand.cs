@@ -3,5 +3,9 @@ using SmartPackageHub.Applications.Abstractions.Commands;
 
 namespace HubManagement.Application.PackageHub.Commands
 {
-    public sealed record DeliverPackageCommand(Guid packageId, DeliverPackageRequest request) : ICreateCommand<PackageCommandResult>;
+    public sealed record DeliverPackageCommand(
+        Guid packageId,
+        DeliverPackageRequest request,
+        IReadOnlyList<Guid> StaffSocietyIds)
+        : ICreateCommand<PackageCommandResult>;
 }

@@ -1,4 +1,5 @@
 using HubManagement.Application.PackageHub.DTOs;
+using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using Microsoft.Extensions.Logging;
@@ -45,6 +46,8 @@ namespace HubManagement.Application.PackageHub.Commands
             var package = await _packages.GetByIdAsync(request.packageId).ConfigureAwait(false);
             if (package == null)
                 return new PackageCommandResult(false, false, false, "Package not found.", null);
+            if (!PackageStaffGuard.HasSocietyAccess(package, request.StaffSocietyIds))
+                return new PackageCommandResult(true, false, false, "Staff is not assigned to this package's society.", null, Forbidden: true);
             if (package.Status != PackageStatus.Dispatched)
                 return new PackageCommandResult(true, true, false, "Package must be dispatched before delivery.", null);
             if (package.ResidentId is not Guid packageResidentId || packageResidentId == Guid.Empty)

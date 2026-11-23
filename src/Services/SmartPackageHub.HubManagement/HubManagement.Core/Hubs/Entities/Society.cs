@@ -16,6 +16,15 @@ namespace HubManagement.Core.Hubs.Entities
         public string? Phone { get; private set; }
         public DateTime? OnboardedAtUtc { get; private set; }
 
+        /// <summary>Hours after shelf assignment before a waiting package is overdue (default 24).</summary>
+        public int OverdueAfterHours { get; private set; } = 24;
+
+        /// <summary>Local time of day for daily collection reminders (society timezone).</summary>
+        public TimeOnly CollectionReminderLocalTime { get; private set; } = new(10, 0);
+
+        /// <summary>IANA or Windows timezone id for reminder scheduling (e.g. Asia/Kolkata).</summary>
+        public string TimeZoneId { get; private set; } = "Asia/Kolkata";
+
         private Society() { }
         private Society(string name, Address address, string contactEmail, string phone)
         {
@@ -24,6 +33,9 @@ namespace HubManagement.Core.Hubs.Entities
             this.Address = address;
             this.ContactEmail = contactEmail;
             this.Phone = phone;
+            OverdueAfterHours = 24;
+            CollectionReminderLocalTime = new TimeOnly(10, 0);
+            TimeZoneId = "Asia/Kolkata";
             MarkOnboarded(DateTime.UtcNow);
         }
         //Factory method to restore state
@@ -64,6 +76,22 @@ namespace HubManagement.Core.Hubs.Entities
         {
             ContactEmail = string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail.Trim();
             Phone = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+        }
+
+        /// <summary>Hub overdue + daily collection reminder policies (society-scoped).</summary>
+        public void ConfigureOverdueAndReminderPolicies(
+            int overdueAfterHours,
+            TimeOnly collectionReminderLocalTime,
+            string timeZoneId)
+        {
+            if (overdueAfterHours < 1 || overdueAfterHours > 720)
+                throw new ArgumentOutOfRangeException(nameof(overdueAfterHours), "Overdue threshold must be 1–720 hours.");
+            if (string.IsNullOrWhiteSpace(timeZoneId))
+                throw new ArgumentException("Time zone id is required.", nameof(timeZoneId));
+
+            OverdueAfterHours = overdueAfterHours;
+            CollectionReminderLocalTime = collectionReminderLocalTime;
+            TimeZoneId = timeZoneId.Trim();
         }
     }
 }

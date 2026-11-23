@@ -1,13 +1,10 @@
-using HubManagement.Application.Intake.DTOs;
-using HubManagement.Core.Hubs.Entities;
-using SmartPackageHub.Applications.Abstractions.Repositories;
 using HubManagement.Application.Auth.Services;
+using HubManagement.Application.Intake.DTOs;
 using HubManagement.Application.PackageHub.Commands;
 using HubManagement.Application.PackageHub.DTOs;
 using MediatR;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
@@ -18,12 +15,11 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
     {
         readonly IMediator _mediator;
         readonly StaffSessionStore _staffSessions;
-        readonly IRepository<Package> _packages;
-        public PackagesController(IMediator mediator, StaffSessionStore staffSessions, IRepository<Package> packages)
+
+        public PackagesController(IMediator mediator, StaffSessionStore staffSessions)
         {
             _mediator = mediator;
             _staffSessions = staffSessions;
-            _packages = packages;
         }
 
         [HttpPost]
@@ -72,14 +68,17 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
         public async Task<ActionResult> GeneratePickupOtp(Guid packageId, CancellationToken cancellationToken)
         {
-            var authorizationError = await AuthorizeStaffPackageAsync(packageId, cancellationToken).ConfigureAwait(false);
-            if (authorizationError is not null)
-                return authorizationError;
+            var auth = await GetStaffSessionAsync(cancellationToken).ConfigureAwait(false);
+            if (!auth.Ok)
+                return auth.Error!;
 
             var result = await _mediator.Send(
-                new GeneratePackagePickupOtpCommand(packageId), cancellationToken).ConfigureAwait(false);
+                new GeneratePackagePickupOtpCommand(packageId, auth.Session!.SocietyIds),
+                cancellationToken).ConfigureAwait(false);
             if (!result.Found)
                 return NotFound(new { Message = result.Message });
+            if (result.Forbidden)
+                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = result.Message });
             if (result.Conflict)
                 return Conflict(new { succeeded = false, message = result.Message });
             if (!result.Succeeded)
@@ -105,18 +104,22 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult> DeliverPackages([FromRoute] Guid packageId, [FromBody] DeliverPackageRequest request)
         {
-            var authorizationError = await AuthorizeStaffPackageAsync(packageId, HttpContext.RequestAborted).ConfigureAwait(false);
-            if (authorizationError is not null)
-                return authorizationError;
-            var result = await _mediator.Send(new DeliverPackageCommand(packageId, request)).ConfigureAwait(false);
+            var auth = await GetStaffSessionAsync(HttpContext.RequestAborted).ConfigureAwait(false);
+            if (!auth.Ok)
+                return auth.Error!;
+
+            var result = await _mediator.Send(
+                new DeliverPackageCommand(packageId, request, auth.Session!.SocietyIds),
+                HttpContext.RequestAborted).ConfigureAwait(false);
             if (!result.Found)
                 return NotFound(new { Message = result.Message });
+            if (result.Forbidden)
+                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = result.Message });
             if (result.Conflict)
                 return Conflict(new { Message = result.Message });
             if (!result.Succeeded)
                 return BadRequest(new { succeeded = false, message = result.Message });
 
-            // Slim success body — staff UI only needs succeeded + message.
             return Ok(new { succeeded = true, message = result.Message });
         }
 
@@ -173,45 +176,44 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(result.Receipt);
         }
 
-        private async Task<ActionResult?> AuthorizeStaffPackageAsync(Guid packageId, CancellationToken cancellationToken)
+        private async Task<(bool Ok, StaffSession? Session, ActionResult? Error)> GetStaffSessionAsync(
+            CancellationToken cancellationToken)
         {
             var authorization = Request.Headers.Authorization.ToString();
             var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
                 ? authorization["Bearer ".Length..].Trim()
                 : null;
             if (string.IsNullOrWhiteSpace(token))
-                return Unauthorized(new { succeeded = false, message = "Staff sign-in required." });
+                return (false, null, Unauthorized(new { succeeded = false, message = "Staff sign-in required." }));
 
-            var staffSession = await _staffSessions.GetSessionAsync(token, cancellationToken).ConfigureAwait(false);
-            if (staffSession is null)
-                return Unauthorized(new { succeeded = false, message = "Staff sign-in required." });
-            if (!string.Equals(staffSession.Role, "Staff", StringComparison.OrdinalIgnoreCase))
-                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff access required." });
+            var session = await _staffSessions.GetSessionAsync(token, cancellationToken).ConfigureAwait(false);
+            if (session is null)
+                return (false, null, Unauthorized(new { succeeded = false, message = "Staff sign-in required." }));
+            if (!string.Equals(session.Role, "Staff", StringComparison.OrdinalIgnoreCase))
+                return (false, null, StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff access required." }));
 
-            var package = await _packages.GetByIdAsync(packageId).ConfigureAwait(false);
-            if (package is null)
-                return NotFound(new { succeeded = false, message = "Package was not found." });
-            if (!staffSession.SocietyIds.Contains(package.SocietyId))
-                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff is not assigned to this package's society." });
-
-            return null;
+            return (true, session, null);
         }
-        private ActionResult MapCodResult(CodResponseResult result)
+
+        private static ActionResult MapCodResult(CodResponseResult result)
         {
             if (!result.Found)
-                return NotFound(new { Message = result.Message });
+                return new NotFoundObjectResult(new { Message = result.Message });
             if (result.Conflict)
-                return Conflict(new
+            {
+                return new ConflictObjectResult(new
                 {
                     succeeded = false,
                     message = result.Message,
                     status = result.Status,
                     codApprovalStatus = result.CodApprovalStatus,
                 });
-            if (!result.Succeeded)
-                return BadRequest(new { succeeded = false, message = result.Message });
+            }
 
-            return Ok(new
+            if (!result.Succeeded)
+                return new BadRequestObjectResult(new { succeeded = false, message = result.Message });
+
+            return new OkObjectResult(new
             {
                 succeeded = true,
                 message = result.Message,

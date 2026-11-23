@@ -1,4 +1,4 @@
-namespace SmartPackageHub.HubManagement.Api.Controllers
+namespace HubManagement.Application.HubUsers.DTOs
 {
     public sealed class InviteUserRequest
     {

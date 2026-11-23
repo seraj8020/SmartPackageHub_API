@@ -3,6 +3,8 @@ using SmartPackageHub.Applications.Abstractions.Commands;
 
 namespace HubManagement.Application.PackageHub.Commands
 {
-    public sealed record GeneratePackagePickupOtpCommand(Guid PackageId)
+    public sealed record GeneratePackagePickupOtpCommand(
+        Guid PackageId,
+        IReadOnlyList<Guid> StaffSocietyIds)
         : ICreateCommand<GeneratePackagePickupOtpResult>;
 }

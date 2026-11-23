@@ -15,9 +15,26 @@ namespace HubManagement.Core.Hubs.ValueObjects
                 throw new BusinessRuleException("zone cannot be null or whitespace.");
             if (string.IsNullOrWhiteSpace(aisle))
                 throw new BusinessRuleException("aisle cannot be null or whitespace.");
-            if (tier ==0)
-                throw new BusinessRuleException("tier cannot be null or whitespace.");
-            return new ShelfLocation(zone, aisle, tier);
+            if (tier <= 0)
+                throw new BusinessRuleException("tier must be at least 1.");
+            return new ShelfLocation(zone.Trim(), aisle.Trim(), tier);
+        }
+
+        /// <summary>
+        /// Mutates in place so EF Core owned-type change tracking picks up Zone/Aisle/Tier updates.
+        /// Replacing the owned instance on update often leaves the previous Tier persisted.
+        /// </summary>
+        public void Relocate(string zone, string aisle, int tier)
+        {
+            if (string.IsNullOrWhiteSpace(zone))
+                throw new BusinessRuleException("zone cannot be null or whitespace.");
+            if (string.IsNullOrWhiteSpace(aisle))
+                throw new BusinessRuleException("aisle cannot be null or whitespace.");
+            if (tier <= 0)
+                throw new BusinessRuleException("tier must be at least 1.");
+            Zone = zone.Trim();
+            Aisle = aisle.Trim();
+            Tier = tier;
         }
 
         protected override IEnumerable<object> GetEqualityComponents()

@@ -33,11 +33,16 @@ namespace HubManagement.Core.Hubs.Entities
 
         public void Update(string code, string towerWing, bool isColdStorage, int capacity, ShelfLocation location)
         {
+            ArgumentNullException.ThrowIfNull(location);
             Code = code;
             TowerOrWing = towerWing;
             IsColdStorage = isColdStorage;
             Capacity = capacity;
-            Location = location;
+            // Mutate owned Location in place — assigning a new VO instance often fails to persist Tier/Zone/Aisle in EF.
+            if (Location is null)
+                Location = location;
+            else
+                Location.Relocate(location.Zone, location.Aisle, location.Tier);
         }
     }
 }

@@ -124,10 +124,20 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [HttpGet("{id:guid}/history")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(List<DeliveryHistoryDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> GetHistory(Guid id)
+        public async Task<ActionResult> GetHistory(
+            Guid id,
+            [FromQuery] DateOnly? fromDate = null,
+            [FromQuery] DateOnly? toDate = null)
         {
-            var history = await _mediator.Send(new GetResidentDeliveryHistoryQuery(id)).ConfigureAwait(false);
+            if (fromDate is DateOnly from && toDate is DateOnly to && from > to)
+            {
+                return BadRequest(new { Message = "fromDate cannot be after toDate." });
+            }
+
+            var history = await _mediator.Send(
+                new GetResidentDeliveryHistoryQuery(id, fromDate, toDate)).ConfigureAwait(false);
             if (history == null)
                 return NotFound();
 

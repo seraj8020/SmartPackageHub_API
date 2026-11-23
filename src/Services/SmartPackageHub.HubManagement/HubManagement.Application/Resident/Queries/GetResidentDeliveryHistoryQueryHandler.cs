@@ -30,15 +30,28 @@ namespace HubManagement.Application.HubResidents.Queries
             if (resident == null)
                 return null;
 
+            DateTime? fromUtc = request.FromDate is DateOnly from
+                ? DateTime.SpecifyKind(from.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc)
+                : null;
+            // Inclusive ToDate: keep everything before the start of the next calendar day.
+            DateTime? toExclusiveUtc = request.ToDate is DateOnly to
+                ? DateTime.SpecifyKind(to.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc)
+                : null;
+
             var deliveries = _deliveries
-                .FetchMulti(d => d.ResidentId == resident.Id)
+                .FetchMulti(d =>
+                    d.ResidentId == resident.Id &&
+                    (fromUtc == null || d.DeliveredAt >= fromUtc.Value) &&
+                    (toExclusiveUtc == null || d.DeliveredAt < toExclusiveUtc.Value))
                 .OrderByDescending(d => d.DeliveredAt)
                 .ToList();
             var packageIds = deliveries.Select(d => d.PackageId).Distinct().ToList();
-            var packages = _packages.GetAll()
-                .Where(p => packageIds.Contains(p.Id))
-                .AsEnumerable() // Switches to in-memory processing for the DTO projection
-                .ToDictionary(p => p.Id);
+            var packages = packageIds.Count == 0
+                ? new Dictionary<Guid, Package>()
+                : _packages.GetAll()
+                    .Where(p => packageIds.Contains(p.Id))
+                    .AsEnumerable()
+                    .ToDictionary(p => p.Id);
 
             return deliveries
                 .Select(d =>

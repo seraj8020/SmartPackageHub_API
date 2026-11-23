@@ -1,4 +1,5 @@
 using HubManagement.Application.PackageHub.DTOs;
+using HubManagement.Application.PackageHub.Services;
 using HubManagement.Application.Societies.DTOs;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
@@ -18,20 +19,26 @@ namespace HubManagement.Application.PackageHub.Commands
             LoggerMessage.Define<Guid, string, int>(
                 LogLevel.Information,
                 new EventId(1, nameof(StartTowerRouteCommandHandler)),
-                "Started tower route for society {SocietyId} tower {Tower} — dispatched {Count} packages");
+                "Started tower route for society {SocietyId} tower {Tower} ? dispatched {Count} packages");
 
         private readonly IRepository<Society> _societies;
         private readonly IRepository<Package> _packages;
+        private readonly IRepository<PackageCustodyHop> _custodyHops;
+        private readonly IRepository<User> _users;
         private readonly ILogger<StartTowerRouteCommandHandler> _logger;
 
         public StartTowerRouteCommandHandler(
             IRepository<Society> societies,
             IRepository<Package> packages,
+            IRepository<PackageCustodyHop> custodyHops,
+            IRepository<User> users,
             ILogger<StartTowerRouteCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
             _societies = societies;
             _packages = packages;
+            _custodyHops = custodyHops;
+            _users = users;
             _logger = logger;
         }
 
@@ -87,8 +94,34 @@ namespace HubManagement.Application.PackageHub.Commands
                     Array.Empty<Guid>());
             }
 
+            var now = DateTime.UtcNow;
+            var staffNames = new Dictionary<Guid, string?>();
             foreach (var package in routePackages)
+            {
+                var fromZone = PackageCustodyRecorder.LatestZone(_custodyHops, package.Id)
+                    ?? PackageCustodyHopKinds.DefaultHubZone;
+                if (!staffNames.TryGetValue(package.StaffUserId, out var staffName))
+                {
+                    staffName = await PackageCustodyRecorder
+                        .ResolveUsernameAsync(_users, package.StaffUserId, cancellationToken)
+                        .ConfigureAwait(false);
+                    staffNames[package.StaffUserId] = staffName;
+                }
+
                 package.DispatchPackage();
+                PackageCustodyRecorder.Insert(
+                    _custodyHops,
+                    package.Id,
+                    package.SocietyId,
+                    PackageCustodyHopKinds.OutForDoorDelivery,
+                    now,
+                    fromZone: fromZone,
+                    toZone: PackageCustodyRecorder.DoorZone(package.TowerWing, package.FlatNumber.Value),
+                    locationLabel: package.FlatNumber.Value,
+                    staffUserId: package.StaffUserId,
+                    staffUsername: staffName,
+                    notes: $"Tower route {tower}");
+            }
 
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
 

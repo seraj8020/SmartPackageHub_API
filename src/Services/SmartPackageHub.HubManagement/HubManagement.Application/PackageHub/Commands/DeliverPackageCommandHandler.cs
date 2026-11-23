@@ -1,4 +1,5 @@
 using HubManagement.Application.PackageHub.DTOs;
+using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using Microsoft.Extensions.Logging;
@@ -18,18 +19,24 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<Package> _packages;
         private readonly IRepository<Delivery> _deliveries;
         private readonly IRepository<OtpLog> _otpLogs;
+        private readonly IRepository<PackageCustodyHop> _custodyHops;
+        private readonly IRepository<User> _users;
         private readonly ILogger<DeliverPackageCommandHandler> _logger;
 
         public DeliverPackageCommandHandler(
             IRepository<Package> packages,
             IRepository<Delivery> deliveries,
             IRepository<OtpLog> otpLogs,
+            IRepository<PackageCustodyHop> custodyHops,
+            IRepository<User> users,
             ILogger<DeliverPackageCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
             _packages = packages;
             _deliveries = deliveries;
             _otpLogs = otpLogs;
+            _custodyHops = custodyHops;
+            _users = users;
             _logger = logger;
         }
 
@@ -73,6 +80,7 @@ namespace HubManagement.Application.PackageHub.Commands
                 return new PackageCommandResult(true, false, false, "Invalid, expired, or already-used OTP.", null);
 
             package.DeliverPackage();
+            var method = string.IsNullOrWhiteSpace(payload.Method) ? "CounterPickup" : payload.Method;
             var delivery = Delivery.Create(
                 package.SocietyId,
                 request.packageId,
@@ -80,11 +88,28 @@ namespace HubManagement.Application.PackageHub.Commands
                 packageResidentId,
                 otpLog.Id,
                 payload.BatchId,
-                string.IsNullOrWhiteSpace(payload.Method) ? "CounterPickup" : payload.Method,
+                method,
                 utcNow,
                 payload.Notes ?? $"Handed to '{package.RecipientName}' at Flat Number '{package.FlatNumber}'");
             delivery.CompleteDelivery();
             _deliveries.Insert(delivery);
+
+            var staffName = await PackageCustodyRecorder
+                .ResolveUsernameAsync(_users, package.StaffUserId, cancellationToken)
+                .ConfigureAwait(false);
+            PackageCustodyRecorder.Insert(
+                _custodyHops,
+                package.Id,
+                package.SocietyId,
+                PackageCustodyHopKinds.Delivered,
+                utcNow,
+                fromZone: PackageCustodyRecorder.LatestZone(_custodyHops, package.Id),
+                toZone: PackageCustodyRecorder.DoorZone(package.TowerWing, package.FlatNumber.Value),
+                locationLabel: package.FlatNumber.Value,
+                staffUserId: package.StaffUserId,
+                staffUsername: staffName,
+                notes: method);
+
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogPackageDelivered(_logger, package.Id, null);
             return new PackageCommandResult(true, false, true, "Package delivered.", null);

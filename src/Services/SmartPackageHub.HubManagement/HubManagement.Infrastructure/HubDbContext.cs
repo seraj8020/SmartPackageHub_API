@@ -17,6 +17,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         public DbSet<Package> Packages { get; set; }
         public DbSet<PackageIntake> PackageIntakes { get; set; }
         public DbSet<PackageImage> PackageImages { get; set; }
+        public DbSet<PackageCustodyHop> PackageCustodyHops { get; set; }
         public DbSet<Route> Routes { get; set; }
         public DbSet<RouteStop> RouteStops { get; set; }
         public DbSet<User> Users { get; set; }
@@ -54,6 +55,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageIntakeConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageImageConfiguration).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageCustodyHopEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(ResidentEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(RouteEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(RouteStopEntityConfiguration).Assembly);

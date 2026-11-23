@@ -13,6 +13,7 @@ using HubManagement.Application.Intake.Services;
 using HubManagement.Application.DeliverySlots.Helpers;
 using HubManagement.Application.DeliverySlots.Services;
 using HubManagement.Application.PackageHub.DTOs;
+using HubManagement.Application.PackageHub.Services;
 
 namespace HubManagement.Application.PackageHub.Commands
 {
@@ -34,6 +35,8 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<DeliverySlot> _deliverySlots;
         private readonly IRepository<Notification> _notifications;
         private readonly IRepository<PackageImage> _images;
+        private readonly IRepository<PackageCustodyHop> _custodyHops;
+        private readonly IRepository<User> _users;
         private readonly IntakeNotificationChannel _queue;
         private readonly IFeatureFlags _featureFlags;
         private readonly ILogger<AssignShelfCommandHandler> _logger;
@@ -47,6 +50,8 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<DeliverySlot> deliverySlots,
             IRepository<Notification> notifications,
             IRepository<PackageImage> images,
+            IRepository<PackageCustodyHop> custodyHops,
+            IRepository<User> users,
             IntakeNotificationChannel queue,
             IFeatureFlags featureFlags,
             ILogger<AssignShelfCommandHandler> logger,
@@ -60,6 +65,8 @@ namespace HubManagement.Application.PackageHub.Commands
             _deliverySlots = deliverySlots;
             _notifications = notifications;
             _images = images;
+            _custodyHops = custodyHops;
+            _users = users;
             _queue = queue;
             _featureFlags = featureFlags;
             _logger = logger;
@@ -156,20 +163,10 @@ namespace HubManagement.Application.PackageHub.Commands
                 package.AssignShelf(shelf.Id);
                 // Full shelves remain assignable so intake is never blocked.
                 package.ShelfPackage();
+                await RecordShelvedCustodyAsync(package, shelf, cancellationToken).ConfigureAwait(false);
             }
 
-            string? otp = null;
-            Resident? resident = null;
-            if (shelf != null && package.ResidentId is Guid residentId)
-            {
-                resident = await _residents.GetByIdAsync(residentId).ConfigureAwait(false);
-                if (resident != null)
-                {
-                    otp = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
-                    _otpLogs.Insert(OtpLog.Generate(resident.SocietyId, resident.Id, package.Id, otp, PickupOtpLifetime, "Pickup"));
-                    AssignDefaultDeliverySlot(package, resident);
-                }
-            }
+            var (otp, resident) = await IssuePickupOtpIfNeededAsync(package, shelf).ConfigureAwait(false);
 
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -187,6 +184,35 @@ namespace HubManagement.Application.PackageHub.Commands
                 Message = BuildAssignShelfMessage(shelf, wasSuggested),
                 Receipt = await MapReceiptAsync(intake, package, shelf?.Code ?? string.Empty, otp, resident).ConfigureAwait(false),
             };
+        }
+
+        private async Task RecordShelvedCustodyAsync(Package package, Shelf shelf, CancellationToken cancellationToken)
+        {
+            var staffName = await PackageCustodyRecorder
+                .ResolveUsernameAsync(_users, package.StaffUserId, cancellationToken)
+                .ConfigureAwait(false);
+            PackageCustodyRecorder.RecordShelved(
+                _custodyHops,
+                package,
+                shelf.Code,
+                PackageCustodyRecorder.ResolveShelfZone(shelf),
+                package.StaffUserId,
+                staffName);
+        }
+
+        private async Task<(string? Otp, Resident? Resident)> IssuePickupOtpIfNeededAsync(Package package, Shelf? shelf)
+        {
+            if (shelf is null || package.ResidentId is not Guid residentId)
+                return (null, null);
+
+            var resident = await _residents.GetByIdAsync(residentId).ConfigureAwait(false);
+            if (resident is null)
+                return (null, null);
+
+            var otp = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
+            _otpLogs.Insert(OtpLog.Generate(resident.SocietyId, resident.Id, package.Id, otp, PickupOtpLifetime, "Pickup"));
+            AssignDefaultDeliverySlot(package, resident);
+            return (otp, resident);
         }
 
         private void AssignDefaultDeliverySlot(Package package, Resident resident)

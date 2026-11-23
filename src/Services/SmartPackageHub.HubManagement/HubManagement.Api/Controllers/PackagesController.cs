@@ -173,28 +173,80 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(result.Receipt);
         }
 
+        /// <summary>Internal multi-hop: move package between zones (Hub → tower cage, etc.).</summary>
+        [HttpPost("{packageId:guid}/custody-transfer")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(PackageDetailsDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult> TransferCustodyZone(
+            Guid packageId,
+            [FromBody] TransferPackageZoneRequest? request,
+            CancellationToken cancellationToken)
+        {
+            var (session, authError) = await TryGetStaffSessionAsync(cancellationToken).ConfigureAwait(false);
+            if (authError is not null)
+                return authError;
+
+            var package = await _packages.GetByIdAsync(packageId).ConfigureAwait(false);
+            if (package is null)
+                return NotFound(new { succeeded = false, message = "Package was not found." });
+            if (!session!.SocietyIds.Contains(package.SocietyId))
+                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff is not assigned to this package's society." });
+
+            var result = await _mediator.Send(
+                new TransferPackageZoneCommand(
+                    packageId,
+                    request ?? new TransferPackageZoneRequest(),
+                    session.UserId,
+                    session.SocietyIds),
+                cancellationToken).ConfigureAwait(false);
+
+            if (!result.Found)
+                return NotFound(new { Message = result.Message });
+            if (result.Conflict)
+                return Conflict(new { succeeded = false, message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { succeeded = false, message = result.Message });
+
+            return Ok(new { succeeded = true, message = result.Message, package = result.Package });
+        }
+
         private async Task<ActionResult?> AuthorizeStaffPackageAsync(Guid packageId, CancellationToken cancellationToken)
+        {
+            var (staffSession, authError) = await TryGetStaffSessionAsync(cancellationToken).ConfigureAwait(false);
+            if (authError is not null)
+                return authError;
+
+            var package = await _packages.GetByIdAsync(packageId).ConfigureAwait(false);
+            if (package is null)
+                return NotFound(new { succeeded = false, message = "Package was not found." });
+            if (!staffSession!.SocietyIds.Contains(package.SocietyId))
+                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff is not assigned to this package's society." });
+
+            return null;
+        }
+
+        private async Task<(StaffSession? Session, ActionResult? Error)> TryGetStaffSessionAsync(
+            CancellationToken cancellationToken)
         {
             var authorization = Request.Headers.Authorization.ToString();
             var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
                 ? authorization["Bearer ".Length..].Trim()
                 : null;
             if (string.IsNullOrWhiteSpace(token))
-                return Unauthorized(new { succeeded = false, message = "Staff sign-in required." });
+                return (null, Unauthorized(new { succeeded = false, message = "Staff sign-in required." }));
 
             var staffSession = await _staffSessions.GetSessionAsync(token, cancellationToken).ConfigureAwait(false);
             if (staffSession is null)
-                return Unauthorized(new { succeeded = false, message = "Staff sign-in required." });
+                return (null, Unauthorized(new { succeeded = false, message = "Staff sign-in required." }));
             if (!string.Equals(staffSession.Role, "Staff", StringComparison.OrdinalIgnoreCase))
-                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff access required." });
+                return (null, StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff access required." }));
 
-            var package = await _packages.GetByIdAsync(packageId).ConfigureAwait(false);
-            if (package is null)
-                return NotFound(new { succeeded = false, message = "Package was not found." });
-            if (!staffSession.SocietyIds.Contains(package.SocietyId))
-                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = "Staff is not assigned to this package's society." });
-
-            return null;
+            return (staffSession, null);
         }
         private ActionResult MapCodResult(CodResponseResult result)
         {

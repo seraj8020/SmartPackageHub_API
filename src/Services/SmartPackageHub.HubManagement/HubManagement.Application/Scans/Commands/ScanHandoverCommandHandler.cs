@@ -1,4 +1,5 @@
 using HubManagement.Application.PackageHub.DTOs;
+using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using Microsoft.Extensions.Logging;
@@ -16,16 +17,22 @@ namespace HubManagement.Application.Scans.Commands
                 "Handed over package {PackageId} to {Staff}");
         private readonly IRepository<Package> _packages;
         private readonly IRepository<Delivery> _deliveries;
+        private readonly IRepository<PackageCustodyHop> _custodyHops;
+        private readonly IRepository<User> _users;
         private readonly ILogger<ScanHandoverCommandHandler> _logger;
 
         public ScanHandoverCommandHandler(
             IRepository<Package> packages,
             IRepository<Delivery> deliveries,
+            IRepository<PackageCustodyHop> custodyHops,
+            IRepository<User> users,
             ILogger<ScanHandoverCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
             _packages = packages;
             _deliveries = deliveries;
+            _custodyHops = custodyHops;
+            _users = users;
             _logger = logger;
         }
 
@@ -51,6 +58,7 @@ namespace HubManagement.Application.Scans.Commands
                 return new PackageCommandResult(true, false, false, "Package is not assigned to a resident", null);
 
             package.MarkCollected();
+            var utcNow = DateTime.UtcNow;
             var delivery = Delivery.Create(
                 package.SocietyId,
                 package.Id,
@@ -59,10 +67,27 @@ namespace HubManagement.Application.Scans.Commands
                 null,
                 null,
                 "Handover",
-                DateTime.UtcNow,
+                utcNow,
                 string.IsNullOrWhiteSpace(request.Request.Notes) ? "Handed over via scan" : request.Request.Notes.Trim());
             delivery.CompleteDelivery();
             _deliveries.Insert(delivery);
+
+            var staffName = await PackageCustodyRecorder
+                .ResolveUsernameAsync(_users, package.StaffUserId, cancellationToken)
+                .ConfigureAwait(false);
+            PackageCustodyRecorder.Insert(
+                _custodyHops,
+                package.Id,
+                package.SocietyId,
+                PackageCustodyHopKinds.Delivered,
+                utcNow,
+                fromZone: PackageCustodyRecorder.LatestZone(_custodyHops, package.Id),
+                toZone: PackageCustodyRecorder.DoorZone(package.TowerWing, package.FlatNumber.Value),
+                locationLabel: package.FlatNumber.Value,
+                staffUserId: package.StaffUserId,
+                staffUsername: staffName,
+                notes: "Handover");
+
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogScanHandover(_logger, package.Id, package.StaffUserId.ToString(), null);
             return new PackageCommandResult(true, false, true, "Package handed over", PackageDetailsDto.From(package));

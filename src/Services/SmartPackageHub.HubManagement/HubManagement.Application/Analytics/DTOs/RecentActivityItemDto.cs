@@ -7,5 +7,10 @@ namespace HubManagement.Application.Analytics.DTOs
        string Text,
        Guid? SocietyId,
        string? SocietyName,
-       Guid? PackageId);
+       Guid? PackageId,
+       string? FromZone = null,
+       string? ToZone = null,
+       string? LocationLabel = null,
+       string? StaffUsername = null,
+       string? PackageNumber = null);
 }

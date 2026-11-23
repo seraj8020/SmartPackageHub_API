@@ -41,6 +41,7 @@ namespace HubManagement.Application.Intake.Commands
         private readonly IRepository<OtpLog> _otpLogs;
         private readonly IRepository<Notification> _notifications;
         private readonly IRepository<VacationHold> _vacationHolds;
+        private readonly IRepository<PackageCustodyHop> _custodyHops;
         private readonly IParcelPhotoStore _photos;
         private readonly IntakeNotificationChannel _queue;
         private readonly IFeatureFlags _featureFlags;
@@ -59,6 +60,7 @@ namespace HubManagement.Application.Intake.Commands
             IRepository<OtpLog> otpLogs,
             IRepository<Notification> notifications,
             IRepository<VacationHold> vacationHolds,
+            IRepository<PackageCustodyHop> custodyHops,
             IParcelPhotoStore photos,
             IntakeNotificationChannel queue,
             IFeatureFlags featureFlags,
@@ -77,6 +79,7 @@ namespace HubManagement.Application.Intake.Commands
             _otpLogs = otpLogs;
             _notifications = notifications;
             _vacationHolds = vacationHolds;
+            _custodyHops = custodyHops;
             _photos = photos;
             _queue = queue;
             _featureFlags = featureFlags;
@@ -398,6 +401,10 @@ namespace HubManagement.Application.Intake.Commands
             }
 
             _packages.Insert(package);
+            var staffName = await PackageCustodyRecorder
+                .ResolveUsernameAsync(_users, package.StaffUserId, cancellationToken)
+                .ConfigureAwait(false);
+            PackageCustodyRecorder.RecordReceivedAtHub(_custodyHops, package, staffName);
 
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             try

@@ -751,6 +751,61 @@ namespace HubManagement.Infrastructure.Migrations
                     b.ToTable("PackageIntakes", (string)null);
                 });
 
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.PackageCustodyHop", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FromZone")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("LocationLabel")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PackageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SocietyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("StaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("StaffUsername")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ToZone")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffUserId");
+
+                    b.HasIndex("PackageId", "OccurredAtUtc")
+                        .HasDatabaseName("IX_PackageCustodyHops_PackageId_OccurredAtUtc");
+
+                    b.HasIndex("SocietyId", "OccurredAtUtc")
+                        .HasDatabaseName("IX_PackageCustodyHops_SocietyId_OccurredAtUtc");
+
+                    b.ToTable("PackageCustodyHops", (string)null);
+                });
+
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.Resident", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1612,6 +1667,26 @@ namespace HubManagement.Infrastructure.Migrations
                     b.HasOne("HubManagement.Core.Hubs.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("StaffUserId");
+                });
+
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.PackageCustodyHop", b =>
+                {
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Package", null)
+                        .WithMany()
+                        .HasForeignKey("PackageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Society", null)
+                        .WithMany()
+                        .HasForeignKey("SocietyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HubManagement.Core.Hubs.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("StaffUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.Resident", b =>

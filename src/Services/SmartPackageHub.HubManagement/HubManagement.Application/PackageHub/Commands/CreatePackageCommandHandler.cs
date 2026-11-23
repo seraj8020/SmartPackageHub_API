@@ -19,6 +19,7 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<Society> _societies;
         private readonly IRepository<User> _users;
         private readonly IRepository<UserSociety> _userSocieties;
+        private readonly IRepository<PackageCustodyHop> _custodyHops;
         private readonly ILogger<CreatePackageCommandHandler> _logger;
 
         public CreatePackageCommandHandler(
@@ -27,6 +28,7 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<Society> societies,
             IRepository<User> users,
             IRepository<UserSociety> userSocieties,
+            IRepository<PackageCustodyHop> custodyHops,
             ILogger<CreatePackageCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
@@ -35,6 +37,7 @@ namespace HubManagement.Application.PackageHub.Commands
             _societies = societies;
             _users = users;
             _userSocieties = userSocieties;
+            _custodyHops = custodyHops;
             _logger = logger;
         }
 
@@ -70,6 +73,10 @@ namespace HubManagement.Application.PackageHub.Commands
                 false);
 
             _packages.Insert(package);
+            var staffName = await PackageCustodyRecorder
+                .ResolveUsernameAsync(_users, package.StaffUserId, cancellationToken)
+                .ConfigureAwait(false);
+            PackageCustodyRecorder.RecordReceivedAtHub(_custodyHops, package, staffName);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogPackageCreated(_logger, package.Id, tracking, null);
             return new PackageCommandResult(true, false, true, "Package created.", PackageDetailsDto.From(package));

@@ -7,8 +7,9 @@ using SmartPackageHub.Common.Services.Storage.Abstractions;
 namespace HubManagement.Application.HubResidents.Queries
 {
     public sealed class GetResidentDamagePhotoBytesQueryHandler
-        : QueryHandler<GetResidentDamagePhotoBytesQuery, ResidentDamagePhotoBytes?>
+        : QueryHandler<GetResidentDamagePhotoBytesQuery, ResidentPhotoBytes?>
     {
+
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<Package> _packages;
         private readonly IRepository<PackageIntake> _intakes;
@@ -27,7 +28,7 @@ namespace HubManagement.Application.HubResidents.Queries
             _photos = photos;
         }
 
-        protected override async Task<ResidentDamagePhotoBytes?> HandleAsync(GetResidentDamagePhotoBytesQuery request)
+        protected override async Task<ResidentPhotoBytes?> HandleAsync(GetResidentDamagePhotoBytesQuery request)
         {
             ArgumentNullException.ThrowIfNull(request);
 
@@ -53,7 +54,8 @@ namespace HubManagement.Application.HubResidents.Queries
             if (bytes is null || bytes.Length == 0)
                 return null;
 
-            return new ResidentDamagePhotoBytes(bytes, "image/jpeg");
+            return new ResidentPhotoBytes(bytes, "image/jpeg");
         }
     }
 }
+

@@ -78,8 +78,10 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         }
 
         /// <summary>
-        /// Package detail for the owning resident — includes hub intake damage note + signed/proxy photo URL when damaged.
-        /// Call only when opening a damaged package (list/history carry <c>isDamaged</c> only).
+        /// Package detail for the owning resident.
+        /// Section 1: <c>hubIntakeNote</c> when intake damage exists.
+        /// Section 2: <c>yourReturnRequest</c> when a return request exists.
+        /// Sections are independent and never share photo payloads.
         /// </summary>
         [HttpGet("{id:guid}/packages/{packageId:guid}")]
         [MapToApiVersion(ApiVersions.V2)]
@@ -92,6 +94,22 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 return NotFound();
 
             return Ok(detail);
+        }
+
+        /// <summary>
+        /// Owner-scoped "Your return request" only — use to refresh return section without reloading full package detail.
+        /// </summary>
+        [HttpGet("{id:guid}/packages/{packageId:guid}/return")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(ResidentReturnRequestDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetPackageReturn(Guid id, Guid packageId)
+        {
+            var result = await _mediator.Send(new GetResidentPackageReturnQuery(id, packageId)).ConfigureAwait(false);
+            if (result is null)
+                return NotFound();
+
+            return Ok(result);
         }
 
         /// <summary>
@@ -120,6 +138,40 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         public async Task<ActionResult> GetDamagePhoto(Guid id, Guid packageId)
         {
             var result = await _mediator.Send(new GetResidentDamagePhotoBytesQuery(id, packageId)).ConfigureAwait(false);
+            if (result is null)
+                return NotFound();
+
+            return File(result.Content.ToArray(), result.ContentType);
+        }
+
+        /// <summary>
+        /// Refresh a single return-request photo URL after signed URL expiry.
+        /// </summary>
+        [HttpGet("{id:guid}/packages/{packageId:guid}/return-photos/{photoId:guid}/url")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(ReturnPhotoUrlDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetReturnPhotoUrl(Guid id, Guid packageId, Guid photoId)
+        {
+            var result = await _mediator.Send(new GetResidentReturnPhotoUrlQuery(id, packageId, photoId))
+                .ConfigureAwait(false);
+            if (result is null)
+                return NotFound();
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Authenticated stream of a resident return photo (local/dev, or when signed URLs are unavailable).
+        /// </summary>
+        [HttpGet("{id:guid}/packages/{packageId:guid}/return-photos/{photoId:guid}")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetReturnPhoto(Guid id, Guid packageId, Guid photoId)
+        {
+            var result = await _mediator.Send(new GetResidentReturnPhotoBytesQuery(id, packageId, photoId))
+                .ConfigureAwait(false);
             if (result is null)
                 return NotFound();
 

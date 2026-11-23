@@ -1,8 +1,8 @@
 namespace HubManagement.Application.HubResidents.Queries
 {
-    public sealed class ResidentDamagePhotoBytes
+    public sealed class ResidentPhotoBytes
     {
-        public ResidentDamagePhotoBytes(ReadOnlyMemory<byte> content, string contentType)
+        public ResidentPhotoBytes(ReadOnlyMemory<byte> content, string contentType)
         {
             Content = content;
             ContentType = contentType;

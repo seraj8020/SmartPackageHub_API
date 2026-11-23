@@ -1,7 +1,7 @@
 namespace HubManagement.Application.HubResidents.DTOs
 {
     /// <summary>
-    /// Full resident package payload including hub intake damage note + photo URL when damaged.
+    /// Full resident package payload. Hub intake damage and resident return request are separate optional sections.
     /// </summary>
     public sealed class ResidentPackageDetailDto
     {
@@ -24,7 +24,10 @@ namespace HubManagement.Application.HubResidents.DTOs
         public string? PreferredDeliveryMethod { get; set; }
         public bool IsDamaged { get; set; }
 
-        /// <summary>Present only when <see cref="IsDamaged"/> is true.</summary>
+        /// <summary>Section 1 — hub/staff intake damage. Independent of <see cref="YourReturnRequest"/>.</summary>
         public HubIntakeDamageNoteDto? HubIntakeNote { get; set; }
+
+        /// <summary>Section 2 — resident return request. Independent of <see cref="HubIntakeNote"/>.</summary>
+        public ResidentReturnRequestDto? YourReturnRequest { get; set; }
     }
 }

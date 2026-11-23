@@ -17,6 +17,8 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<Package> _packages;
         private readonly IRepository<DeliverySlot> _slots;
         private readonly IRepository<PackageIntake> _intakes;
+        private readonly IRepository<PackageReturn> _returns;
+        private readonly IRepository<PackageReturnImage> _returnImages;
         private readonly IParcelPhotoStore _photos;
 
         public GetResidentPackageDetailQueryHandler(
@@ -25,12 +27,16 @@ namespace HubManagement.Application.HubResidents.Queries
             IRepository<Package> packages,
             IRepository<DeliverySlot> slots,
             IRepository<PackageIntake> intakes,
+            IRepository<PackageReturn> returns,
+            IRepository<PackageReturnImage> returnImages,
             IParcelPhotoStore photos) : base(mapper)
         {
             _residents = residents;
             _packages = packages;
             _slots = slots;
             _intakes = intakes;
+            _returns = returns;
+            _returnImages = returnImages;
             _photos = photos;
         }
 
@@ -80,6 +86,24 @@ namespace HubManagement.Application.HubResidents.Queries
                 };
             }
 
+            ResidentReturnRequestDto? yourReturn = null;
+            var packageReturn = ResidentReturnRequestBuilder.FindForPackage(
+                _returns,
+                package.Id,
+                resident.Id);
+            if (packageReturn is not null)
+            {
+                var returnPhotos = _returnImages
+                    .FetchMulti(i => i.ReturnId == packageReturn.Id, noTracking: true)
+                    .ToList();
+                yourReturn = await ResidentReturnRequestBuilder.ToDtoAsync(
+                        packageReturn,
+                        returnPhotos,
+                        _photos,
+                        resident.Id)
+                    .ConfigureAwait(false);
+            }
+
             return new ResidentPackageDetailDto
             {
                 Id = package.Id,
@@ -103,6 +127,7 @@ namespace HubManagement.Application.HubResidents.Queries
                 PreferredDeliveryMethod = package.PreferredDeliveryMethod,
                 IsDamaged = isDamaged,
                 HubIntakeNote = hubNote,
+                YourReturnRequest = yourReturn,
             };
         }
     }

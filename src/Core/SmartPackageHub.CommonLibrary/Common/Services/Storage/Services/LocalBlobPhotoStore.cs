@@ -102,6 +102,19 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             return key;
         }
 
+        public async Task<string> SaveReturnAsync(
+            Guid returnId,
+            int sortOrder,
+            ReadOnlyMemory<byte> bytes,
+            CancellationToken cancellationToken = default)
+        {
+            var key = $"returns/{returnId:N}/{sortOrder}.jpg";
+            var path = PhysicalPath(key);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllBytesAsync(path, bytes.ToArray(), cancellationToken).ConfigureAwait(false);
+            return key;
+        }
+
         private string PhysicalPath(string key) =>
             Path.Combine(_root, key.Replace('/', Path.DirectorySeparatorChar));
 

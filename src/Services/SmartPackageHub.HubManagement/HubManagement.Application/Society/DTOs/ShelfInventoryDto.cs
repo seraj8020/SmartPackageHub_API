@@ -1,6 +1,6 @@
 namespace HubManagement.Application.Societies.DTOs
 {
-    /// <summary>Current Shelved occupancy for one physical shelf (excludes Dispatched / Delivered).</summary>
+    /// <summary>Current Shelved + ReturnShelved occupancy for one physical shelf (excludes Dispatched / Delivered).</summary>
     public sealed class ShelfInventoryDto
     {
         public Guid Id { get; set; }

@@ -254,5 +254,39 @@ namespace HubManagement.Core.Hubs.Entities
 
             Status = PackageStatus.Delivered;
         }
+
+        /// <summary>
+        /// After a failed door delivery, restore the package to Shelved keeping the existing shelf assignment.
+        /// </summary>
+        public void ReShelveAfterFailedDelivery()
+        {
+            if (Status != PackageStatus.Dispatched)
+                throw new InvalidOperationException("Only dispatched packages can be re-shelved after a failed delivery.");
+            if (ShelfId is null)
+                throw new InvalidOperationException("Cannot re-shelve without a previously assigned shelf.");
+
+            Status = PackageStatus.Shelved;
+        }
+
+        public void BeginReturn()
+        {
+            if (Status != PackageStatus.Delivered)
+                throw new InvalidOperationException("Only delivered packages can enter a return flow.");
+
+            Status = PackageStatus.ReturnRequested;
+        }
+
+        public void SyncReturnStatus(PackageReturnStatus returnStatus)
+        {
+            Status = returnStatus switch
+            {
+                PackageReturnStatus.ReturnRequested => PackageStatus.ReturnRequested,
+                PackageReturnStatus.ReturnReceived => PackageStatus.ReturnReceived,
+                PackageReturnStatus.ReturnShelved => PackageStatus.ReturnShelved,
+                PackageReturnStatus.ReturnPickedByCourier => PackageStatus.ReturnPickedByCourier,
+                PackageReturnStatus.ReturnClosed => PackageStatus.ReturnClosed,
+                _ => throw new ArgumentOutOfRangeException(nameof(returnStatus), returnStatus, null),
+            };
+        }
     }
 }

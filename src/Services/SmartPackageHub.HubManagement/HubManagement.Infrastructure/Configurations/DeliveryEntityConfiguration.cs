@@ -26,6 +26,14 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
                 statusBuilder.Property(s => s.Value).HasColumnName("Status").IsRequired().HasMaxLength(50);
             });
 
+            builder.OwnsOne(e => e.FailureReason, failureBuilder =>
+            {
+                failureBuilder.Property(f => f.Value)
+                    .HasColumnName("FailureReason")
+                    .HasMaxLength(50);
+            });
+            builder.Navigation(e => e.FailureReason).IsRequired(false);
+
             builder.HasOne<Society>()
                 .WithMany()
                 .HasForeignKey(e => e.SocietyId)

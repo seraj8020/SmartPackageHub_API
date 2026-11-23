@@ -13,10 +13,13 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         }
 
         public DbSet<Society> Societies { get; set; }
+        public DbSet<SocietyCarrierReturnPolicy> SocietyCarrierReturnPolicies { get; set; }
         public DbSet<Resident> Residents { get; set; }
         public DbSet<Package> Packages { get; set; }
         public DbSet<PackageIntake> PackageIntakes { get; set; }
         public DbSet<PackageImage> PackageImages { get; set; }
+        public DbSet<PackageReturn> PackageReturns { get; set; }
+        public DbSet<PackageReturnImage> PackageReturnImages { get; set; }
         public DbSet<PackageCustodyHop> PackageCustodyHops { get; set; }
         public DbSet<Route> Routes { get; set; }
         public DbSet<RouteStop> RouteStops { get; set; }
@@ -55,12 +58,15 @@ namespace SmartPackageHub.HubManagement.Infrastructure
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageIntakeConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageImageConfiguration).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageReturnEntityConfiguration).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageReturnImageEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageCustodyHopEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(ResidentEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(RouteEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(RouteStopEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(ShelfEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(SocietyEntityConfiguration).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(SocietyCarrierReturnPolicyEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(UserEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(UserSocietyEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(VacationHoldEntityConfiguration).Assembly);

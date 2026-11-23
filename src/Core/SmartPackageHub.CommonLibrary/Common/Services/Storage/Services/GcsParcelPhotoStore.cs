@@ -164,6 +164,20 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             return key;
         }
 
+        public async Task<string> SaveReturnAsync(
+            Guid returnId,
+            int sortOrder,
+            ReadOnlyMemory<byte> bytes,
+            CancellationToken cancellationToken = default)
+        {
+            var key = $"returns/{returnId:N}/{sortOrder}.jpg";
+            var objectName = ObjectName(key);
+            await UploadBytesAsync(objectName, bytes.ToArray(), "image/jpeg", cancellationToken)
+                .ConfigureAwait(false);
+            LogUploaded(_logger, objectName, _bucket, null);
+            return key;
+        }
+
         private async Task UploadBytesAsync(
             string objectName,
             byte[] payload,

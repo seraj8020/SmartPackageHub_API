@@ -9,5 +9,12 @@ namespace SmartPackageHub.Common.Services.Storage.Abstractions
         Task WriteLinkAsync(string clientPhotoId, Guid intakeId, Guid packageId, CancellationToken cancellationToken = default);
         Task<(Guid IntakeId, Guid PackageId)?> ReadLinkAsync(string clientPhotoId, CancellationToken cancellationToken = default);
         Task<string> SaveDamageAsync(Guid intakeId, ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default);
+
+        /// <summary>Stores a resident return photo under returns/{returnId}/{sortOrder}.jpg.</summary>
+        Task<string> SaveReturnAsync(
+            Guid returnId,
+            int sortOrder,
+            ReadOnlyMemory<byte> bytes,
+            CancellationToken cancellationToken = default);
     }
 }

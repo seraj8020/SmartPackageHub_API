@@ -1,5 +1,6 @@
 using HubManagement.Application.Auth.Services;
 using HubManagement.Application.HubUsers.DTOs;
+using HubManagement.Application.HubUsers.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
 using HubManagement.Core.Hubs.ValueObjects;
@@ -18,12 +19,19 @@ namespace HubManagement.Application.HubUsers.Commands
                 "Created user {UserId}");
         private readonly IRepository<User> _users;
         private readonly IRepository<Society> _societies;
+        private readonly IRepository<UserSociety> _userSocieties;
         private readonly ILogger<CreateUserCommandHandler> _logger;
 
-        public CreateUserCommandHandler(IRepository<User> users, IRepository<Society> societies, ILogger<CreateUserCommandHandler> logger, IUnitOfWork unitOfWork) : base(unitOfWork)
+        public CreateUserCommandHandler(
+            IRepository<User> users,
+            IRepository<Society> societies,
+            IRepository<UserSociety> userSocieties,
+            ILogger<CreateUserCommandHandler> logger,
+            IUnitOfWork unitOfWork) : base(unitOfWork)
         {
             _users = users;
             _societies = societies;
+            _userSocieties = userSocieties;
             _logger = logger;
         }
 
@@ -31,31 +39,31 @@ namespace HubManagement.Application.HubUsers.Commands
         {
             ArgumentNullException.ThrowIfNull(request);
             if (string.IsNullOrWhiteSpace(request.Username))
-                return new UserCommandResult(true, false, false, "Username is required", null);
+                return new UserCommandResult(true, false, false, false, "Username is required", null);
             if (string.IsNullOrWhiteSpace(request.Email))
-                return new UserCommandResult(true, false, false, "Email is required", null);
+                return new UserCommandResult(true, false, false, false, "Email is required", null);
             if (!request.SocietyId.HasValue || request.SocietyId.Value == Guid.Empty)
-                return new UserCommandResult(true, false, false, "Society is required.", null);
+                return new UserCommandResult(true, false, false, false, "Society is required.", null);
             if (await _societies.GetByIdAsync(request.SocietyId.Value).ConfigureAwait(false) is null)
-                return new UserCommandResult(true, false, false, "Selected society was not found.", null);
+                return new UserCommandResult(true, false, false, false, "Selected society was not found.", null);
 
             var role = ResolveRole(request.Role, request.IsAdmin, RoleType.Staff);
             if (role == null)
-                return new UserCommandResult(true, false, false, "Role must be Admin, Courier, Resident, or Staff.", null);
+                return new UserCommandResult(true, false, false, false, "Role must be Admin, Courier, Resident, or Staff.", null);
 
             if (UserExists(request.Username, request.Email, null, role.Type != RoleType.Resident))
-                return new UserCommandResult(true, true, false, "A user with the same username or email already exists", null);
+                return new UserCommandResult(true, true, false, false, "A user with the same username or email already exists", null);
 
             string? passwordHash = null;
             if (!string.IsNullOrWhiteSpace(request.Password))
             {
                 if (request.Password.Trim().Length < 6)
-                    return new UserCommandResult(true, false, false, "Password must be at least 6 characters.", null);
+                    return new UserCommandResult(true, false, false, false, "Password must be at least 6 characters.", null);
                 passwordHash = PasswordHasher.Hash(request.Password.Trim());
             }
             else if (role.Type is RoleType.Staff or RoleType.Admin or RoleType.PlatformAdmin or RoleType.Courier)
             {
-                return new UserCommandResult(true, false, false, "Password is required for staff/admin accounts.", null);
+                return new UserCommandResult(true, false, false, false, "Password is required for staff/admin accounts.", null);
             }
 
             var user = User.Create(
@@ -81,7 +89,8 @@ namespace HubManagement.Application.HubUsers.Commands
             _users.Insert(user);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogCreatedUser(_logger, user.Id, null);
-            return new UserCommandResult(true, false, true, "User created.", UserDetailsDto.From(user));
+            var dto = UserDetailsDtoMapper.FromUser(user, _userSocieties, _societies);
+            return new UserCommandResult(true, false, true, false, "User created.", dto);
         }
 
         private bool UserExists(string username, string email, Guid? exceptUserId, bool enforceUsernameUniqueness)

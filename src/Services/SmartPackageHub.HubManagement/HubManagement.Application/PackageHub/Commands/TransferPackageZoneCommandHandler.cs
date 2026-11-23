@@ -51,8 +51,8 @@ namespace HubManagement.Application.PackageHub.Commands
             var package = await _packages.GetByIdAsync(request.PackageId).ConfigureAwait(false);
             if (package is null)
                 return new PackageCommandResult(false, false, false, "Package was not found.", null);
-            if (!request.StaffSocietyIds.Contains(package.SocietyId))
-                return new PackageCommandResult(true, false, false, "Staff is not assigned to this package's society.", null);
+            if (!PackageStaffGuard.HasSocietyAccess(package, request.StaffSocietyIds))
+                return new PackageCommandResult(true, false, false, "Staff is not assigned to this package's society.", null, Forbidden: true);
 
             if (package.Status is not (PackageStatus.Received or PackageStatus.Shelved))
             {

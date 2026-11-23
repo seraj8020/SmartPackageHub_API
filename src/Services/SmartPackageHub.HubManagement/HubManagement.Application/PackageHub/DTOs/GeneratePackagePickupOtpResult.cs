@@ -5,8 +5,10 @@ namespace HubManagement.Application.PackageHub.DTOs
         public bool Found { get; init; }
         public bool Succeeded { get; init; }
         public bool Conflict { get; init; }
+        public bool Forbidden { get; init; }
         public string? Message { get; init; }
         public string? PickupOtp { get; init; }
         public bool SmsQueued { get; init; }
     }
 }
+

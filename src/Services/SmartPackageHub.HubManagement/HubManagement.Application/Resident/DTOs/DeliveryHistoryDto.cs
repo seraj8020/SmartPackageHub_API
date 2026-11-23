@@ -9,6 +9,10 @@ namespace HubManagement.Application.HubResidents.DTOs
         public string Method { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string PkgNumber { get; set; } = string.Empty;
+        /// <summary>SPH tracking number for the package.</summary>
+        public string? TrackingNumber { get; set; }
+        /// <summary>Courier AWB / airway bill from the label.</summary>
+        public string? CourierAwb { get; set; }
         public string? Courier { get; set; }
         public string? Category { get; set; }
 

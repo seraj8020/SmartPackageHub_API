@@ -15,18 +15,21 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<Package> _packages;
         private readonly IRepository<DeliverySlot> _slots;
         private readonly IRepository<PackageIntake> _intakes;
+        private readonly IRepository<Shelf> _shelves;
 
         public GetResidentPackagesQueryHandler(
             IMapper mapper,
             IRepository<Resident> residents,
             IRepository<Package> packages,
             IRepository<DeliverySlot> slots,
-            IRepository<PackageIntake> intakes) : base(mapper)
+            IRepository<PackageIntake> intakes,
+            IRepository<Shelf> shelves) : base(mapper)
         {
             _residents = residents;
             _packages = packages;
             _slots = slots;
             _intakes = intakes;
+            _shelves = shelves;
         }
 
         protected override async Task<List<ResidentPackageDto>?> HandleAsync(GetResidentPackagesQuery request)
@@ -74,11 +77,28 @@ namespace HubManagement.Application.HubResidents.Queries
                 .Select(intake => intake.PackageId)
                 .ToHashSet();
 
+            var shelfIds = waiting
+                .Where(p => p.ShelfId.HasValue)
+                .Select(p => p.ShelfId!.Value)
+                .Distinct()
+                .ToHashSet();
+            var shelvesById = shelfIds.Count == 0
+                ? new Dictionary<Guid, Shelf>()
+                : (await _shelves.ListAsync(
+                        shelf => shelfIds.Contains(shelf.Id),
+                        cancellationToken: default,
+                        noTracking: true).ConfigureAwait(false))
+                    .ToDictionary(shelf => shelf.Id);
+
             return waiting
                 .OrderByDescending(p => p.RecievedAt)
                 .Select(p =>
                 {
                     activeSlots.TryGetValue(p.Id, out var slot);
+                    Shelf? shelf = null;
+                    if (p.ShelfId.HasValue)
+                        shelvesById.TryGetValue(p.ShelfId.Value, out shelf);
+
                     return new ResidentPackageDto
                     {
                         Id = p.Id,
@@ -101,6 +121,12 @@ namespace HubManagement.Application.HubResidents.Queries
                             : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
                         PreferredDeliveryMethod = p.PreferredDeliveryMethod,
                         IsDamaged = damagedByPackage.Contains(p.Id),
+                        ShelfCode = shelf?.Code,
+                        ShelfTowerOrWing = shelf?.TowerOrWing,
+                        ShelfZone = shelf?.Location?.Zone,
+                        ShelfAisle = shelf?.Location?.Aisle,
+                        ShelfTier = shelf?.Location is null ? null : shelf.Location.Tier,
+                        IsColdStorage = shelf?.IsColdStorage == true || p.IsColdStorage,
                     };
                 }).ToList();
         }

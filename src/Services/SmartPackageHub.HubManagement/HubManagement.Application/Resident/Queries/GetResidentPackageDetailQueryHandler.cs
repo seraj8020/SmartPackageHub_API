@@ -19,6 +19,7 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<PackageIntake> _intakes;
         private readonly IRepository<PackageReturn> _returns;
         private readonly IRepository<PackageReturnImage> _returnImages;
+        private readonly IRepository<Shelf> _shelves;
         private readonly IParcelPhotoStore _photos;
 
         public GetResidentPackageDetailQueryHandler(
@@ -29,6 +30,7 @@ namespace HubManagement.Application.HubResidents.Queries
             IRepository<PackageIntake> intakes,
             IRepository<PackageReturn> returns,
             IRepository<PackageReturnImage> returnImages,
+            IRepository<Shelf> shelves,
             IParcelPhotoStore photos) : base(mapper)
         {
             _residents = residents;
@@ -37,6 +39,7 @@ namespace HubManagement.Application.HubResidents.Queries
             _intakes = intakes;
             _returns = returns;
             _returnImages = returnImages;
+            _shelves = shelves;
             _photos = photos;
         }
 
@@ -104,6 +107,10 @@ namespace HubManagement.Application.HubResidents.Queries
                     .ConfigureAwait(false);
             }
 
+            Shelf? shelf = null;
+            if (package.ShelfId.HasValue)
+                shelf = await _shelves.GetByIdAsync(package.ShelfId.Value).ConfigureAwait(false);
+
             return new ResidentPackageDetailDto
             {
                 Id = package.Id,
@@ -126,6 +133,12 @@ namespace HubManagement.Application.HubResidents.Queries
                     : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
                 PreferredDeliveryMethod = package.PreferredDeliveryMethod,
                 IsDamaged = isDamaged,
+                ShelfCode = shelf?.Code,
+                ShelfTowerOrWing = shelf?.TowerOrWing,
+                ShelfZone = shelf?.Location?.Zone,
+                ShelfAisle = shelf?.Location?.Aisle,
+                ShelfTier = shelf?.Location is null ? null : shelf.Location.Tier,
+                IsColdStorage = shelf?.IsColdStorage == true || package.IsColdStorage,
                 HubIntakeNote = hubNote,
                 YourReturnRequest = yourReturn,
             };

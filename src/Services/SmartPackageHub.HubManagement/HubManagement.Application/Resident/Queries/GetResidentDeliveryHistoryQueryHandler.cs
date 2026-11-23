@@ -79,6 +79,10 @@ namespace HubManagement.Application.HubResidents.Queries
                         Method = d.Method,
                         Status = d.Status.Value,
                         PkgNumber = package?.PkgNumber ?? string.Empty,
+                        TrackingNumber = package?.SphTrackingNumber?.Value,
+                        CourierAwb = string.IsNullOrWhiteSpace(package?.CourierAwb)
+                            ? null
+                            : package!.CourierAwb.Trim(),
                         Courier = package?.CourierPartner,
                         Category = package?.Category,
                         IsDamaged = damagedByPackage.Contains(d.PackageId),

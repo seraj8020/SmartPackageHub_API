@@ -25,5 +25,13 @@ namespace HubManagement.Application.HubResidents.DTOs
 
         /// <summary>True when hub intake recorded damage. Note/photo load via package detail only.</summary>
         public bool IsDamaged { get; set; }
+
+        /// <summary>Hub slot code (e.g. A-12-3). Null when not yet shelved.</summary>
+        public string? ShelfCode { get; set; }
+        public string? ShelfTowerOrWing { get; set; }
+        public string? ShelfZone { get; set; }
+        public string? ShelfAisle { get; set; }
+        public int? ShelfTier { get; set; }
+        public bool IsColdStorage { get; set; }
     }
 }

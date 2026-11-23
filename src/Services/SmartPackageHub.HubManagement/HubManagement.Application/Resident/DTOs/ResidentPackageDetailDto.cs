@@ -24,6 +24,14 @@ namespace HubManagement.Application.HubResidents.DTOs
         public string? PreferredDeliveryMethod { get; set; }
         public bool IsDamaged { get; set; }
 
+        /// <summary>Hub slot code (e.g. A-12-3). Null when not yet shelved.</summary>
+        public string? ShelfCode { get; set; }
+        public string? ShelfTowerOrWing { get; set; }
+        public string? ShelfZone { get; set; }
+        public string? ShelfAisle { get; set; }
+        public int? ShelfTier { get; set; }
+        public bool IsColdStorage { get; set; }
+
         /// <summary>Section 1 — hub/staff intake damage. Independent of <see cref="YourReturnRequest"/>.</summary>
         public HubIntakeDamageNoteDto? HubIntakeNote { get; set; }
 

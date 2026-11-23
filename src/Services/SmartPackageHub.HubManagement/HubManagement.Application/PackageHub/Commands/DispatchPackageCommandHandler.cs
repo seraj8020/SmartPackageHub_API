@@ -1,3 +1,5 @@
+using HubManagement.Application.HubResidents.Services;
+using HubManagement.Application.PackageHub.DTOs;
 using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
@@ -7,7 +9,7 @@ using SmartPackageHub.Applications.Abstractions.Repositories;
 
 namespace HubManagement.Application.PackageHub.Commands
 {
-    public sealed class DispatchPackageCommandHandler : CreateCommandHandler<DispatchPackageCommand, bool>
+    public sealed class DispatchPackageCommandHandler : CreateCommandHandler<DispatchPackageCommand, PackageCommandResult>
     {
         private static readonly Action<ILogger, Guid, Exception?> LogPackageDispatched =
             LoggerMessage.Define<Guid>(
@@ -17,29 +19,44 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<Package> _packages;
         private readonly IRepository<PackageCustodyHop> _custodyHops;
         private readonly IRepository<User> _users;
+        private readonly IRepository<VacationHold> _vacationHolds;
         private readonly ILogger<DispatchPackageCommandHandler> _logger;
 
         public DispatchPackageCommandHandler(
             IRepository<Package> packages,
             IRepository<PackageCustodyHop> custodyHops,
             IRepository<User> users,
+            IRepository<VacationHold> vacationHolds,
             ILogger<DispatchPackageCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
             _packages = packages;
             _custodyHops = custodyHops;
             _users = users;
+            _vacationHolds = vacationHolds;
             _logger = logger;
         }
 
-        public override async Task<bool> Handle(DispatchPackageCommand request, CancellationToken cancellationToken)
+        public override async Task<PackageCommandResult> Handle(DispatchPackageCommand request, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(request);
-            var packageTask = _packages.GetByIdAsync(request.packageId);
-            // 2. Await the task later using ConfigureAwait(false) to get the result
-            var package = await packageTask.ConfigureAwait(false);
+            var package = await _packages.GetByIdAsync(request.packageId).ConfigureAwait(false);
             if (package == null)
-                return false;
+                return new PackageCommandResult(false, false, false, "Package not found.", null);
+
+            if (package.Status != PackageStatus.Shelved)
+                return new PackageCommandResult(true, true, false, "Only shelved packages can be dispatched.", null);
+
+            if (await VacationHoldLookup.IsDoorDeliveryBlockedAsync(_vacationHolds, package, DateTime.UtcNow)
+                    .ConfigureAwait(false))
+            {
+                return new PackageCommandResult(
+                    true,
+                    false,
+                    false,
+                    VacationHoldLookup.DoorDeliveryBlockedMessage,
+                    null);
+            }
 
             var fromZone = PackageCustodyRecorder.LatestZone(_custodyHops, package.Id)
                 ?? PackageCustodyHopKinds.DefaultHubZone;
@@ -62,7 +79,7 @@ namespace HubManagement.Application.PackageHub.Commands
 
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogPackageDispatched(_logger, package.Id, null);
-            return true;
+            return new PackageCommandResult(true, false, true, "Package dispatched.", null);
         }
     }
 }

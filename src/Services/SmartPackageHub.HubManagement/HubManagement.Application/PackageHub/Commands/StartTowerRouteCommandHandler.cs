@@ -1,3 +1,4 @@
+using HubManagement.Application.HubResidents.Services;
 using HubManagement.Application.PackageHub.DTOs;
 using HubManagement.Application.PackageHub.Services;
 using HubManagement.Application.Societies.DTOs;
@@ -11,6 +12,7 @@ namespace HubManagement.Application.PackageHub.Commands
 {
     /// <summary>
     /// Dispatches all shelved packages for a tower (optional floor) so the runner can start handover.
+    /// Packages under an active vacation hold stay shelved at the hub.
     /// </summary>
     public sealed class StartTowerRouteCommandHandler
         : CreateCommandHandler<StartTowerRouteCommand, StartTowerRouteResult>
@@ -25,6 +27,7 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<Package> _packages;
         private readonly IRepository<PackageCustodyHop> _custodyHops;
         private readonly IRepository<User> _users;
+        private readonly IRepository<VacationHold> _vacationHolds;
         private readonly ILogger<StartTowerRouteCommandHandler> _logger;
 
         public StartTowerRouteCommandHandler(
@@ -32,6 +35,7 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<Package> packages,
             IRepository<PackageCustodyHop> custodyHops,
             IRepository<User> users,
+            IRepository<VacationHold> vacationHolds,
             ILogger<StartTowerRouteCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
@@ -39,6 +43,7 @@ namespace HubManagement.Application.PackageHub.Commands
             _packages = packages;
             _custodyHops = custodyHops;
             _users = users;
+            _vacationHolds = vacationHolds;
             _logger = logger;
         }
 
@@ -68,7 +73,7 @@ namespace HubManagement.Application.PackageHub.Commands
                     package.Status == PackageStatus.Shelved,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            var routePackages = shelved
+            var candidates = shelved
                 .Where(package =>
                     string.Equals(
                         package.TowerWing?.Trim(),
@@ -81,7 +86,7 @@ namespace HubManagement.Application.PackageHub.Commands
                 .ThenBy(package => package.FlatNumber.Value, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (routePackages.Count == 0)
+            if (candidates.Count == 0)
             {
                 var scope = request.Floor is null
                     ? $"Tower {tower}"
@@ -95,6 +100,35 @@ namespace HubManagement.Application.PackageHub.Commands
             }
 
             var now = DateTime.UtcNow;
+            var routePackages = new List<Package>();
+            var heldCount = 0;
+            foreach (var package in candidates)
+            {
+                if (await VacationHoldLookup.IsDoorDeliveryBlockedAsync(_vacationHolds, package, now)
+                        .ConfigureAwait(false))
+                {
+                    heldCount++;
+                    continue;
+                }
+
+                routePackages.Add(package);
+            }
+
+            if (routePackages.Count == 0)
+            {
+                var scope = request.Floor is null
+                    ? $"Tower {tower}"
+                    : $"Tower {tower}, floor {request.Floor}";
+                return new StartTowerRouteResult(
+                    true,
+                    false,
+                    heldCount > 0
+                        ? $"No packages dispatched for {scope}: {heldCount} package(s) are on vacation hold and must stay at the hub."
+                        : $"No shelved packages for {scope}.",
+                    0,
+                    Array.Empty<Guid>());
+            }
+
             var staffNames = new Dictionary<Guid, string?>();
             foreach (var package in routePackages)
             {
@@ -129,10 +163,13 @@ namespace HubManagement.Application.PackageHub.Commands
             LogRouteStarted(_logger, request.SocietyId, tower, ids.Count, null);
 
             var floorLabel = request.Floor is null ? "all floors" : $"floor {request.Floor}";
+            var heldNote = heldCount > 0
+                ? $" {heldCount} package(s) skipped due to vacation hold."
+                : string.Empty;
             return new StartTowerRouteResult(
                 true,
                 true,
-                $"Route started for Tower {tower} ({floorLabel}). {ids.Count} package(s) dispatched for handover.",
+                $"Route started for Tower {tower} ({floorLabel}). {ids.Count} package(s) dispatched for handover.{heldNote}",
                 ids.Count,
                 ids);
         }

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Cryptography;
+using HubManagement.Application.HubResidents.Services;
 using HubManagement.Application.PackageHub.DTOs;
 using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
@@ -26,6 +27,7 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<Package> _packages;
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<OtpLog> _otpLogs;
+        private readonly IRepository<VacationHold> _vacationHolds;
         private readonly IOtpSmsDispatcher _otpSmsDispatcher;
         private readonly ILogger<GeneratePackagePickupOtpCommandHandler> _logger;
 
@@ -33,6 +35,7 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<Package> packages,
             IRepository<Resident> residents,
             IRepository<OtpLog> otpLogs,
+            IRepository<VacationHold> vacationHolds,
             IOtpSmsDispatcher otpSmsDispatcher,
             ILogger<GeneratePackagePickupOtpCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
@@ -40,6 +43,7 @@ namespace HubManagement.Application.PackageHub.Commands
             _packages = packages;
             _residents = residents;
             _otpLogs = otpLogs;
+            _vacationHolds = vacationHolds;
             _otpSmsDispatcher = otpSmsDispatcher;
             _logger = logger;
         }
@@ -71,6 +75,16 @@ namespace HubManagement.Application.PackageHub.Commands
                     Conflict = true,
                     Message = "A pickup OTP can only be generated for a dispatched package.",
                 };
+
+            if (await VacationHoldLookup.IsDoorDeliveryBlockedAsync(_vacationHolds, package, DateTime.UtcNow)
+                    .ConfigureAwait(false))
+            {
+                return new GeneratePackagePickupOtpResult
+                {
+                    Found = true,
+                    Message = VacationHoldLookup.DoorDeliveryBlockedMessage,
+                };
+            }
 
             if (package.ResidentId is not Guid residentId || residentId == Guid.Empty)
                 return new GeneratePackagePickupOtpResult

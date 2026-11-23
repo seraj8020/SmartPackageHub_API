@@ -53,7 +53,13 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         public async Task<ActionResult> DispatchPackages(Guid packageId)
         {
             var result = await _mediator.Send(new DispatchPackageCommand(packageId)).ConfigureAwait(false);
-            return Ok(result);
+            if (!result.Found)
+                return NotFound(new { succeeded = false, message = result.Message });
+            if (result.Conflict)
+                return Conflict(new { succeeded = false, message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { succeeded = false, message = result.Message });
+            return Ok(new { succeeded = true, message = result.Message });
         }
 
         [HttpPost("{packageId:guid}/pickup-otp")]

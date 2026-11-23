@@ -1,3 +1,4 @@
+using HubManagement.Application.HubResidents.Services;
 using HubManagement.Application.PackageHub.DTOs;
 using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
@@ -23,6 +24,7 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<PackageCustodyHop> _custodyHops;
         private readonly IRepository<User> _users;
         private readonly IRepository<PackageDeliveryEvidence> _evidence;
+        private readonly IRepository<VacationHold> _vacationHolds;
         private readonly IParcelPhotoStore _photos;
         private readonly ILogger<DeliverPackageCommandHandler> _logger;
 
@@ -33,6 +35,7 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<PackageCustodyHop> custodyHops,
             IRepository<User> users,
             IRepository<PackageDeliveryEvidence> evidence,
+            IRepository<VacationHold> vacationHolds,
             IParcelPhotoStore photos,
             ILogger<DeliverPackageCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
@@ -43,6 +46,7 @@ namespace HubManagement.Application.PackageHub.Commands
             _custodyHops = custodyHops;
             _users = users;
             _evidence = evidence;
+            _vacationHolds = vacationHolds;
             _photos = photos;
             _logger = logger;
         }
@@ -107,6 +111,19 @@ namespace HubManagement.Application.PackageHub.Commands
                 return (new PackageCommandResult(true, true, false, "Package must be dispatched before delivery.", null), null, null, Guid.Empty);
             if (package.ResidentId is not Guid packageResidentId || packageResidentId == Guid.Empty)
                 return (new PackageCommandResult(true, false, false, "Package has no resident assigned.", null), null, null, Guid.Empty);
+
+            // Door/OTP handover is blocked while vacation hold covers today (or package was held at intake).
+            // Counter pickup remains available after the hold ends; do not complete door delivery during the hold.
+            if (await VacationHoldLookup.IsDoorDeliveryBlockedAsync(_vacationHolds, package, DateTime.UtcNow)
+                    .ConfigureAwait(false))
+            {
+                return (new PackageCommandResult(
+                    true,
+                    false,
+                    false,
+                    VacationHoldLookup.DoorDeliveryBlockedMessage,
+                    null), null, null, Guid.Empty);
+            }
 
             if (payload.SocietyId is Guid societyId && societyId != Guid.Empty && societyId != package.SocietyId)
                 return (new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null), null, null, Guid.Empty);

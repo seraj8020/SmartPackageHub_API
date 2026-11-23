@@ -5,6 +5,7 @@ using HubManagement.Core.Hubs.Models;
 using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
+using SmartPackageHub.Common.Services.Storage.Abstractions;
 
 namespace HubManagement.Application.PackageHub.Commands
 {
@@ -21,6 +22,8 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<OtpLog> _otpLogs;
         private readonly IRepository<PackageCustodyHop> _custodyHops;
         private readonly IRepository<User> _users;
+        private readonly IRepository<PackageDeliveryEvidence> _evidence;
+        private readonly IParcelPhotoStore _photos;
         private readonly ILogger<DeliverPackageCommandHandler> _logger;
 
         public DeliverPackageCommandHandler(
@@ -29,6 +32,8 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<OtpLog> otpLogs,
             IRepository<PackageCustodyHop> custodyHops,
             IRepository<User> users,
+            IRepository<PackageDeliveryEvidence> evidence,
+            IParcelPhotoStore photos,
             ILogger<DeliverPackageCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
@@ -37,35 +42,86 @@ namespace HubManagement.Application.PackageHub.Commands
             _otpLogs = otpLogs;
             _custodyHops = custodyHops;
             _users = users;
+            _evidence = evidence;
+            _photos = photos;
             _logger = logger;
         }
 
         public override async Task<PackageCommandResult> Handle(DeliverPackageCommand request, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(request);
-            var payload = request.request;
-            if (payload is null)
-                throw new ArgumentNullException(nameof(request));
+            var payload = request.request ?? throw new ArgumentNullException(nameof(request));
+
+            var gate = await ValidateDeliverAsync(request.packageId, request.StaffSocietyIds, payload, cancellationToken)
+                .ConfigureAwait(false);
+            if (gate.Error is not null)
+                return gate.Error;
+
+            var package = gate.Package!;
+            var otpLog = gate.OtpLog!;
+            var packageResidentId = gate.ResidentId;
+            var utcNow = DateTime.UtcNow;
+
+            package.DeliverPackage();
+            var method = string.IsNullOrWhiteSpace(payload.Method) ? "CounterPickup" : payload.Method;
+            var notes = BuildNotes(payload.Notes, package);
+            var delivery = Delivery.Create(
+                package.SocietyId,
+                request.packageId,
+                package.StaffUserId,
+                packageResidentId,
+                otpLog.Id,
+                payload.BatchId,
+                method,
+                utcNow,
+                notes);
+            delivery.CompleteDelivery();
+            _deliveries.Insert(delivery);
+
+            var evidenceError = await PersistEvidenceAsync(delivery.Id, package.Id, payload, utcNow, cancellationToken)
+                .ConfigureAwait(false);
+            if (evidenceError is not null)
+                return new PackageCommandResult(true, false, false, evidenceError, null);
+
+            await InsertCustodyHopAsync(package, method, utcNow, cancellationToken).ConfigureAwait(false);
+            await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
+            LogPackageDelivered(_logger, package.Id, null);
+            return new PackageCommandResult(true, false, true, "Package delivered.", null);
+        }
+
+        private async Task<(PackageCommandResult? Error, Package? Package, OtpLog? OtpLog, Guid ResidentId)> ValidateDeliverAsync(
+            Guid packageId,
+            IReadOnlyList<Guid> staffSocietyIds,
+            DeliverPackageRequest payload,
+            CancellationToken cancellationToken)
+        {
             if (string.IsNullOrWhiteSpace(payload.Token))
-                return new PackageCommandResult(true, false, false, "OTP code is required.", null);
+                return (new PackageCommandResult(true, false, false, "OTP code is required.", null), null, null, Guid.Empty);
 
-            var package = await _packages.GetByIdAsync(request.packageId).ConfigureAwait(false);
+            var package = await _packages.GetByIdAsync(packageId).ConfigureAwait(false);
             if (package == null)
-                return new PackageCommandResult(false, false, false, "Package not found.", null);
-            if (!PackageStaffGuard.HasSocietyAccess(package, request.StaffSocietyIds))
-                return new PackageCommandResult(true, false, false, "Staff is not assigned to this package's society.", null, Forbidden: true);
+                return (new PackageCommandResult(false, false, false, "Package not found.", null), null, null, Guid.Empty);
+            if (!PackageStaffGuard.HasSocietyAccess(package, staffSocietyIds))
+                return (new PackageCommandResult(true, false, false, "Staff is not assigned to this package's society.", null, Forbidden: true), null, null, Guid.Empty);
             if (package.Status != PackageStatus.Dispatched)
-                return new PackageCommandResult(true, true, false, "Package must be dispatched before delivery.", null);
+                return (new PackageCommandResult(true, true, false, "Package must be dispatched before delivery.", null), null, null, Guid.Empty);
             if (package.ResidentId is not Guid packageResidentId || packageResidentId == Guid.Empty)
-                return new PackageCommandResult(true, false, false, "Package has no resident assigned.", null);
+                return (new PackageCommandResult(true, false, false, "Package has no resident assigned.", null), null, null, Guid.Empty);
 
-            // Prefer package truth; only reject when client explicitly sends a mismatched override.
             if (payload.SocietyId is Guid societyId && societyId != Guid.Empty && societyId != package.SocietyId)
-                return new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null);
+                return (new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null), null, null, Guid.Empty);
             if (payload.ResidentId is Guid residentId && residentId != Guid.Empty && residentId != packageResidentId)
-                return new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null);
+                return (new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null), null, null, Guid.Empty);
             if (payload.StaffUserId is Guid staffUserId && staffUserId != Guid.Empty && staffUserId != package.StaffUserId)
-                return new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null);
+                return (new PackageCommandResult(true, false, false, "Delivery details do not match the package.", null), null, null, Guid.Empty);
+
+            // Photo / signature are optional — OTP already proves the handover when the resident is in a hurry.
+            var photoErr = DeliveryEvidenceSaver.ValidateBase64(payload.PhotoBase64, "Photo");
+            if (photoErr is not null)
+                return (new PackageCommandResult(true, false, false, photoErr, null), null, null, Guid.Empty);
+            var sigErr = DeliveryEvidenceSaver.ValidateBase64(payload.SignatureBase64, "Signature");
+            if (sigErr is not null)
+                return (new PackageCommandResult(true, false, false, sigErr, null), null, null, Guid.Empty);
 
             var token = payload.Token.Trim();
             var utcNow = DateTime.UtcNow;
@@ -79,23 +135,52 @@ namespace HubManagement.Application.PackageHub.Commands
                 log.Expiry.Value > utcNow).ConfigureAwait(false);
 
             if (otpLog == null || !otpLog.ValidateCollection(token))
-                return new PackageCommandResult(true, false, false, "Invalid, expired, or already-used OTP.", null);
+                return (new PackageCommandResult(true, false, false, "Invalid, expired, or already-used OTP.", null), null, null, Guid.Empty);
 
-            package.DeliverPackage();
-            var method = string.IsNullOrWhiteSpace(payload.Method) ? "CounterPickup" : payload.Method;
-            var delivery = Delivery.Create(
-                package.SocietyId,
-                request.packageId,
-                package.StaffUserId,
-                packageResidentId,
-                otpLog.Id,
-                payload.BatchId,
-                method,
-                utcNow,
-                payload.Notes ?? $"Handed to '{package.RecipientName}' at Flat Number '{package.FlatNumber}'");
-            delivery.CompleteDelivery();
-            _deliveries.Insert(delivery);
+            _ = cancellationToken;
+            return (null, package, otpLog, packageResidentId);
+        }
 
+        private async Task<string?> PersistEvidenceAsync(
+            Guid deliveryId,
+            Guid packageId,
+            DeliverPackageRequest payload,
+            DateTime capturedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            var photoError = await DeliveryEvidenceSaver.TrySaveAsync(
+                    _photos,
+                    _evidence,
+                    deliveryId,
+                    packageId,
+                    DeliveryEvidenceKind.Photo,
+                    payload.PhotoBase64,
+                    null,
+                    capturedAtUtc,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (photoError is not null)
+                return photoError;
+
+            return await DeliveryEvidenceSaver.TrySaveAsync(
+                    _photos,
+                    _evidence,
+                    deliveryId,
+                    packageId,
+                    DeliveryEvidenceKind.Signature,
+                    payload.SignatureBase64,
+                    payload.SignedByName,
+                    capturedAtUtc,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private async Task InsertCustodyHopAsync(
+            Package package,
+            string method,
+            DateTime utcNow,
+            CancellationToken cancellationToken)
+        {
             var staffName = await PackageCustodyRecorder
                 .ResolveUsernameAsync(_users, package.StaffUserId, cancellationToken)
                 .ConfigureAwait(false);
@@ -111,10 +196,14 @@ namespace HubManagement.Application.PackageHub.Commands
                 staffUserId: package.StaffUserId,
                 staffUsername: staffName,
                 notes: method);
+        }
 
-            await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
-            LogPackageDelivered(_logger, package.Id, null);
-            return new PackageCommandResult(true, false, true, "Package delivered.", null);
+        private static string BuildNotes(string? notes, Package package)
+        {
+            var value = string.IsNullOrWhiteSpace(notes)
+                ? $"Handed to '{package.RecipientName}' at Flat Number '{package.FlatNumber}'"
+                : notes.Trim();
+            return value.Length > 500 ? value[..500] : value;
         }
     }
 }

@@ -20,6 +20,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         public DbSet<PackageImage> PackageImages { get; set; }
         public DbSet<PackageReturn> PackageReturns { get; set; }
         public DbSet<PackageReturnImage> PackageReturnImages { get; set; }
+        public DbSet<PackageDeliveryEvidence> PackageDeliveryEvidence { get; set; }
         public DbSet<PackageCustodyHop> PackageCustodyHops { get; set; }
         public DbSet<Route> Routes { get; set; }
         public DbSet<RouteStop> RouteStops { get; set; }
@@ -60,6 +61,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageImageConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageReturnEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageReturnImageEntityConfiguration).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageDeliveryEvidenceEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(PackageCustodyHopEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(ResidentEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(RouteEntityConfiguration).Assembly);

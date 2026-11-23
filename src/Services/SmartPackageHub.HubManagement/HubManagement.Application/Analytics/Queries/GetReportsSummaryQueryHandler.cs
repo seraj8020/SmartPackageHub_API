@@ -44,6 +44,7 @@ namespace HubManagement.Application.Analytics.Queries
             var pending = AnalyticsMetricsCalculator.CountPending(packages);
             var avgHold = AnalyticsMetricsCalculator.AverageHoldDays(packages, deliveries, from, toExclusive);
             var rate = AnalyticsMetricsCalculator.MemberPickupRatePercent(received, delivered);
+            var holdHours = AnalyticsMetricsCalculator.HoldHoursStats(packages, deliveries, from, toExclusive);
 
             return Task.FromResult(new ReportsSummaryDto(
                 days,
@@ -54,7 +55,11 @@ namespace HubManagement.Application.Analytics.Queries
                 rate,
                 received,
                 delivered,
-                pending));
+                pending,
+                holdHours.MinHours,
+                holdHours.MaxHours,
+                holdHours.MedianHours,
+                holdHours.AverageHours));
         }
 
         internal static int NormalizeDays(int days) =>

@@ -18,6 +18,17 @@ namespace SmartPackageHub.Common.Services.Storage.Abstractions
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Stores proof-of-delivery media under handover/{deliveryId}/{kind}.{ext}
+        /// (kind typically photo or signature).
+        /// </summary>
+        Task<string> SaveHandoverAsync(
+            Guid deliveryId,
+            string kind,
+            ReadOnlyMemory<byte> bytes,
+            string contentType,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Time-limited read URL for a stored object key (e.g. damage/{intakeId}.jpg).
         /// Returns null when the provider cannot mint a public URL (local disk) — callers should use an authenticated proxy.
         /// </summary>

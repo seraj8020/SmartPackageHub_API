@@ -83,7 +83,30 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(result);
         }
 
-        /// <summary>Recent intake / shelf / pickup events, newest first.</summary>
+        /// <summary>Staff who scanned (received) the most packages in the period.</summary>
+        [HttpGet("dashboard/top-scanners")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(TopScannersDashboardDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult> GetTopScanners(
+            [FromQuery] Guid? societyId,
+            [FromQuery] int days = 30,
+            [FromQuery] int take = 5,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryResolveSocietyScope(societyId, out var scope, out var error))
+                return error!;
+            var result = await _mediator
+                .Send(new GetTopScannersQuery(scope, days, take), cancellationToken)
+                .ConfigureAwait(false);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Custody activity, newest first. Pass <c>day</c> (UTC) for that calendar day's full feed (up to 500).
+        /// Without <c>day</c>, returns a short rolling window.
+        /// </summary>
         [HttpGet("dashboard/recent-activity")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(IReadOnlyList<RecentActivityItemDto>), StatusCodes.Status200OK)]
@@ -92,14 +115,97 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         public async Task<ActionResult> GetRecentActivity(
             [FromQuery] Guid? societyId,
             [FromQuery] int take = 20,
+            [FromQuery] DateOnly? day = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryResolveSocietyScope(societyId, out var scope, out var error))
+                return error!;
+            var effectiveTake = day is null ? take : Math.Max(take, 500);
+            var result = await _mediator
+                .Send(new GetRecentActivityQuery(scope, effectiveTake, day), cancellationToken)
+                .ConfigureAwait(false);
+            return Ok(result);
+        }
+
+        /// <summary>Search packages by recipient, courier, reference (pkg/AWB/tracking), and received date range.</summary>
+        [HttpGet("audit/packages")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(AuditPackageSearchPageDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult> SearchAuditPackages(
+            [FromQuery] Guid? societyId,
+            [FromQuery] string? q = null,
+            [FromQuery] string? courier = null,
+            [FromQuery] DateOnly? fromDate = null,
+            [FromQuery] DateOnly? toDate = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryResolveSocietyScope(societyId, out var scope, out var error))
+                return error!;
+            if (fromDate is DateOnly from && toDate is DateOnly to && from > to)
+                return BadRequest(new { message = "fromDate cannot be after toDate." });
+            if (page < 1 || pageSize < 1 || pageSize > 100)
+                return BadRequest(new { message = "page must be positive and pageSize must be between 1 and 100." });
+
+            var result = await _mediator
+                .Send(new SearchAuditPackagesQuery(scope, q, courier, fromDate, toDate, page, pageSize), cancellationToken)
+                .ConfigureAwait(false);
+            return Ok(result);
+        }
+
+        /// <summary>Full custody history for one package (searchable audit trail detail).</summary>
+        [HttpGet("audit/packages/{packageId:guid}/timeline")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(PackageAuditTimelineDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetPackageAuditTimeline(
+            Guid packageId,
+            [FromQuery] Guid? societyId = null,
             CancellationToken cancellationToken = default)
         {
             if (!TryResolveSocietyScope(societyId, out var scope, out var error))
                 return error!;
             var result = await _mediator
-                .Send(new GetRecentActivityQuery(scope, take), cancellationToken)
+                .Send(new GetPackageAuditTimelineQuery(packageId, scope), cancellationToken)
                 .ConfigureAwait(false);
+            if (result is null)
+                return NotFound(new { message = "Package was not found." });
             return Ok(result);
+        }
+
+        /// <summary>
+        /// CSV export of custody history for reports. Uses the same filters as audit search.
+        /// Pass <c>packageId</c> to export one package timeline only.
+        /// </summary>
+        [HttpGet("audit/packages/export")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult> ExportAuditTrail(
+            [FromQuery] Guid? societyId = null,
+            [FromQuery] string? q = null,
+            [FromQuery] string? courier = null,
+            [FromQuery] DateOnly? fromDate = null,
+            [FromQuery] DateOnly? toDate = null,
+            [FromQuery] Guid? packageId = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryResolveSocietyScope(societyId, out var scope, out var error))
+                return error!;
+            if (fromDate is DateOnly from && toDate is DateOnly to && from > to)
+                return BadRequest(new { message = "fromDate cannot be after toDate." });
+
+            var result = await _mediator
+                .Send(new ExportAuditTrailQuery(scope, q, courier, fromDate, toDate, packageId), cancellationToken)
+                .ConfigureAwait(false);
+            var bytes = System.Text.Encoding.UTF8.GetBytes(result.CsvContent);
+            return File(bytes, result.ContentType, result.FileName);
         }
 
         /// <summary>Package rows matching a received or delivered daily dashboard rollup.</summary>

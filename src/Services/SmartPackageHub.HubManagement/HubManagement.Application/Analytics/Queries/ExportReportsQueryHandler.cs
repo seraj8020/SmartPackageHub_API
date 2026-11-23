@@ -52,6 +52,14 @@ namespace HubManagement.Application.Analytics.Queries
                 $"summary,delivered,{summary.Delivered}");
             sb.AppendLine(CultureInfo.InvariantCulture,
                 $"summary,pending,{summary.Pending}");
+            sb.AppendLine(CultureInfo.InvariantCulture,
+                $"summary,minHoldHours,{summary.MinHoldHours}");
+            sb.AppendLine(CultureInfo.InvariantCulture,
+                $"summary,maxHoldHours,{summary.MaxHoldHours}");
+            sb.AppendLine(CultureInfo.InvariantCulture,
+                $"summary,medianHoldHours,{summary.MedianHoldHours}");
+            sb.AppendLine(CultureInfo.InvariantCulture,
+                $"summary,averageHoldHours,{summary.AverageHoldHours}");
 
             sb.AppendLine();
             sb.AppendLine("day,received,delivered,pending");

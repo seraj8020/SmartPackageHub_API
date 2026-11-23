@@ -7,6 +7,8 @@ namespace HubManagement.Core.Hubs.Models
         public const string Shelved = "shelved";
         public const string ZoneTransfer = "zone-transfer";
         public const string OutForDoorDelivery = "out-for-door";
+        /// <summary>Runner arrived at a tower (and optional floor) during a door-delivery route.</summary>
+        public const string ArrivedAtTowerFloor = "arrived-at-tower-floor";
         public const string Delivered = "delivered";
         public const string DeliveryFailed = "delivery-failed";
         public const string ReturnedToCage = "returned-to-cage";

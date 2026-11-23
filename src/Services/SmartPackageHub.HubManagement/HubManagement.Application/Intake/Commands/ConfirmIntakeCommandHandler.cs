@@ -236,6 +236,8 @@ namespace HubManagement.Application.Intake.Commands
             }
 
             var trackingError = HubPackageFactory.ValidateTracking(awb, 40);
+            if (trackingError is null && string.IsNullOrWhiteSpace(courier))
+                trackingError = "Courier is required.";
             return (awb, courier, name, tower, flat, trackingError);
         }
 

@@ -216,6 +216,38 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             });
         }
 
+        /// <summary>
+        /// Door-delivery waypoint: runner arrived at a tower (optional floor). Logs custody hops only.
+        /// </summary>
+        [HttpPost("{societyid:guid}/tower-route/arrived")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> MarkTowerFloorArrival(
+            Guid societyid,
+            [FromBody] MarkTowerFloorArrivalRequest? request)
+        {
+            var result = await _mediator.Send(
+                new MarkTowerFloorArrivalCommand(
+                    societyid,
+                    request?.TowerWing ?? string.Empty,
+                    request?.Floor),
+                HttpContext.RequestAborted).ConfigureAwait(false);
+
+            if (!result.SocietyFound)
+                return NotFound(new { Message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { Message = result.Message });
+
+            return Ok(new
+            {
+                message = result.Message,
+                loggedCount = result.LoggedCount,
+                packageIds = result.PackageIds,
+            });
+        }
+
         [HttpGet("{societyid:guid}/dispatchedpackages")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(List<ResidentPackageDto>), StatusCodes.Status200OK)]

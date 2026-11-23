@@ -115,6 +115,32 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             return key;
         }
 
+        public async Task<string> SaveHandoverAsync(
+            Guid deliveryId,
+            string kind,
+            ReadOnlyMemory<byte> bytes,
+            string contentType,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(contentType);
+            var safeKind = string.IsNullOrWhiteSpace(kind) ? "photo" : kind.Trim().ToUpperInvariant();
+            var ext = HandoverFileExtension(contentType);
+            var key = $"handover/{deliveryId:N}/{safeKind}.{ext}";
+            var path = PhysicalPath(key);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllBytesAsync(path, bytes.ToArray(), cancellationToken).ConfigureAwait(false);
+            return key;
+        }
+
+        private static string HandoverFileExtension(string contentType)
+        {
+            if (contentType.Contains("png", StringComparison.OrdinalIgnoreCase))
+                return "png";
+            if (contentType.Contains("svg", StringComparison.OrdinalIgnoreCase))
+                return "svg";
+            return "jpg";
+        }
+
         public Task<ParcelPhotoReadUrl?> CreateReadUrlAsync(
             string storageKey,
             TimeSpan lifetime,

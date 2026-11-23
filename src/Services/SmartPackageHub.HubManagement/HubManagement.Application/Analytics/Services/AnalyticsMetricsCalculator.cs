@@ -58,18 +58,67 @@ namespace HubManagement.Application.Analytics.Services
             DateTime fromInclusive,
             DateTime toExclusive)
         {
+            var holds = CollectHoldHours(packages, deliveries, fromInclusive, toExclusive);
+            return holds.Count == 0 ? 0 : Math.Round(holds.Average() / 24.0, 2);
+        }
+
+        public static (double MinHours, double MaxHours, double MedianHours, double AverageHours) HoldHoursStats(
+            IEnumerable<Package> packages,
+            IEnumerable<Delivery> deliveries,
+            DateTime fromInclusive,
+            DateTime toExclusive)
+        {
+            var holds = CollectHoldHours(packages, deliveries, fromInclusive, toExclusive);
+            if (holds.Count == 0)
+                return (0, 0, 0, 0);
+
+            holds.Sort();
+            var min = holds[0];
+            var max = holds[^1];
+            var avg = holds.Average();
+            var mid = holds.Count / 2;
+            var median = holds.Count % 2 == 0
+                ? (holds[mid - 1] + holds[mid]) / 2.0
+                : holds[mid];
+
+            return (
+                Math.Round(min, 1),
+                Math.Round(max, 1),
+                Math.Round(median, 1),
+                Math.Round(avg, 1));
+        }
+
+        public static int CountReturned(
+            IEnumerable<PackageReturn> returns,
+            DateTime fromInclusive,
+            DateTime toExclusive) =>
+            returns.Count(r =>
+            {
+                var at = r.ReceivedAtUtc ?? r.RequestedAtUtc;
+                return at >= fromInclusive && at < toExclusive;
+            });
+
+        private static List<double> CollectHoldHours(
+            IEnumerable<Package> packages,
+            IEnumerable<Delivery> deliveries,
+            DateTime fromInclusive,
+            DateTime toExclusive)
+        {
             var packageById = packages.ToDictionary(p => p.Id);
             var holds = new List<double>();
-            foreach (var delivery in deliveries.Where(d => d.Status.Equals(DeliveryStatus.Completed) && d.DeliveredAt >= fromInclusive && d.DeliveredAt < toExclusive))
+            foreach (var delivery in deliveries.Where(d =>
+                         d.Status.Equals(DeliveryStatus.Completed) &&
+                         d.DeliveredAt >= fromInclusive &&
+                         d.DeliveredAt < toExclusive))
             {
                 if (!packageById.TryGetValue(delivery.PackageId, out var package))
                     continue;
                 var hours = (delivery.DeliveredAt - package.RecievedAt).TotalHours;
                 if (hours >= 0)
-                    holds.Add(hours / 24.0);
+                    holds.Add(hours);
             }
 
-            return holds.Count == 0 ? 0 : Math.Round(holds.Average(), 2);
+            return holds;
         }
 
         /// <summary>

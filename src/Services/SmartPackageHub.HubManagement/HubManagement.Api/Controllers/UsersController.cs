@@ -1,4 +1,7 @@
+using System.Text;
 using HubManagement.Application.Auth.Services;
+using HubManagement.Application.HubResidents.Commands;
+using HubManagement.Application.HubResidents.DTOs;
 using HubManagement.Application.HubUsers.Commands;
 using HubManagement.Application.HubUsers.DTOs;
 using HubManagement.Application.HubUsers.Queries;
@@ -113,6 +116,55 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 request.SocietyId), cancellationToken).ConfigureAwait(false);
 
             return MapUserCommandResult(result);
+        }
+
+        /// <summary>
+        /// Bulk-provision residents from CSV (same User+Resident shape as mobile registration).
+        /// Columns: fullName, phone, towerWing, flatNumber, isMember (optional).
+        /// </summary>
+        [HttpPost("residents/import")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [RequestSizeLimit(2_000_000)]
+        [ProducesResponseType(typeof(ImportResidentsResultDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult> ImportResidents(
+            [FromForm] Guid? societyId,
+            IFormFile? file,
+            CancellationToken cancellationToken)
+        {
+            if (!TryGetSession(out var session, out var authError)) return authError!;
+            if (file is null || file.Length == 0)
+                return BadRequest(new { Message = "Upload a CSV file." });
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!string.IsNullOrEmpty(extension) &&
+                !extension.Equals(".csv", StringComparison.OrdinalIgnoreCase) &&
+                !extension.Equals(".txt", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { Message = "File must be a .csv." });
+            }
+
+            string csvContent;
+            using (var stream = file.OpenReadStream())
+            using (var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true))
+            {
+                csvContent = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            var result = await _mediator.Send(new ImportResidentsFromCsvCommand(
+                session!.Role,
+                session.SocietyIds,
+                societyId,
+                csvContent), cancellationToken).ConfigureAwait(false);
+
+            if (result.Forbidden)
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = result.Message });
+            if (result.Created == 0 && result.Skipped == 0 && result.Failed > 0 && result.Message is not null)
+                return BadRequest(new { Message = result.Message, result.Created, result.Skipped, result.Failed, result.Rows });
+
+            return Ok(result);
         }
 
         [HttpGet("{id:guid}")]

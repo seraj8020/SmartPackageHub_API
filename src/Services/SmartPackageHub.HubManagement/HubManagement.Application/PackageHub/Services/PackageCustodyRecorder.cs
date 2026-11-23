@@ -20,6 +20,13 @@ namespace HubManagement.Application.PackageHub.Services
             return $"{tower} · {flat}";
         }
 
+        /// <summary>Door-route waypoint: tower only, or tower + floor (never hub counter).</summary>
+        public static string TowerFloorZone(string? towerWing, int? floor)
+        {
+            var tower = string.IsNullOrWhiteSpace(towerWing) ? "Tower" : towerWing.Trim();
+            return floor is int f ? $"{tower} · Floor {f}" : tower;
+        }
+
         public static string ResolveShelfZone(Shelf shelf)
         {
             ArgumentNullException.ThrowIfNull(shelf);

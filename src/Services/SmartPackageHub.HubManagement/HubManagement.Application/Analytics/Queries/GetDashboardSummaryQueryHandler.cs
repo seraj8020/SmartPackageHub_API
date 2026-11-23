@@ -12,14 +12,17 @@ namespace HubManagement.Application.Analytics.Queries
     {
         private readonly IRepository<Society> _societies;
         private readonly IRepository<AnalyticsDaily> _analytics;
+        private readonly IRepository<PackageReturn> _returns;
 
         public GetDashboardSummaryQueryHandler(
             IMapper mapper,
             IRepository<Society> societies,
-            IRepository<AnalyticsDaily> analytics) : base(mapper)
+            IRepository<AnalyticsDaily> analytics,
+            IRepository<PackageReturn> returns) : base(mapper)
         {
             _societies = societies;
             _analytics = analytics;
+            _returns = returns;
         }
 
         protected override Task<DashboardSummaryDto> HandleAsync(GetDashboardSummaryQuery request)
@@ -78,6 +81,23 @@ namespace HubManagement.Application.Analytics.Queries
                 }
             }
 
+            var last7From = todayUtc.AddDays(-6);
+            var last7Rows = scopedAnalytics
+                .Where(a => a.Day >= last7From && a.Day <= todayUtc)
+                .ToList();
+            var packagesLast7 = last7Rows.Sum(a => a.PackagesReceived);
+            var deliveredLast7 = last7Rows.Sum(a => a.PackagesDelivered);
+
+            var societyIdSet = scopedSocietyIds.ToHashSet();
+            var returns = _returns.GetAll().AsEnumerable()
+                .Where(r => societyIdSet.Contains(r.SocietyId))
+                .ToList();
+            var todayStart = AnalyticsScope.StartOfDayUtc(todayUtc);
+            var tomorrowStart = AnalyticsScope.StartOfDayUtc(todayUtc.AddDays(1));
+            var last7Start = AnalyticsScope.StartOfDayUtc(last7From);
+            var returnedToday = AnalyticsMetricsCalculator.CountReturned(returns, todayStart, tomorrowStart);
+            var returnedLast7 = AnalyticsMetricsCalculator.CountReturned(returns, last7Start, tomorrowStart);
+
             var societiesRolledUp = snapshotBySociety.Count;
             var dto = new DashboardSummaryDto(
                 snapshotDay,
@@ -87,7 +107,11 @@ namespace HubManagement.Application.Analytics.Queries
                 activeSocieties,
                 societyName,
                 lastRollupAtUtc,
-                societiesRolledUp);
+                societiesRolledUp,
+                packagesLast7,
+                deliveredLast7,
+                returnedToday,
+                returnedLast7);
 
             return Task.FromResult(dto);
         }

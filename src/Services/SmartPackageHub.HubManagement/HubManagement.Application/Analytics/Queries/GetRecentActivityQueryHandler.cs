@@ -1,5 +1,6 @@
 using AutoMapper;
 using HubManagement.Application.Analytics.DTOs;
+using HubManagement.Application.Analytics.Services;
 using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
@@ -35,8 +36,18 @@ namespace HubManagement.Application.Analytics.Queries
         protected override Task<IReadOnlyList<RecentActivityItemDto>> HandleAsync(GetRecentActivityQuery request)
         {
             ArgumentNullException.ThrowIfNull(request);
-            var take = Math.Clamp(request.Take, 1, 100);
+            // Whole-day views need a higher cap; rolling feed stays small.
+            var maxTake = request.Day is null ? 100 : 500;
+            var take = Math.Clamp(request.Take, 1, maxTake);
             var societyFilter = request.SocietyId is Guid sid && sid != Guid.Empty;
+
+            DateTime? fromUtc = null;
+            DateTime? toExclusiveUtc = null;
+            if (request.Day is DateOnly day)
+            {
+                fromUtc = DateTime.SpecifyKind(day.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+                toExclusiveUtc = fromUtc.Value.AddDays(1);
+            }
 
             var societyNames = _societies.GetAll()
                 .Where(s => !societyFilter || s.Id == request.SocietyId!.Value)
@@ -44,9 +55,9 @@ namespace HubManagement.Application.Analytics.Queries
 
             var items = new List<RecentActivityItemDto>();
 
-            AppendCustodyHops(items, societyFilter, request.SocietyId, take, societyNames);
-            AppendSocietyOnboards(items, societyFilter, request.SocietyId, take);
-            AppendLegacyLifecycle(items, societyFilter, request.SocietyId, take, societyNames);
+            AppendCustodyHops(items, societyFilter, request.SocietyId, take, societyNames, fromUtc, toExclusiveUtc);
+            AppendSocietyOnboards(items, societyFilter, request.SocietyId, take, fromUtc, toExclusiveUtc);
+            AppendLegacyLifecycle(items, societyFilter, request.SocietyId, take, societyNames, fromUtc, toExclusiveUtc);
 
             var result = items
                 .OrderByDescending(i => i.OccurredAtUtc)
@@ -61,10 +72,14 @@ namespace HubManagement.Application.Analytics.Queries
             bool societyFilter,
             Guid? societyId,
             int take,
-            Dictionary<Guid, string> societyNames)
+            Dictionary<Guid, string> societyNames,
+            DateTime? fromUtc,
+            DateTime? toExclusiveUtc)
         {
             var hops = _custodyHops.GetAll()
                 .Where(h => !societyFilter || h.SocietyId == societyId!.Value)
+                .Where(h => fromUtc == null || h.OccurredAtUtc >= fromUtc.Value)
+                .Where(h => toExclusiveUtc == null || h.OccurredAtUtc < toExclusiveUtc.Value)
                 .OrderByDescending(h => h.OccurredAtUtc)
                 .ThenByDescending(h => h.Id)
                 .Take(take)
@@ -86,7 +101,7 @@ namespace HubManagement.Application.Analytics.Queries
                 items.Add(new RecentActivityItemDto(
                     hop.OccurredAtUtc,
                     hop.Kind,
-                    FormatCustodyText(hop, pkgNumber),
+                    PackageCustodyActivityFormatter.Format(hop, pkgNumber),
                     hop.SocietyId,
                     societyName,
                     hop.PackageId,
@@ -102,10 +117,14 @@ namespace HubManagement.Application.Analytics.Queries
             List<RecentActivityItemDto> items,
             bool societyFilter,
             Guid? societyId,
-            int take)
+            int take,
+            DateTime? fromUtc,
+            DateTime? toExclusiveUtc)
         {
             foreach (var society in _societies.GetAll()
                          .Where(s => (!societyFilter || s.Id == societyId!.Value) && s.OnboardedAtUtc.HasValue)
+                         .Where(s => fromUtc == null || s.OnboardedAtUtc!.Value >= fromUtc.Value)
+                         .Where(s => toExclusiveUtc == null || s.OnboardedAtUtc!.Value < toExclusiveUtc.Value)
                          .OrderByDescending(s => s.OnboardedAtUtc)
                          .ThenByDescending(s => s.Id)
                          .Take(take)
@@ -126,9 +145,10 @@ namespace HubManagement.Application.Analytics.Queries
             bool societyFilter,
             Guid? societyId,
             int take,
-            Dictionary<Guid, string> societyNames)
+            Dictionary<Guid, string> societyNames,
+            DateTime? fromUtc,
+            DateTime? toExclusiveUtc)
         {
-            // Prefer real custody hops when present for a package; synthesize only for packages with none yet.
             var packagesWithHops = _custodyHops.GetAll()
                 .Where(h => !societyFilter || h.SocietyId == societyId!.Value)
                 .Select(h => h.PackageId)
@@ -137,6 +157,8 @@ namespace HubManagement.Application.Analytics.Queries
 
             var packages = _packages.GetAll()
                 .Where(p => !societyFilter || p.SocietyId == societyId!.Value)
+                .Where(p => fromUtc == null || p.RecievedAt >= fromUtc.Value)
+                .Where(p => toExclusiveUtc == null || p.RecievedAt < toExclusiveUtc.Value)
                 .OrderByDescending(p => p.RecievedAt)
                 .ThenByDescending(p => p.Id)
                 .Take(take)
@@ -172,7 +194,9 @@ namespace HubManagement.Application.Analytics.Queries
                     null,
                     package.PkgNumber));
 
-                if (package.ShelfAssignedAtUtc is DateTime shelfAt)
+                if (package.ShelfAssignedAtUtc is DateTime shelfAt
+                    && (fromUtc is null || shelfAt >= fromUtc.Value)
+                    && (toExclusiveUtc is null || shelfAt < toExclusiveUtc.Value))
                 {
                     string? shelfCode = null;
                     string zone = PackageCustodyHopKinds.DefaultHubZone;
@@ -202,6 +226,8 @@ namespace HubManagement.Application.Analytics.Queries
             var deliveries = _deliveries.GetAll()
                 .Where(d => (!societyFilter || d.SocietyId == societyId!.Value) &&
                     d.Status.Value == "Completed")
+                .Where(d => fromUtc == null || d.DeliveredAt >= fromUtc.Value)
+                .Where(d => toExclusiveUtc == null || d.DeliveredAt < toExclusiveUtc.Value)
                 .OrderByDescending(d => d.DeliveredAt)
                 .ThenByDescending(d => d.Id)
                 .Take(take)
@@ -236,35 +262,6 @@ namespace HubManagement.Application.Analytics.Queries
                     null,
                     pkgNumber));
             }
-        }
-
-        private static string FormatCustodyText(PackageCustodyHop hop, string? pkgNumber)
-        {
-            var pkg = string.IsNullOrWhiteSpace(pkgNumber) ? "Package" : pkgNumber;
-            var staff = string.IsNullOrWhiteSpace(hop.StaffUsername) ? null : hop.StaffUsername;
-            var staffSuffix = staff is null ? string.Empty : $", staff {staff}";
-
-            return hop.Kind switch
-            {
-                PackageCustodyHopKinds.ReceivedAtHub =>
-                    $"{pkg} received at {hop.ToZone ?? PackageCustodyHopKinds.DefaultHubZone}{staffSuffix}",
-                PackageCustodyHopKinds.Shelved =>
-                    string.IsNullOrWhiteSpace(hop.LocationLabel)
-                        ? $"{pkg} shelved at {hop.ToZone ?? PackageCustodyHopKinds.DefaultHubZone}{staffSuffix}"
-                        : $"{pkg} shelved at {hop.LocationLabel} ({hop.ToZone ?? PackageCustodyHopKinds.DefaultHubZone}){staffSuffix}",
-                PackageCustodyHopKinds.ZoneTransfer =>
-                    $"{pkg} left {hop.FromZone ?? "?"} → arrived {hop.ToZone ?? "?"}{staffSuffix}"
-                    + (string.IsNullOrWhiteSpace(hop.LocationLabel) ? string.Empty : $". Shelf {hop.LocationLabel}"),
-                PackageCustodyHopKinds.OutForDoorDelivery =>
-                    $"{pkg} out for door delivery{(string.IsNullOrWhiteSpace(hop.LocationLabel) ? string.Empty : $" to {hop.LocationLabel}")}{staffSuffix}",
-                PackageCustodyHopKinds.Delivered =>
-                    $"{pkg} delivered{(string.IsNullOrWhiteSpace(hop.Notes) ? string.Empty : $" ({hop.Notes})")}{staffSuffix}",
-                PackageCustodyHopKinds.DeliveryFailed =>
-                    $"{pkg} delivery failed{(string.IsNullOrWhiteSpace(hop.Notes) ? string.Empty : $" — {hop.Notes}")}{staffSuffix}",
-                PackageCustodyHopKinds.ReturnedToCage =>
-                    $"{pkg} returned to {hop.ToZone ?? "cage"}{staffSuffix}",
-                _ => $"{pkg} {hop.Kind}{staffSuffix}",
-            };
         }
 
         private static string FormatLegacyReceived(string pkgNumber, string? societyName) =>

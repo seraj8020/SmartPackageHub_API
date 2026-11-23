@@ -9,5 +9,9 @@ namespace HubManagement.Application.Analytics.DTOs
         double MemberPickupRatePercent,
         int Received,
         int Delivered,
-        int Pending);
+        int Pending,
+        double MinHoldHours = 0,
+        double MaxHoldHours = 0,
+        double MedianHoldHours = 0,
+        double AverageHoldHours = 0);
 }

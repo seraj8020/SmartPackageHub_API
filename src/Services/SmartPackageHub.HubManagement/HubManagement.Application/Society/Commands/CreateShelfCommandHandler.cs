@@ -37,7 +37,10 @@ namespace HubManagement.Application.Societies.Commands
             if (society == null)
                 return new ShelfCommandResult(false, false, "Society was not found.", null);
 
-            var fieldError = ShelfCommandHelper.ValidateFields(request.Code, request.TowerOrWing, request.Capacity);
+            var slotCode = ShelfCommandHelper.ResolveSlotCode(
+                request.Code, request.Zone, request.Aisle, request.Tier, request.TowerOrWing);
+
+            var fieldError = ShelfCommandHelper.ValidateFields(slotCode, request.TowerOrWing, request.Capacity);
             if (fieldError != null)
                 return new ShelfCommandResult(true, false, fieldError, null);
 
@@ -50,27 +53,30 @@ namespace HubManagement.Application.Societies.Commands
                 noTracking: true,
                 cancellationToken).ConfigureAwait(false);
 
-            if (existing.Any(shelf => ShelfCommandHelper.CodesMatch(shelf.Code, request.Code)))
+            if (existing.Any(shelf => ShelfCommandHelper.CodesMatch(shelf.Code, slotCode)))
             {
                 return new ShelfCommandResult(
                     true,
                     false,
-                    $"Shelf code '{request.Code.Trim()}' already exists in this society.",
+                    $"Slot code '{slotCode}' already exists in this society.",
                     null);
             }
 
+            // True per-slot addresses use capacity 1 so one package ↔ one A-12-3.
+            var capacity = request.Capacity < 1 ? 1 : request.Capacity;
+
             var shelf = Shelf.Create(
                 request.SocietyId,
-                request.Code.Trim(),
+                slotCode,
                 request.TowerOrWing.Trim(),
                 request.IsColdStorage,
-                request.Capacity,
+                capacity,
                 locationResult.Location!);
 
             _shelves.Insert(shelf);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogCreatedShelf(_logger, shelf.Id, society.Id, null);
-            return new ShelfCommandResult(true, true, "Shelf created.", ShelfCommandHelper.ToDto(shelf));
+            return new ShelfCommandResult(true, true, $"Slot {slotCode} created.", ShelfCommandHelper.ToDto(shelf));
         }
     }
 }

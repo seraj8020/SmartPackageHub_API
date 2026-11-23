@@ -129,6 +129,40 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(new { succeeded = true, message = result.Message });
         }
 
+        /// <summary>
+        /// Resident unavailable at door: return package to hub. Slot (e.g. A-12-3) stays reserved.
+        /// </summary>
+        [HttpPost("{packageId:guid}/re-shelve-failed-delivery")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult> ReShelveAfterFailedDelivery(
+            [FromRoute] Guid packageId,
+            CancellationToken cancellationToken)
+        {
+            var auth = await GetStaffSessionAsync(cancellationToken).ConfigureAwait(false);
+            if (!auth.Ok)
+                return auth.Error!;
+
+            var result = await _mediator.Send(
+                new ReShelveAfterFailedDeliveryCommand(packageId, auth.Session!.SocietyIds),
+                cancellationToken).ConfigureAwait(false);
+            if (!result.Found)
+                return NotFound(new { succeeded = false, message = result.Message });
+            if (result.Forbidden)
+                return StatusCode(StatusCodes.Status403Forbidden, new { succeeded = false, message = result.Message });
+            if (result.Conflict)
+                return Conflict(new { succeeded = false, message = result.Message });
+            if (!result.Succeeded)
+                return BadRequest(new { succeeded = false, message = result.Message });
+
+            return Ok(new { succeeded = true, message = result.Message });
+        }
+
         [HttpPost("{packageId:guid}/cod/approve")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(StatusCodes.Status200OK)]

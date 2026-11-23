@@ -1,5 +1,6 @@
 using HubManagement.Application.Intake.Converters;
 using HubManagement.Application.Intake.Helpers;
+using HubManagement.Application.PackageHub.Services;
 using HubManagement.Application.Returns.DTOs;
 using HubManagement.Application.Returns.Services;
 using HubManagement.Core.Hubs.Entities;
@@ -76,39 +77,11 @@ namespace HubManagement.Application.Returns.Commands
             if (package is null)
                 return PackageReturnCommandResult.NotFound("Package was not found.");
 
-            var requestedCode = IntakeText.Clean(request.Request?.ShelfCode, 50);
-            var societyShelves = _shelves.FetchMulti(s => s.SocietyId == packageReturn.SocietyId).ToList();
-            var shelf = requestedCode is null
-                ? null
-                : societyShelves.FirstOrDefault(s =>
-                    string.Equals(s.Code, requestedCode, StringComparison.OrdinalIgnoreCase));
-            var wasSuggested = shelf is null;
+            var resolved = ResolveReturnSlot(package, packageReturn.SocietyId, request.Request?.ShelfCode);
+            if (resolved.Error is not null)
+                return PackageReturnCommandResult.Fail(resolved.Error, conflict: resolved.Conflict);
 
-            if (shelf is not null &&
-                !shelf.IsColdStorage &&
-                !string.IsNullOrWhiteSpace(package.TowerWing) &&
-                !ResidentMatcher.TowerEquals(shelf.TowerOrWing, package.TowerWing))
-            {
-                return PackageReturnCommandResult.Fail(
-                    $"Shelf {shelf.Code} belongs to tower {shelf.TowerOrWing}, not resident tower {package.TowerWing}.");
-            }
-
-            if (shelf is null)
-            {
-                var societyPackages = _packages.FetchMulti(p => p.SocietyId == package.SocietyId).ToList();
-                shelf = ShelfSuggester.Suggest(
-                    societyShelves,
-                    societyPackages,
-                    package.SocietyId,
-                    package.IsColdStorage,
-                    package.TowerWing);
-            }
-
-            if (shelf is null)
-            {
-                return PackageReturnCommandResult.Fail(
-                    "No shelf is configured for this resident's tower. Return remains received.");
-            }
+            var shelf = resolved.Shelf!;
 
             try
             {
@@ -136,13 +109,73 @@ namespace HubManagement.Application.Returns.Commands
 
             var resident = await _residents.GetByIdAsync(packageReturn.ResidentId).ConfigureAwait(false);
             var photos = _images.FetchMulti(i => i.ReturnId == packageReturn.Id, noTracking: true).ToList();
-            var message = wasSuggested
-                ? $"Requested shelf was unavailable. Return shelved at {shelf.Code}."
+            var message = resolved.WasSuggested
+                ? $"Requested slot was unavailable. Return shelved at {shelf.Code}."
                 : $"Return shelved at {shelf.Code}.";
 
             return PackageReturnCommandResult.Ok(
                 PackageReturnMapper.ToDto(packageReturn, photos, package, resident, shelf.Code),
                 message);
+        }
+
+        private (Shelf? Shelf, bool WasSuggested, string? Error, bool Conflict) ResolveReturnSlot(
+            Package package,
+            Guid societyId,
+            string? requestedShelfCode)
+        {
+            var requestedCode = IntakeText.Clean(requestedShelfCode, 50);
+            var societyShelves = _shelves.FetchMulti(s => s.SocietyId == societyId).ToList();
+            var shelf = requestedCode is null
+                ? null
+                : societyShelves.FirstOrDefault(s =>
+                    string.Equals(s.Code, requestedCode, StringComparison.OrdinalIgnoreCase));
+            var wasSuggested = shelf is null;
+
+            if (shelf is not null &&
+                !shelf.IsColdStorage &&
+                !string.IsNullOrWhiteSpace(package.TowerWing) &&
+                !ResidentMatcher.TowerEquals(shelf.TowerOrWing, package.TowerWing))
+            {
+                return (null, false,
+                    $"Slot {shelf.Code} belongs to tower {shelf.TowerOrWing}, not resident tower {package.TowerWing}.",
+                    false);
+            }
+
+            var societyPackages = _packages.FetchMulti(p => p.SocietyId == package.SocietyId).ToList();
+
+            if (shelf is not null && ShelfOccupancy.IsFull(shelf, societyPackages))
+            {
+                wasSuggested = true;
+                shelf = ShelfSuggester.Suggest(
+                    societyShelves,
+                    societyPackages,
+                    package.SocietyId,
+                    package.IsColdStorage,
+                    package.TowerWing);
+            }
+
+            shelf ??= ShelfSuggester.Suggest(
+                societyShelves,
+                societyPackages,
+                package.SocietyId,
+                package.IsColdStorage,
+                package.TowerWing);
+
+            if (shelf is not null && ShelfOccupancy.IsFull(shelf, societyPackages))
+            {
+                return (null, wasSuggested,
+                    "No free shelf slots are available. Add slots (e.g. A-12-3) or free a reserved slot.",
+                    true);
+            }
+
+            if (shelf is null)
+            {
+                return (null, wasSuggested,
+                    "No shelf slot is configured for this resident's tower. Return remains received.",
+                    false);
+            }
+
+            return (shelf, wasSuggested, null, false);
         }
     }
 }

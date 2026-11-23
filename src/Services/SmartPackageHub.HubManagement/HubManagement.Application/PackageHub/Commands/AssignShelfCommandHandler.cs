@@ -147,9 +147,12 @@ namespace HubManagement.Application.PackageHub.Commands
                 };
             }
 
-            if (shelf == null)
+            var societyPackages = _packages.FetchMulti(item => item.SocietyId == package.SocietyId).ToList();
+
+            if (shelf != null && ShelfOccupancy.IsFull(shelf, societyPackages))
             {
-                var societyPackages = _packages.FetchMulti(item => item.SocietyId == package.SocietyId).ToList();
+                // Requested A-12-3 (or rack) is occupied/reserved — fall back to next free slot.
+                wasSuggested = true;
                 shelf = ShelfSuggester.Suggest(
                     societyShelves,
                     societyPackages,
@@ -158,10 +161,30 @@ namespace HubManagement.Application.PackageHub.Commands
                     package.TowerWing);
             }
 
+            if (shelf == null)
+            {
+                shelf = ShelfSuggester.Suggest(
+                    societyShelves,
+                    societyPackages,
+                    package.SocietyId,
+                    request.IsColdStorage || package.IsColdStorage,
+                    package.TowerWing);
+            }
+
+            if (shelf != null && ShelfOccupancy.IsFull(shelf, societyPackages))
+            {
+                return new AssignShelfResult
+                {
+                    Found = true,
+                    Conflict = true,
+                    Succeeded = false,
+                    Message = "No free shelf slots are available. Add slots (e.g. A-12-3) or free a reserved slot.",
+                };
+            }
+
             if (shelf != null)
             {
                 package.AssignShelf(shelf.Id);
-                // Full shelves remain assignable so intake is never blocked.
                 package.ShelfPackage();
                 await RecordShelvedCustodyAsync(package, shelf, cancellationToken).ConfigureAwait(false);
             }
@@ -267,10 +290,10 @@ namespace HubManagement.Application.PackageHub.Commands
         private static string BuildAssignShelfMessage(Shelf? shelf, bool wasSuggested)
         {
             if (shelf == null)
-                return "No shelf is configured for this resident's tower. Package remains received and shelf is unassigned.";
+                return "No shelf slot is configured for this resident's tower. Package remains received and slot is unassigned.";
             if (wasSuggested)
-                return $"Requested shelf was unavailable. Package shelved at {shelf.Code}.";
-            return "Package shelved. Pickup OTP queued for the resident.";
+                return $"Requested slot was unavailable. Package shelved at {shelf.Code}. Resident can collect from {shelf.Code}.";
+            return $"Package shelved at {shelf.Code}. Resident can collect from {shelf.Code}.";
         }
     }
 }

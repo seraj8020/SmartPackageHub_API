@@ -104,7 +104,7 @@ namespace HubManagement.Application.Intake.Commands
                   $"Courier: {package.CourierPartner ?? "Courier"}. " +
                   $"AWB: {package.CourierAwb}. " +
                   $"Flat: {unit}. " +
-                  $"Shelf: {shelfCode ?? "unassigned"}. " +
+                  $"Collect from: {shelfCode ?? "unassigned"}. " +
                   $"Pickup OTP: {otp ?? "pending"}.";
 
             body = SmsEncodingHelper.ToGsm7SafeOtpMessage(body);

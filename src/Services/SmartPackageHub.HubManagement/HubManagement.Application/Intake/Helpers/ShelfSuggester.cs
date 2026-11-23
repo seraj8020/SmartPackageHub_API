@@ -1,6 +1,6 @@
 using HubManagement.Application.Intake.Converters;
+using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
-using HubManagement.Core.Hubs.Models;
 
 namespace HubManagement.Application.Intake.Helpers
 {
@@ -36,19 +36,23 @@ namespace HubManagement.Application.Intake.Helpers
             if (candidates.Count == 0)
                 return null;
 
-            // Occupancy: Shelved + ReturnShelved (not Dispatched / Delivered / other return states).
+            // Occupancy includes Dispatched so door-out packages keep their A-12-3 reserved.
             var counts = openPackages
-                .Where(package =>
-                    package.ShelfId != null &&
-                    (package.Status == PackageStatus.Shelved || package.Status == PackageStatus.ReturnShelved))
+                .Where(ShelfOccupancy.OccupiesSlot)
                 .GroupBy(package => package.ShelfId!.Value)
                 .ToDictionary(group => group.Key, group => group.Count());
 
+            // Prefer free slots (capacity typically 1 for true A-12-3 addresses).
+            var free = candidates
+                .Where(shelf => shelf.Capacity <= 0 || counts.GetValueOrDefault(shelf.Id) < shelf.Capacity)
+                .ToList();
+            if (free.Count > 0)
+                candidates = free;
+
             return candidates
-                .OrderBy(shelf => shelf.Capacity > 0 && counts.GetValueOrDefault(shelf.Id) >= shelf.Capacity)
-                .ThenBy(shelf => counts.GetValueOrDefault(shelf.Id))
+                .OrderBy(shelf => counts.GetValueOrDefault(shelf.Id))
                 .ThenBy(shelf => shelf.Code, StringComparer.Ordinal)
-                .First();
+                .FirstOrDefault();
         }
     }
 }

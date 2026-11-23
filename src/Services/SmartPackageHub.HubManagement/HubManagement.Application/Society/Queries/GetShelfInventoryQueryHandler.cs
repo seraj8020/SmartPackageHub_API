@@ -1,7 +1,7 @@
 using AutoMapper;
+using HubManagement.Application.PackageHub.Services;
 using HubManagement.Application.Societies.DTOs;
 using HubManagement.Core.Hubs.Entities;
-using HubManagement.Core.Hubs.Models;
 using SmartPackageHub.Applications.Abstractions.Queries;
 using SmartPackageHub.Applications.Abstractions.Repositories;
 
@@ -27,12 +27,12 @@ namespace HubManagement.Application.Societies.Queries
                 return null;
 
             var shelves = await _shelves.ListAsync(shelf => shelf.SocietyId == request.SocietyId, noTracking: true).ConfigureAwait(false);
-            // Occupancy = Shelved + ReturnShelved. Dispatched / Delivered keep ShelfId but do not count.
+            // Occupancy = Shelved + Dispatched (reserved while out for door) + ReturnShelved.
             var packages = await _packages.ListAsync(package =>
                 package.SocietyId == request.SocietyId &&
-                package.ShelfId != null &&
-                (package.Status == PackageStatus.Shelved || package.Status == PackageStatus.ReturnShelved),
+                package.ShelfId != null,
                 noTracking: true).ConfigureAwait(false);
+            packages = packages.Where(ShelfOccupancy.OccupiesSlot).ToList();
 
             var packagesByShelf = packages.GroupBy(package => package.ShelfId!.Value)
                 .ToDictionary(group => group.Key, group => group.OrderByDescending(package => package.RecievedAt).ToList());

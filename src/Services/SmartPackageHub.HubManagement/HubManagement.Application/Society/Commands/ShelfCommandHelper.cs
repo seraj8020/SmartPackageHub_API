@@ -1,3 +1,4 @@
+using HubManagement.Application.PackageHub.Services;
 using HubManagement.Application.Societies.DTOs;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.ValueObjects;
@@ -41,14 +42,26 @@ namespace HubManagement.Application.Societies.Commands
         internal static string? ValidateFields(string code, string towerOrWing, int capacity)
         {
             if (string.IsNullOrWhiteSpace(code))
-                return "Shelf code is required.";
+                return "Slot code is required (e.g. A-12-3).";
             if (code.Trim().Length > 50)
-                return "Shelf code must be 50 characters or fewer.";
+                return "Slot code must be 50 characters or fewer.";
             if (string.IsNullOrWhiteSpace(towerOrWing))
                 return "Tower / wing is required.";
             if (capacity < 1)
-                return "Capacity must be at least 1.";
+                return "Capacity must be at least 1 (use 1 for a true slot like A-12-3).";
             return null;
+        }
+
+        /// <summary>
+        /// When code is blank, build A-12-3 from zone/aisle/tier.
+        /// When code is present, leave it as the staff-facing slot address.
+        /// </summary>
+        internal static string ResolveSlotCode(string code, string zone, string aisle, int tier, string towerOrWing)
+        {
+            if (!string.IsNullOrWhiteSpace(code))
+                return code.Trim().ToUpperInvariant();
+            var zonePart = string.IsNullOrWhiteSpace(zone) ? towerOrWing : zone;
+            return ShelfOccupancy.BuildSlotCode(zonePart, aisle, tier);
         }
 
         internal static bool CodesMatch(string left, string right) =>

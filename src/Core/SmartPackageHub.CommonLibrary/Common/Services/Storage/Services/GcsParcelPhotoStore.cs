@@ -13,8 +13,9 @@ using Object = Google.Apis.Storage.v1.Data.Object;
 namespace SmartPackageHub.Common.Services.Storage.Services
 {
     /// <summary>
-    /// Google Cloud Storage backend for parcel label photos and damage shots.
-    /// Object layout mirrors the local store: parcel-blobs/*, damage/*.
+    /// Google Cloud Storage backend for intake photos.
+    /// Object layout mirrors the local store: arrival/* (normal), damage/* (when marked damaged).
+    /// Legacy objects under parcel-blobs/ remain readable.
     /// </summary>
     public sealed class GcsParcelPhotoStore : IParcelPhotoStore
     {
@@ -59,7 +60,8 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             if (existing != null)
                 return existing;
 
-            var key = $"parcel-blobs/{id}.jpg";
+            // Normal / undamaged arrival path — never writes under damage/.
+            var key = PhotoStoragePaths.ArrivalBlob(id);
             var objectName = ObjectName(key);
             var payload = bytes.ToArray();
             var type = string.IsNullOrWhiteSpace(contentType) ? "image/jpeg" : contentType;
@@ -88,23 +90,33 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             if (!Guid.TryParse(clientPhotoId, out var id))
                 return null;
 
-            var metaName = ObjectName($"parcel-blobs/{id:D}.jpg") + ".meta.json";
-            try
+            var guid = id.ToString("D");
+            foreach (var metaRelative in new[]
+                     {
+                         PhotoStoragePaths.ArrivalMeta(guid),
+                         PhotoStoragePaths.LegacyArrivalMeta(guid),
+                     })
             {
-                var stream = new MemoryStream();
-                await using (stream.ConfigureAwait(false))
+                var metaName = ObjectName(metaRelative);
+                try
                 {
-                    await _storage.DownloadObjectAsync(_bucket, metaName, stream, cancellationToken: cancellationToken)
-                        .ConfigureAwait(false);
-                    stream.Position = 0;
-                    return await JsonSerializer.DeserializeAsync<StoredParcelPhoto>(stream, cancellationToken: cancellationToken)
-                        .ConfigureAwait(false);
+                    var stream = new MemoryStream();
+                    await using (stream.ConfigureAwait(false))
+                    {
+                        await _storage.DownloadObjectAsync(_bucket, metaName, stream, cancellationToken: cancellationToken)
+                            .ConfigureAwait(false);
+                        stream.Position = 0;
+                        return await JsonSerializer.DeserializeAsync<StoredParcelPhoto>(stream, cancellationToken: cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    // try next location (arrival/ then legacy parcel-blobs/)
                 }
             }
-            catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                return null;
-            }
+
+            return null;
         }
 
         public async Task WriteLinkAsync(
@@ -114,7 +126,7 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             CancellationToken cancellationToken = default)
         {
             var id = RequireGuid(clientPhotoId);
-            var objectName = ObjectName($"parcel-blobs/{id}.link");
+            var objectName = ObjectName(PhotoStoragePaths.ArrivalLink(id));
             var payload = Encoding.UTF8.GetBytes($"{intakeId:D}|{packageId:D}");
             await UploadBytesAsync(objectName, payload, "text/plain", cancellationToken).ConfigureAwait(false);
         }
@@ -126,30 +138,40 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             if (!Guid.TryParse(clientPhotoId, out var id))
                 return null;
 
-            var objectName = ObjectName($"parcel-blobs/{id:D}.link");
-            try
+            var guid = id.ToString("D");
+            foreach (var linkRelative in new[]
+                     {
+                         PhotoStoragePaths.ArrivalLink(guid),
+                         PhotoStoragePaths.LegacyArrivalLink(guid),
+                     })
             {
-                var stream = new MemoryStream();
-                await using (stream.ConfigureAwait(false))
+                var objectName = ObjectName(linkRelative);
+                try
                 {
-                    await _storage.DownloadObjectAsync(_bucket, objectName, stream, cancellationToken: cancellationToken)
-                        .ConfigureAwait(false);
-                    var text = Encoding.UTF8.GetString(stream.ToArray());
-                    var parts = text.Split('|');
-                    if (parts.Length != 2 ||
-                        !Guid.TryParse(parts[0], out var intakeId) ||
-                        !Guid.TryParse(parts[1], out var packageId))
+                    var stream = new MemoryStream();
+                    await using (stream.ConfigureAwait(false))
                     {
-                        return null;
-                    }
+                        await _storage.DownloadObjectAsync(_bucket, objectName, stream, cancellationToken: cancellationToken)
+                            .ConfigureAwait(false);
+                        var text = Encoding.UTF8.GetString(stream.ToArray());
+                        var parts = text.Split('|');
+                        if (parts.Length != 2 ||
+                            !Guid.TryParse(parts[0], out var intakeId) ||
+                            !Guid.TryParse(parts[1], out var packageId))
+                        {
+                            return null;
+                        }
 
-                    return (intakeId, packageId);
+                        return (intakeId, packageId);
+                    }
+                }
+                catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    // try next location
                 }
             }
-            catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                return null;
-            }
+
+            return null;
         }
 
         public async Task<string> SaveDamageAsync(
@@ -157,7 +179,8 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default)
         {
-            var key = $"damage/{intakeId:N}.jpg";
+            // Damaged packages only — separate directory from arrival/.
+            var key = PhotoStoragePaths.DamageBlob(intakeId);
             var objectName = ObjectName(key);
             await UploadBytesAsync(objectName, bytes.ToArray(), "image/jpeg", cancellationToken)
                 .ConfigureAwait(false);

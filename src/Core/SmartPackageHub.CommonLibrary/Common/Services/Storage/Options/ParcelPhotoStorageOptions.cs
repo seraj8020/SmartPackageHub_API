@@ -1,7 +1,7 @@
 namespace SmartPackageHub.Common.Services.Storage.Options
 {
     /// <summary>
-    /// Parcel / damage photo storage. Use Provider=Local for laptop/dev;
+    /// Intake photo storage (arrival/ + damage/ directories). Use Provider=Local for laptop/dev;
     /// Provider=Gcs for QA/UAT/Prod on Google Cloud Storage.
     /// </summary>
     public sealed class ParcelPhotoStorageOptions

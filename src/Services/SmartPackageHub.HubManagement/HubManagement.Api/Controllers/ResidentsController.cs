@@ -79,8 +79,9 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
 
         /// <summary>
         /// Package detail for the owning resident.
-        /// Section 1: <c>hubIntakeNote</c> when intake damage exists.
-        /// Section 2: <c>yourReturnRequest</c> when a return request exists.
+        /// Section 1: <c>hubArrivalPhoto</c> when an arrival/parcel photo was captured at intake.
+        /// Section 2: <c>hubIntakeNote</c> when intake damage exists (note + damage photo).
+        /// Section 3: <c>yourReturnRequest</c> when a return request exists.
         /// Sections are independent and never share photo payloads.
         /// </summary>
         [HttpGet("{id:guid}/packages/{packageId:guid}")]
@@ -110,6 +111,38 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 return NotFound();
 
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Lightweight refresh of the arrival photo URL after a signed URL expires.
+        /// </summary>
+        [HttpGet("{id:guid}/packages/{packageId:guid}/arrival-photo-url")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(ArrivalPhotoUrlDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetArrivalPhotoUrl(Guid id, Guid packageId)
+        {
+            var result = await _mediator.Send(new GetResidentArrivalPhotoUrlQuery(id, packageId)).ConfigureAwait(false);
+            if (result is null)
+                return NotFound();
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Authenticated stream of the arrival photo (local/dev, or when signed URLs are unavailable).
+        /// </summary>
+        [HttpGet("{id:guid}/packages/{packageId:guid}/arrival-photo")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetArrivalPhoto(Guid id, Guid packageId)
+        {
+            var result = await _mediator.Send(new GetResidentArrivalPhotoBytesQuery(id, packageId)).ConfigureAwait(false);
+            if (result is null)
+                return NotFound();
+
+            return File(result.Content.ToArray(), result.ContentType);
         }
 
         /// <summary>

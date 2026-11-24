@@ -7,7 +7,8 @@ using Microsoft.Extensions.Hosting;
 namespace SmartPackageHub.Common.Services.Storage.Services
 {
     /// <summary>
-    /// Local disk blob store under {ContentRoot}/App_Data (parcel photos, damage shots, intake links).
+    /// Local disk blob store under {ContentRoot}/App_Data.
+    /// Arrival photos → <c>arrival/</c>; damage photos → <c>damage/</c>.
     /// </summary>
     public sealed class LocalBlobPhotoStore : IParcelPhotoStore
     {
@@ -18,6 +19,8 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             ArgumentNullException.ThrowIfNull(environment);
             _root = Path.Combine(environment.ContentRootPath, "App_Data");
             Directory.CreateDirectory(_root);
+            Directory.CreateDirectory(PhysicalPath(PhotoStoragePaths.ArrivalDirectory));
+            Directory.CreateDirectory(PhysicalPath(PhotoStoragePaths.DamageDirectory));
         }
 
         public async Task<StoredParcelPhoto> SaveAsync(
@@ -31,7 +34,8 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             if (existing != null)
                 return existing;
 
-            var key = $"parcel-blobs/{id}.jpg";
+            // Normal / undamaged arrival path — never writes under damage/.
+            var key = PhotoStoragePaths.ArrivalBlob(id);
             var path = PhysicalPath(key);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             await File.WriteAllBytesAsync(path, bytes.ToArray(), cancellationToken).ConfigureAwait(false);
@@ -51,12 +55,22 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             if (!Guid.TryParse(clientPhotoId, out var id))
                 return null;
 
-            var metaPath = PhysicalPath($"parcel-blobs/{id:D}.jpg") + ".meta.json";
-            if (!File.Exists(metaPath))
-                return null;
+            var guid = id.ToString("D");
+            foreach (var metaRelative in new[]
+                     {
+                         PhotoStoragePaths.ArrivalMeta(guid),
+                         PhotoStoragePaths.LegacyArrivalMeta(guid),
+                     })
+            {
+                var metaPath = PhysicalPath(metaRelative);
+                if (!File.Exists(metaPath))
+                    continue;
 
-            var json = await File.ReadAllTextAsync(metaPath, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize<StoredParcelPhoto>(json);
+                var json = await File.ReadAllTextAsync(metaPath, cancellationToken).ConfigureAwait(false);
+                return JsonSerializer.Deserialize<StoredParcelPhoto>(json);
+            }
+
+            return null;
         }
 
         public async Task WriteLinkAsync(
@@ -66,7 +80,7 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             CancellationToken cancellationToken = default)
         {
             var id = RequireGuid(clientPhotoId);
-            var path = PhysicalPath($"parcel-blobs/{id}.link");
+            var path = PhysicalPath(PhotoStoragePaths.ArrivalLink(id));
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             await File.WriteAllTextAsync(path, $"{intakeId:D}|{packageId:D}", cancellationToken).ConfigureAwait(false);
         }
@@ -78,16 +92,30 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             if (!Guid.TryParse(clientPhotoId, out var id))
                 return null;
 
-            var path = PhysicalPath($"parcel-blobs/{id:D}.link");
-            if (!File.Exists(path))
-                return null;
+            var guid = id.ToString("D");
+            foreach (var linkRelative in new[]
+                     {
+                         PhotoStoragePaths.ArrivalLink(guid),
+                         PhotoStoragePaths.LegacyArrivalLink(guid),
+                     })
+            {
+                var path = PhysicalPath(linkRelative);
+                if (!File.Exists(path))
+                    continue;
 
-            var text = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-            var parts = text.Split('|');
-            if (parts.Length != 2 || !Guid.TryParse(parts[0], out var intakeId) || !Guid.TryParse(parts[1], out var packageId))
-                return null;
+                var text = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+                var parts = text.Split('|');
+                if (parts.Length != 2 ||
+                    !Guid.TryParse(parts[0], out var intakeId) ||
+                    !Guid.TryParse(parts[1], out var packageId))
+                {
+                    return null;
+                }
 
-            return (intakeId, packageId);
+                return (intakeId, packageId);
+            }
+
+            return null;
         }
 
         public async Task<string> SaveDamageAsync(
@@ -95,7 +123,8 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             ReadOnlyMemory<byte> bytes,
             CancellationToken cancellationToken = default)
         {
-            var key = $"damage/{intakeId:N}.jpg";
+            // Damaged packages only — separate directory from arrival/.
+            var key = PhotoStoragePaths.DamageBlob(intakeId);
             var path = PhysicalPath(key);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             await File.WriteAllBytesAsync(path, bytes.ToArray(), cancellationToken).ConfigureAwait(false);
@@ -146,7 +175,7 @@ namespace SmartPackageHub.Common.Services.Storage.Services
             TimeSpan lifetime,
             CancellationToken cancellationToken = default)
         {
-            // Local disk has no public signed URL — callers use the authenticated damage-photo proxy.
+            // Local disk has no public signed URL — callers use the authenticated photo proxy.
             _ = storageKey;
             _ = lifetime;
             _ = cancellationToken;

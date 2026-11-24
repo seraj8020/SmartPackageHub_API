@@ -20,6 +20,7 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<PackageReturn> _returns;
         private readonly IRepository<PackageReturnImage> _returnImages;
         private readonly IRepository<Shelf> _shelves;
+        private readonly IRepository<PackageImage> _images;
         private readonly IParcelPhotoStore _photos;
 
         public GetResidentPackageDetailQueryHandler(
@@ -31,6 +32,7 @@ namespace HubManagement.Application.HubResidents.Queries
             IRepository<PackageReturn> returns,
             IRepository<PackageReturnImage> returnImages,
             IRepository<Shelf> shelves,
+            IRepository<PackageImage> images,
             IParcelPhotoStore photos) : base(mapper)
         {
             _residents = residents;
@@ -40,6 +42,7 @@ namespace HubManagement.Application.HubResidents.Queries
             _returns = returns;
             _returnImages = returnImages;
             _shelves = shelves;
+            _images = images;
             _photos = photos;
         }
 
@@ -70,6 +73,22 @@ namespace HubManagement.Application.HubResidents.Queries
                     noTracking: true).ConfigureAwait(false))
                 .OrderByDescending(i => i.ScannedAt)
                 .FirstOrDefault();
+
+            HubArrivalPhotoDto? arrivalPhoto = null;
+            var arrivalImage = ResidentArrivalPhotoLookup.FindForPackage(_images, package.Id);
+            if (arrivalImage is not null)
+            {
+                var (arrivalUrl, arrivalExpires) = await ResidentArrivalPhotoUrls.ResolveAsync(
+                        _photos,
+                        resident.Id,
+                        package.Id,
+                        arrivalImage.StorageKey).ConfigureAwait(false);
+                arrivalPhoto = new HubArrivalPhotoDto
+                {
+                    ArrivalPhotoUrl = arrivalUrl,
+                    ArrivalPhotoExpiresAtUtc = arrivalExpires,
+                };
+            }
 
             HubIntakeDamageNoteDto? hubNote = null;
             var isDamaged = intake?.IsDamaged == true;
@@ -139,6 +158,7 @@ namespace HubManagement.Application.HubResidents.Queries
                 ShelfAisle = shelf?.Location?.Aisle,
                 ShelfTier = shelf?.Location is null ? null : shelf.Location.Tier,
                 IsColdStorage = shelf?.IsColdStorage == true || package.IsColdStorage,
+                HubArrivalPhoto = arrivalPhoto,
                 HubIntakeNote = hubNote,
                 YourReturnRequest = yourReturn,
             };

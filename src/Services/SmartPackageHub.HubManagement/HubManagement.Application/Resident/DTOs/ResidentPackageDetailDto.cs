@@ -32,10 +32,13 @@ namespace HubManagement.Application.HubResidents.DTOs
         public int? ShelfTier { get; set; }
         public bool IsColdStorage { get; set; }
 
-        /// <summary>Section 1 — hub/staff intake damage. Independent of <see cref="YourReturnRequest"/>.</summary>
+        /// <summary>Arrival parcel photo from hub intake (all packages when captured).</summary>
+        public HubArrivalPhotoDto? HubArrivalPhoto { get; set; }
+
+        /// <summary>Hub/staff intake damage note + photo. Only when <see cref="IsDamaged"/>.</summary>
         public HubIntakeDamageNoteDto? HubIntakeNote { get; set; }
 
-        /// <summary>Section 2 — resident return request. Independent of <see cref="HubIntakeNote"/>.</summary>
+        /// <summary>Resident return request. Independent of hub intake photos.</summary>
         public ResidentReturnRequestDto? YourReturnRequest { get; set; }
     }
 }

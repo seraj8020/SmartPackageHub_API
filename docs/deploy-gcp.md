@@ -146,7 +146,9 @@ ParcelPhotoStorage__ObjectPrefix=qa/
 
 4. Redeploy the API (`./scripts/deploy-qa.sh`). The API uses Application Default Credentials from the VM SA — no JSON key file in the container.
 
-Object layout matches the old local store: `qa/parcel-blobs/{guid}.jpg`, `.meta.json`, `.link`, and `qa/damage/{intakeId}.jpg`.
+Object layout (two separate directories):
+- Normal arrival photos: `qa/arrival/{guid}.jpg` (+ `.meta.json`, `.link`). Legacy reads still accept `qa/parcel-blobs/…`.
+- Damage photos (when marked damaged): `qa/damage/{intakeId}.jpg`.
 
 Local laptop/dev keeps `Provider=Local` (default in `appsettings.json`).
 

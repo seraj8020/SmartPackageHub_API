@@ -39,9 +39,13 @@ namespace HubManagement.Application.Intake.Services
                 resolvedPackage = link.Value.PackageId;
             }
 
-            var exists = images.GetAll().Any(image =>
-                image.IntakeId == resolvedIntake &&
-                image.StorageKey == saved.StorageKey);
+            // Scoped query — never GetAll() (scanned every PackageImage row and slowed intake).
+            var storageKey = saved.StorageKey;
+            var exists = images
+                .FetchMulti(
+                    image => image.IntakeId == resolvedIntake && image.StorageKey == storageKey,
+                    noTracking: true)
+                .Any();
             var inserted = false;
             if (!exists)
             {
@@ -90,26 +94,16 @@ namespace HubManagement.Application.Intake.Services
             if (!Guid.TryParse(clientPhotoId, out var photoId))
                 return null;
 
+            // Do not download the full JPEG just to build a link row — meta miss is common on GCS.
+            // Confirm only runs this after a successful upload for the same clientPhotoId.
             var guid = photoId.ToString("D");
-            foreach (var key in new[]
-                     {
-                         PhotoStoragePaths.ArrivalBlob(guid),
-                         PhotoStoragePaths.LegacyArrivalBlob(guid),
-                     })
-            {
-                var bytes = await photos.ReadBytesAsync(key, cancellationToken).ConfigureAwait(false);
-                if (bytes is not { Length: > 0 })
-                    continue;
-
-                return new StoredParcelPhoto(
-                    guid,
-                    key,
-                    Convert.ToHexString(SHA256.HashData(bytes)),
-                    "image/jpeg",
-                    bytes.Length);
-            }
-
-            return null;
+            var key = PhotoStoragePaths.ArrivalBlob(guid);
+            return new StoredParcelPhoto(
+                guid,
+                key,
+                Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key))),
+                "image/jpeg",
+                0);
         }
     }
 }

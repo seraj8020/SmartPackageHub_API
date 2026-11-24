@@ -16,13 +16,31 @@ namespace HubManagement.Application.HubResidents.Services
 
         public static PackageImage? FindForPackage(IRepository<PackageImage> images, Guid packageId)
         {
+            // Load by package id only (EF-safe), then filter Kind/StorageKey in memory.
+            // HashSet.Contains / StringComparison in IQueryable caused HTTP 500 on QA.
             return images
                 .FetchMulti(image => image.PackageId == packageId, noTracking: true)
-                .Where(image =>
-                    !string.IsNullOrWhiteSpace(image.StorageKey) &&
-                    ArrivalKinds.Contains(image.Kind))
+                .AsEnumerable()
+                .Where(IsArrivalImage)
                 .OrderByDescending(image => image.CapturedAt)
                 .FirstOrDefault();
         }
+
+        public static HashSet<Guid> PackageIdsWithArrivalPhoto(
+            IReadOnlyList<PackageImage> images,
+            IReadOnlyCollection<Guid> packageIds)
+        {
+            var wanted = packageIds as HashSet<Guid> ?? packageIds.ToHashSet();
+            return images
+                .Where(image => wanted.Contains(image.PackageId) && IsArrivalImage(image))
+                .Select(image => image.PackageId)
+                .ToHashSet();
+        }
+
+        public static bool IsArrivalImage(PackageImage image) =>
+            image is not null &&
+            !string.IsNullOrWhiteSpace(image.StorageKey) &&
+            !string.IsNullOrWhiteSpace(image.Kind) &&
+            ArrivalKinds.Contains(image.Kind);
     }
 }

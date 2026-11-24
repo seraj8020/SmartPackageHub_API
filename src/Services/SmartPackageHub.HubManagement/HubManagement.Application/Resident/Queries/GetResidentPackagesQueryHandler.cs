@@ -1,22 +1,31 @@
 using AutoMapper;
 using HubManagement.Application.DeliverySlots;
+using HubManagement.Application.DeliverySlots.Helpers;
 using HubManagement.Application.HubResidents.DTOs;
+using HubManagement.Application.HubResidents.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
+using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Queries;
 using SmartPackageHub.Applications.Abstractions.Repositories;
-using HubManagement.Application.DeliverySlots.Helpers;
 
 namespace HubManagement.Application.HubResidents.Queries
 {
     public sealed class GetResidentPackagesQueryHandler : QueryHandler<GetResidentPackagesQuery, List<ResidentPackageDto>?>
     {
+        private static readonly Action<ILogger, int, Exception?> LogArrivalPhotoFlagsFailed =
+            LoggerMessage.Define<int>(
+                LogLevel.Warning,
+                new EventId(1, nameof(GetResidentPackagesQueryHandler)),
+                "Could not resolve arrival-photo flags for {PackageCount} inbox packages; returning packages without HasArrivalPhoto.");
+
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<Package> _packages;
         private readonly IRepository<DeliverySlot> _slots;
         private readonly IRepository<PackageIntake> _intakes;
         private readonly IRepository<PackageImage> _images;
         private readonly IRepository<Shelf> _shelves;
+        private readonly ILogger<GetResidentPackagesQueryHandler> _logger;
 
         public GetResidentPackagesQueryHandler(
             IMapper mapper,
@@ -25,7 +34,8 @@ namespace HubManagement.Application.HubResidents.Queries
             IRepository<DeliverySlot> slots,
             IRepository<PackageIntake> intakes,
             IRepository<PackageImage> images,
-            IRepository<Shelf> shelves) : base(mapper)
+            IRepository<Shelf> shelves,
+            ILogger<GetResidentPackagesQueryHandler> logger) : base(mapper)
         {
             _residents = residents;
             _packages = packages;
@@ -33,6 +43,7 @@ namespace HubManagement.Application.HubResidents.Queries
             _intakes = intakes;
             _images = images;
             _shelves = shelves;
+            _logger = logger;
         }
 
         protected override async Task<List<ResidentPackageDto>?> HandleAsync(GetResidentPackagesQuery request)
@@ -72,7 +83,7 @@ namespace HubManagement.Application.HubResidents.Queries
                 .GroupBy(slot => slot.PackageId)
                 .ToDictionary(group => group.Key, group => group.OrderByDescending(slot => slot.WindowStart).First());
 
-            // Bool-only flags — never load note/photo bytes on the inbox list.
+            // Bool-only damage flag — never load note/photo bytes on the inbox list.
             var damagedByPackage = (await _intakes.ListAsync(
                     intake => packageIds.Contains(intake.PackageId) && intake.IsDamaged,
                     cancellationToken: default,
@@ -80,17 +91,9 @@ namespace HubManagement.Application.HubResidents.Queries
                 .Select(intake => intake.PackageId)
                 .ToHashSet();
 
-            var arrivalPhotoPackageIds = _images
-                .FetchMulti(
-                    image => packageIds.Contains(image.PackageId) && image.StorageKey != null && image.StorageKey != "",
-                    noTracking: true)
-                .Where(image =>
-                    image.Kind.Equals("Parcel", StringComparison.OrdinalIgnoreCase) ||
-                    image.Kind.Equals("Arrival", StringComparison.OrdinalIgnoreCase) ||
-                    image.Kind.Equals("Label", StringComparison.OrdinalIgnoreCase) ||
-                    image.Kind.Equals("Front", StringComparison.OrdinalIgnoreCase))
-                .Select(image => image.PackageId)
-                .ToHashSet();
+            // Arrival-photo flag must never take down the inbox (photo store / EF edge cases).
+            var arrivalPhotoPackageIds = await ResolveArrivalPhotoPackageIdsSafeAsync(packageIds)
+                .ConfigureAwait(false);
 
             var shelfIds = waiting
                 .Where(p => p.ShelfId.HasValue)
@@ -145,6 +148,30 @@ namespace HubManagement.Application.HubResidents.Queries
                         IsColdStorage = shelf?.IsColdStorage == true || p.IsColdStorage,
                     };
                 }).ToList();
+        }
+
+        private async Task<HashSet<Guid>> ResolveArrivalPhotoPackageIdsSafeAsync(HashSet<Guid> packageIds)
+        {
+            if (packageIds.Count == 0)
+                return [];
+
+            try
+            {
+                // EF-safe predicate only; Kind / empty StorageKey filtered in memory.
+                var rows = await _images.ListAsync(
+                        image => packageIds.Contains(image.PackageId),
+                        cancellationToken: default,
+                        noTracking: true)
+                    .ConfigureAwait(false);
+                return ResidentArrivalPhotoLookup.PackageIdsWithArrivalPhoto(rows, packageIds);
+            }
+#pragma warning disable CA1031 // Inbox must still return packages if photo flag lookup fails.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                LogArrivalPhotoFlagsFailed(_logger, packageIds.Count, ex);
+                return [];
+            }
         }
     }
 }

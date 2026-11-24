@@ -211,6 +211,23 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             return Ok(result.Body);
         }
 
+        /// <summary>
+        /// Re-link an already-uploaded arrival photo without re-sending image bytes (cheap confirm follow-up).
+        /// </summary>
+        [HttpPost("photos/link")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(PhotoUploadResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult> LinkPhoto([FromBody] LinkParcelPhotoRequest request)
+        {
+            var result = await _mediator.Send(new LinkParcelPhotoCommand(request ?? new LinkParcelPhotoRequest()))
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                return BadRequest(new { Message = result.Error });
+
+            return Ok(result.Body);
+        }
+
         [HttpPost("{id:guid}/damage")]
         [MapToApiVersion(ApiVersions.V2)]
         // Base64 JSON is ~4/3 of JPEG size; allow up to ~5MB decoded image.

@@ -75,19 +75,28 @@ namespace HubManagement.Application.HubResidents.Queries
                 .FirstOrDefault();
 
             HubArrivalPhotoDto? arrivalPhoto = null;
-            var arrivalImage = ResidentArrivalPhotoLookup.FindForPackage(_images, package.Id);
-            if (arrivalImage is not null)
+            try
             {
-                var (arrivalUrl, arrivalExpires) = await ResidentArrivalPhotoUrls.ResolveAsync(
-                        _photos,
-                        resident.Id,
-                        package.Id,
-                        arrivalImage.StorageKey).ConfigureAwait(false);
-                arrivalPhoto = new HubArrivalPhotoDto
+                var arrivalImage = ResidentArrivalPhotoLookup.FindForPackage(_images, package.Id);
+                if (arrivalImage is not null)
                 {
-                    ArrivalPhotoUrl = arrivalUrl,
-                    ArrivalPhotoExpiresAtUtc = arrivalExpires,
-                };
+                    var (arrivalUrl, arrivalExpires) = await ResidentArrivalPhotoUrls.ResolveAsync(
+                            _photos,
+                            resident.Id,
+                            package.Id,
+                            arrivalImage.StorageKey).ConfigureAwait(false);
+                    arrivalPhoto = new HubArrivalPhotoDto
+                    {
+                        ArrivalPhotoUrl = arrivalUrl,
+                        ArrivalPhotoExpiresAtUtc = arrivalExpires,
+                    };
+                }
+            }
+#pragma warning disable CA1031 // Detail payload must still return when photo URL resolution fails.
+            catch
+#pragma warning restore CA1031
+            {
+                arrivalPhoto = null;
             }
 
             HubIntakeDamageNoteDto? hubNote = null;

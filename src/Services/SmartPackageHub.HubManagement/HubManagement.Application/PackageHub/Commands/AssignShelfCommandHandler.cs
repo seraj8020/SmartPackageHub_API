@@ -282,7 +282,9 @@ namespace HubManagement.Application.PackageHub.Commands
                 PickupQrPayload = string.IsNullOrEmpty(otp) ? string.Empty : $"SPH|{package.PkgNumber}|{otp}",
                 NotificationStatus = notified ? "Dispatched" : "Queued",
                 MatchStatus = intake?.MatchStatus ?? "missing",
-                PhotoStored = intake != null && _images.GetAll().Any(image => image.IntakeId == intake.Id),
+                PhotoStored = intake != null && _images
+                    .FetchMulti(image => image.IntakeId == intake.Id, noTracking: true)
+                    .Any(),
                 Resident = residentDto,
             });
         }

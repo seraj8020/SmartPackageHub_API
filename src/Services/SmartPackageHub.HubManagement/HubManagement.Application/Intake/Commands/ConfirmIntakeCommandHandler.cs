@@ -489,7 +489,9 @@ namespace HubManagement.Application.Intake.Commands
                 PickupQrPayload = string.IsNullOrEmpty(otp) ? string.Empty : $"SPH|{package.PkgNumber}|{otp}",
                 NotificationStatus = notified ? "Dispatched" : "Queued",
                 MatchStatus = intake.MatchStatus,
-                PhotoStored = _images.GetAll().Any(image => image.IntakeId == intake.Id),
+                PhotoStored = _images
+                    .FetchMulti(image => image.IntakeId == intake.Id, noTracking: true)
+                    .Any(),
                 Resident = resident
             };
         }

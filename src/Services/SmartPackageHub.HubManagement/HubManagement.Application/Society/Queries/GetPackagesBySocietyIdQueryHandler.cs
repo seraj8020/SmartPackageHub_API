@@ -1,11 +1,13 @@
 using AutoMapper;
 using HubManagement.Application.DeliverySlots;
+using HubManagement.Application.DeliverySlots.Helpers;
 using HubManagement.Application.Societies.DTOs;
+using HubManagement.Application.Societies.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
+using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Queries;
 using SmartPackageHub.Applications.Abstractions.Repositories;
-using HubManagement.Application.DeliverySlots.Helpers;
 
 namespace HubManagement.Application.Societies.Queries
 {
@@ -15,18 +17,24 @@ namespace HubManagement.Application.Societies.Queries
         private readonly IRepository<Package> _packages;
         private readonly IRepository<Shelf> _shelves;
         private readonly IRepository<DeliverySlot> _slots;
+        private readonly IRepository<PackageImage> _images;
+        private readonly ILogger<GetPackagesBySocietyIdQueryHandler> _logger;
 
         public GetPackagesBySocietyIdQueryHandler(
             IMapper mapper,
             IRepository<Society> societies,
             IRepository<Package> packages,
             IRepository<Shelf> shelves,
-            IRepository<DeliverySlot> slots) : base(mapper)
+            IRepository<DeliverySlot> slots,
+            IRepository<PackageImage> images,
+            ILogger<GetPackagesBySocietyIdQueryHandler> logger) : base(mapper)
         {
             _societies = societies;
             _packages = packages;
             _shelves = shelves;
             _slots = slots;
+            _images = images;
+            _logger = logger;
         }
 
         protected override async Task<List<SocietyPackageDto>?> HandleAsync(GetPackagesBySocietyIdQuery request)
@@ -36,7 +44,7 @@ namespace HubManagement.Application.Societies.Queries
             if (society == null)
                 return null;
 
-            // All hub packages still waiting � not limited to today, so older shelved
+            // All hub packages still waiting — not limited to today, so older shelved
             // (not yet dispatched) and received items remain visible on staff screens.
             var waiting = await _packages.ListAsync(
                 p =>
@@ -73,6 +81,9 @@ namespace HubManagement.Application.Societies.Queries
             var shelfCapacities = shelves.ToDictionary(shelf => shelf.Id, shelf => shelf.Capacity);
             var shelfCold = shelves.ToDictionary(shelf => shelf.Id, shelf => shelf.IsColdStorage);
             var activeSlots = SocietyPackageMapper.BuildActiveSlotLookup(ordered, slots);
+            var arrivalPhotoIds = await SocietyArrivalPhotoFlags.ResolveSafeAsync(
+                    _images, packageIds, _logger)
+                .ConfigureAwait(false);
 
             return ordered.Select(p =>
             {
@@ -82,7 +93,8 @@ namespace HubManagement.Application.Societies.Queries
                     shelfCodes,
                     slot: slot,
                     shelfCapacitiesById: shelfCapacities,
-                    shelfColdById: shelfCold);
+                    shelfColdById: shelfCold,
+                    hasArrivalPhoto: arrivalPhotoIds.Contains(p.Id));
             }).ToList();
         }
     }

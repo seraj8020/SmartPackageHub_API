@@ -12,7 +12,8 @@ namespace HubManagement.Application.Societies.DTOs
             DateTime? deliveredAt = null,
             DeliverySlot? slot = null,
             IReadOnlyDictionary<Guid, int>? shelfCapacitiesById = null,
-            IReadOnlyDictionary<Guid, bool>? shelfColdById = null)
+            IReadOnlyDictionary<Guid, bool>? shelfColdById = null,
+            bool hasArrivalPhoto = false)
         {
             ArgumentNullException.ThrowIfNull(package);
             string? shelfCode = null;
@@ -61,6 +62,7 @@ namespace HubManagement.Application.Societies.DTOs
                     ? null
                     : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
                 PreferredDeliveryMethod = package.PreferredDeliveryMethod,
+                HasArrivalPhoto = hasArrivalPhoto,
             };
         }
 

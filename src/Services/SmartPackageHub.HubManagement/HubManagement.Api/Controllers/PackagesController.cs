@@ -2,6 +2,7 @@ using HubManagement.Application.Auth.Services;
 using HubManagement.Application.Intake.DTOs;
 using HubManagement.Application.PackageHub.Commands;
 using HubManagement.Application.PackageHub.DTOs;
+using HubManagement.Application.PackageHub.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -161,6 +162,31 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 return BadRequest(new { succeeded = false, message = result.Message });
 
             return Ok(new { succeeded = true, message = result.Message });
+        }
+
+        /// <summary>
+        /// Authenticated stream of the intake arrival/parcel photo for staff list thumbnails.
+        /// </summary>
+        [HttpGet("{packageId:guid}/arrival-photo")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetArrivalPhoto(Guid packageId, CancellationToken cancellationToken)
+        {
+            var auth = await GetStaffSessionAsync(cancellationToken).ConfigureAwait(false);
+            if (!auth.Ok)
+                return auth.Error!;
+
+            var result = await _mediator.Send(
+                    new GetPackageArrivalPhotoBytesQuery(packageId, auth.Session!.SocietyIds),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (result is null)
+                return NotFound();
+
+            return File(result.Content.ToArray(), result.ContentType);
         }
 
         [HttpPost("{packageId:guid}/cod/approve")]

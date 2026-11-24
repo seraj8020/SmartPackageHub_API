@@ -28,5 +28,7 @@ namespace HubManagement.Application.Societies.DTOs
         public string? DeliverySlotStatus { get; set; }
         public string? DeliverySlotLabel { get; set; }
         public string? PreferredDeliveryMethod { get; set; }
+        /// <summary>True when an intake arrival/parcel photo exists for this package.</summary>
+        public bool HasArrivalPhoto { get; set; }
     }
 }

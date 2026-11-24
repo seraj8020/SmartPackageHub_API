@@ -44,12 +44,15 @@ namespace HubManagement.Application.Societies.Queries
             if (society == null)
                 return null;
 
-            // All hub packages still waiting — not limited to today, so older shelved
-            // (not yet dispatched) and received items remain visible on staff screens.
+            // Active hub packages for staff home / receive / shelf / route.
+            // Include Dispatched so "Out for delivery" counts and caches stay correct
+            // (Delivered stays on the dedicated deliveredpackages endpoint).
             var waiting = await _packages.ListAsync(
                 p =>
                     p.SocietyId == society.Id &&
-                    (p.Status == PackageStatus.Received || p.Status == PackageStatus.Shelved),
+                    (p.Status == PackageStatus.Received ||
+                     p.Status == PackageStatus.Shelved ||
+                     p.Status == PackageStatus.Dispatched),
                 noTracking: true).ConfigureAwait(false);
 
             if (waiting.Count == 0)

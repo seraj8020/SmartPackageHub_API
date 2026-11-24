@@ -19,6 +19,11 @@ namespace SmartPackageHub.Common.Services.Storage.Services
     /// </summary>
     public sealed class GcsParcelPhotoStore : IParcelPhotoStore
     {
+        private static readonly JsonSerializerOptions MetaJsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+        };
+
         private static readonly Action<ILogger, string, string, Exception?> LogUploaded =
             LoggerMessage.Define<string, string>(
                 LogLevel.Debug,
@@ -106,7 +111,10 @@ namespace SmartPackageHub.Common.Services.Storage.Services
                         await _storage.DownloadObjectAsync(_bucket, metaName, stream, cancellationToken: cancellationToken)
                             .ConfigureAwait(false);
                         stream.Position = 0;
-                        return await JsonSerializer.DeserializeAsync<StoredParcelPhoto>(stream, cancellationToken: cancellationToken)
+                        return await JsonSerializer.DeserializeAsync<StoredParcelPhoto>(
+                                stream,
+                                MetaJsonOptions,
+                                cancellationToken)
                             .ConfigureAwait(false);
                     }
                 }

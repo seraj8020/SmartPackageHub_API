@@ -15,6 +15,7 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<Package> _packages;
         private readonly IRepository<DeliverySlot> _slots;
         private readonly IRepository<PackageIntake> _intakes;
+        private readonly IRepository<PackageImage> _images;
         private readonly IRepository<Shelf> _shelves;
 
         public GetResidentPackagesQueryHandler(
@@ -23,12 +24,14 @@ namespace HubManagement.Application.HubResidents.Queries
             IRepository<Package> packages,
             IRepository<DeliverySlot> slots,
             IRepository<PackageIntake> intakes,
+            IRepository<PackageImage> images,
             IRepository<Shelf> shelves) : base(mapper)
         {
             _residents = residents;
             _packages = packages;
             _slots = slots;
             _intakes = intakes;
+            _images = images;
             _shelves = shelves;
         }
 
@@ -69,12 +72,24 @@ namespace HubManagement.Application.HubResidents.Queries
                 .GroupBy(slot => slot.PackageId)
                 .ToDictionary(group => group.Key, group => group.OrderByDescending(slot => slot.WindowStart).First());
 
-            // Bool-only damage flag — never load note/photo bytes on the inbox list.
+            // Bool-only flags — never load note/photo bytes on the inbox list.
             var damagedByPackage = (await _intakes.ListAsync(
                     intake => packageIds.Contains(intake.PackageId) && intake.IsDamaged,
                     cancellationToken: default,
                     noTracking: true).ConfigureAwait(false))
                 .Select(intake => intake.PackageId)
+                .ToHashSet();
+
+            var arrivalPhotoPackageIds = _images
+                .FetchMulti(
+                    image => packageIds.Contains(image.PackageId) && image.StorageKey != null && image.StorageKey != "",
+                    noTracking: true)
+                .Where(image =>
+                    image.Kind.Equals("Parcel", StringComparison.OrdinalIgnoreCase) ||
+                    image.Kind.Equals("Arrival", StringComparison.OrdinalIgnoreCase) ||
+                    image.Kind.Equals("Label", StringComparison.OrdinalIgnoreCase) ||
+                    image.Kind.Equals("Front", StringComparison.OrdinalIgnoreCase))
+                .Select(image => image.PackageId)
                 .ToHashSet();
 
             var shelfIds = waiting
@@ -121,6 +136,7 @@ namespace HubManagement.Application.HubResidents.Queries
                             : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
                         PreferredDeliveryMethod = p.PreferredDeliveryMethod,
                         IsDamaged = damagedByPackage.Contains(p.Id),
+                        HasArrivalPhoto = arrivalPhotoPackageIds.Contains(p.Id),
                         ShelfCode = shelf?.Code,
                         ShelfTowerOrWing = shelf?.TowerOrWing,
                         ShelfZone = shelf?.Location?.Zone,

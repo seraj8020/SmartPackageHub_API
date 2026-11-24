@@ -12,6 +12,11 @@ namespace SmartPackageHub.Common.Services.Storage.Services
     /// </summary>
     public sealed class LocalBlobPhotoStore : IParcelPhotoStore
     {
+        private static readonly JsonSerializerOptions MetaJsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+        };
+
         private readonly string _root;
 
         public LocalBlobPhotoStore(IHostEnvironment environment)
@@ -67,7 +72,7 @@ namespace SmartPackageHub.Common.Services.Storage.Services
                     continue;
 
                 var json = await File.ReadAllTextAsync(metaPath, cancellationToken).ConfigureAwait(false);
-                return JsonSerializer.Deserialize<StoredParcelPhoto>(json);
+                return JsonSerializer.Deserialize<StoredParcelPhoto>(json, MetaJsonOptions);
             }
 
             return null;

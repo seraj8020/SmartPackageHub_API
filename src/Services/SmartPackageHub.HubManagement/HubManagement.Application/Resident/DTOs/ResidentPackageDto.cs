@@ -26,6 +26,9 @@ namespace HubManagement.Application.HubResidents.DTOs
         /// <summary>True when hub intake recorded damage. Note/photo load via package detail only.</summary>
         public bool IsDamaged { get; set; }
 
+        /// <summary>True when an arrival/parcel PackageImage exists — open package detail to view it.</summary>
+        public bool HasArrivalPhoto { get; set; }
+
         /// <summary>Hub slot code (e.g. A-12-3). Null when not yet shelved.</summary>
         public string? ShelfCode { get; set; }
         public string? ShelfTowerOrWing { get; set; }

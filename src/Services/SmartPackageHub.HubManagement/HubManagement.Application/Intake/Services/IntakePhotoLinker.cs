@@ -1,6 +1,9 @@
-using SmartPackageHub.Common.Services.Storage.Abstractions;
+using System.Security.Cryptography;
 using HubManagement.Core.Hubs.Entities;
 using SmartPackageHub.Applications.Abstractions.Repositories;
+using SmartPackageHub.Common.Services.Storage.Abstractions;
+using SmartPackageHub.Common.Services.Storage.DTOs;
+using SmartPackageHub.Common.Services.Storage.Services;
 
 namespace HubManagement.Application.Intake.Services
 {
@@ -14,7 +17,8 @@ namespace HubManagement.Application.Intake.Services
             Guid? packageId,
             CancellationToken cancellationToken)
         {
-            var saved = await photos.FindAsync(clientPhotoId, cancellationToken).ConfigureAwait(false) ;
+            var saved = await ResolveStoredPhotoAsync(photos, clientPhotoId, cancellationToken)
+                .ConfigureAwait(false);
             if (saved == null)
                 return (false, false);
 
@@ -35,19 +39,77 @@ namespace HubManagement.Application.Intake.Services
                 resolvedPackage = link.Value.PackageId;
             }
 
-            var exists = images.GetAll().Any(image => image.IntakeId == resolvedIntake && image.StorageKey == saved.StorageKey);
+            var exists = images.GetAll().Any(image =>
+                image.IntakeId == resolvedIntake &&
+                image.StorageKey == saved.StorageKey);
             var inserted = false;
             if (!exists)
             {
-                var image = PackageImage.Create(resolvedPackage, resolvedIntake, "Parcel", saved.StorageKey, saved.Sha256, DateTime.UtcNow);
-                image.ContentType = saved.ContentType;
+                var image = PackageImage.Create(
+                    resolvedPackage,
+                    resolvedIntake,
+                    "Parcel",
+                    saved.StorageKey,
+                    saved.Sha256,
+                    DateTime.UtcNow);
+                image.ContentType = string.IsNullOrWhiteSpace(saved.ContentType)
+                    ? "image/jpeg"
+                    : saved.ContentType;
                 image.ByteSize = saved.ByteSize;
                 images.Insert(image);
                 inserted = true;
             }
 
-            await photos.WriteLinkAsync(clientPhotoId, resolvedIntake, resolvedPackage, cancellationToken).ConfigureAwait(false);
+            await photos.WriteLinkAsync(clientPhotoId, resolvedIntake, resolvedPackage, cancellationToken)
+                .ConfigureAwait(false);
             return (true, inserted);
+        }
+
+        /// <summary>
+        /// Prefer meta.json via FindAsync; if meta is missing/corrupt but the JPEG exists
+        /// (common with GCS), still build a StoredParcelPhoto from the blob bytes.
+        /// </summary>
+        private static async Task<StoredParcelPhoto?> ResolveStoredPhotoAsync(
+            IParcelPhotoStore photos,
+            string clientPhotoId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var saved = await photos.FindAsync(clientPhotoId, cancellationToken).ConfigureAwait(false);
+                if (saved is not null && !string.IsNullOrWhiteSpace(saved.StorageKey))
+                    return saved;
+            }
+#pragma warning disable CA1031 // Fall back to raw blob when meta is unreadable.
+            catch
+#pragma warning restore CA1031
+            {
+                // meta.json missing or invalid JSON — try the blob itself.
+            }
+
+            if (!Guid.TryParse(clientPhotoId, out var photoId))
+                return null;
+
+            var guid = photoId.ToString("D");
+            foreach (var key in new[]
+                     {
+                         PhotoStoragePaths.ArrivalBlob(guid),
+                         PhotoStoragePaths.LegacyArrivalBlob(guid),
+                     })
+            {
+                var bytes = await photos.ReadBytesAsync(key, cancellationToken).ConfigureAwait(false);
+                if (bytes is not { Length: > 0 })
+                    continue;
+
+                return new StoredParcelPhoto(
+                    guid,
+                    key,
+                    Convert.ToHexString(SHA256.HashData(bytes)),
+                    "image/jpeg",
+                    bytes.Length);
+            }
+
+            return null;
         }
     }
 }

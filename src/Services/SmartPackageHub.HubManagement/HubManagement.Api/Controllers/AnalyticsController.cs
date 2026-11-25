@@ -27,7 +27,10 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             _sessions = sessions;
         }
 
-        /// <summary>Dashboard KPIs from today's daily rollup. Values stay fixed between rollups.</summary>
+        /// <summary>
+        /// Dashboard KPIs. Received/delivered "today" use only today's AnalyticsDaily rows
+        /// (never a prior-day fallback). Pending is a live open-package count.
+        /// </summary>
         [HttpGet("dashboard/summary")]
         [MapToApiVersion(ApiVersions.V2)]
         [ProducesResponseType(typeof(DashboardSummaryDto), StatusCodes.Status200OK)]

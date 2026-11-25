@@ -2,6 +2,7 @@ using AutoMapper;
 using HubManagement.Application.Analytics.DTOs;
 using HubManagement.Application.Analytics.Services;
 using HubManagement.Core.Hubs.Entities;
+using HubManagement.Core.Hubs.Models;
 using SmartPackageHub.Applications.Abstractions.Queries;
 using SmartPackageHub.Applications.Abstractions.Repositories;
 
@@ -13,16 +14,19 @@ namespace HubManagement.Application.Analytics.Queries
         private readonly IRepository<Society> _societies;
         private readonly IRepository<AnalyticsDaily> _analytics;
         private readonly IRepository<PackageReturn> _returns;
+        private readonly IRepository<Package> _packages;
 
         public GetDashboardSummaryQueryHandler(
             IMapper mapper,
             IRepository<Society> societies,
             IRepository<AnalyticsDaily> analytics,
-            IRepository<PackageReturn> returns) : base(mapper)
+            IRepository<PackageReturn> returns,
+            IRepository<Package> packages) : base(mapper)
         {
             _societies = societies;
             _analytics = analytics;
             _returns = returns;
+            _packages = packages;
         }
 
         protected override Task<DashboardSummaryDto> HandleAsync(GetDashboardSummaryQuery request)
@@ -45,41 +49,29 @@ namespace HubManagement.Application.Analytics.Queries
                     .FirstOrDefault() ?? "Society";
             }
 
+            var societyIdSet = scopedSocietyIds.ToHashSet();
             var scopedAnalytics = _analytics.GetAll()
-                .Where(a => scopedSocietyIds.Contains(a.SocietyId))
+                .Where(a => societyIdSet.Contains(a.SocietyId))
                 .ToList();
 
-            // Prefer today's UTC rollup when any scoped society has it; otherwise latest available day.
-            // Societies without a row for the snapshot day contribute 0 to KPI sums.
-            var hasTodayRollup = scopedAnalytics.Any(a => a.Day == todayUtc);
-            var latestRollupDay = scopedAnalytics
-                .Select(a => (DateOnly?)a.Day)
-                .OrderByDescending(day => day)
-                .FirstOrDefault();
-            var snapshotDay = hasTodayRollup ? todayUtc : (latestRollupDay ?? todayUtc);
-            var snapshotBySociety = scopedAnalytics
-                .Where(a => a.Day == snapshotDay)
-                .GroupBy(a => a.SocietyId)
-                .ToDictionary(group => group.Key, group => group.First());
+            // Today KPIs must use today's rollup only — never fall back to a prior day
+            // (that made "Received today" show yesterday's count while the chart correctly
+            // plotted 0 for today).
+            var todayRows = scopedAnalytics.Where(a => a.Day == todayUtc).ToList();
+            var packagesReceived = todayRows.Sum(a => a.PackagesReceived);
+            var packagesDelivered = todayRows.Sum(a => a.PackagesDelivered);
+            DateTime? lastRollupAtUtc = todayRows
+                .Where(a => a.LastRolledUpAtUtc.HasValue)
+                .Select(a => a.LastRolledUpAtUtc)
+                .DefaultIfEmpty(null)
+                .Max();
 
-            var packagesReceived = 0;
-            var pendingPickup = 0;
-            var packagesDelivered = 0;
-            DateTime? lastRollupAtUtc = null;
-            foreach (var societyId in scopedSocietyIds)
-            {
-                if (!snapshotBySociety.TryGetValue(societyId, out var row))
-                    continue;
-
-                packagesReceived += row.PackagesReceived;
-                pendingPickup += row.OverdueCount;
-                packagesDelivered += row.PackagesDelivered;
-                if (row.LastRolledUpAtUtc.HasValue &&
-                    (lastRollupAtUtc is null || row.LastRolledUpAtUtc > lastRollupAtUtc))
-                {
-                    lastRollupAtUtc = row.LastRolledUpAtUtc;
-                }
-            }
+            // Pending is a live queue, not a daily received counter.
+            var pendingPickup = _packages.GetAll()
+                .AsEnumerable()
+                .Count(p =>
+                    societyIdSet.Contains(p.SocietyId) &&
+                    p.Status != PackageStatus.Delivered);
 
             var last7From = todayUtc.AddDays(-6);
             var last7Rows = scopedAnalytics
@@ -88,7 +80,6 @@ namespace HubManagement.Application.Analytics.Queries
             var packagesLast7 = last7Rows.Sum(a => a.PackagesReceived);
             var deliveredLast7 = last7Rows.Sum(a => a.PackagesDelivered);
 
-            var societyIdSet = scopedSocietyIds.ToHashSet();
             var returns = _returns.GetAll().AsEnumerable()
                 .Where(r => societyIdSet.Contains(r.SocietyId))
                 .ToList();
@@ -98,9 +89,12 @@ namespace HubManagement.Application.Analytics.Queries
             var returnedToday = AnalyticsMetricsCalculator.CountReturned(returns, todayStart, tomorrowStart);
             var returnedLast7 = AnalyticsMetricsCalculator.CountReturned(returns, last7Start, tomorrowStart);
 
-            var societiesRolledUp = snapshotBySociety.Count;
+            var societiesRolledUp = todayRows
+                .Select(a => a.SocietyId)
+                .Distinct()
+                .Count();
             var dto = new DashboardSummaryDto(
-                snapshotDay,
+                todayUtc,
                 packagesReceived,
                 pendingPickup,
                 packagesDelivered,

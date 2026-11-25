@@ -25,6 +25,7 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<User> _users;
         private readonly IRepository<PackageDeliveryEvidence> _evidence;
         private readonly IRepository<VacationHold> _vacationHolds;
+        private readonly IRepository<AuthorizedCollector> _collectors;
         private readonly IParcelPhotoStore _photos;
         private readonly ILogger<DeliverPackageCommandHandler> _logger;
 
@@ -36,6 +37,7 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<User> users,
             IRepository<PackageDeliveryEvidence> evidence,
             IRepository<VacationHold> vacationHolds,
+            IRepository<AuthorizedCollector> collectors,
             IParcelPhotoStore photos,
             ILogger<DeliverPackageCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
@@ -47,6 +49,7 @@ namespace HubManagement.Application.PackageHub.Commands
             _users = users;
             _evidence = evidence;
             _vacationHolds = vacationHolds;
+            _collectors = collectors;
             _photos = photos;
             _logger = logger;
         }
@@ -112,16 +115,22 @@ namespace HubManagement.Application.PackageHub.Commands
             if (package.ResidentId is not Guid packageResidentId || packageResidentId == Guid.Empty)
                 return (new PackageCommandResult(true, false, false, "Package has no resident assigned.", null), null, null, Guid.Empty);
 
-            // Door/OTP handover is blocked while vacation hold covers today (or package was held at intake).
-            // Counter pickup remains available after the hold ends; do not complete door delivery during the hold.
-            if (await VacationHoldLookup.IsDoorDeliveryBlockedAsync(_vacationHolds, package, DateTime.UtcNow)
-                    .ConfigureAwait(false))
+            // Door delivery blocked on vacation/hub hold. Counter pickup allowed for hub hold
+            // or when an authorized collector is set during vacation hold.
+            var deliverBlock = await PackageHoldLookup.GetDeliverBlockMessageAsync(
+                    _vacationHolds,
+                    _collectors,
+                    package,
+                    payload.Method,
+                    DateTime.UtcNow)
+                .ConfigureAwait(false);
+            if (deliverBlock is not null)
             {
                 return (new PackageCommandResult(
                     true,
                     false,
                     false,
-                    VacationHoldLookup.DoorDeliveryBlockedMessage,
+                    deliverBlock,
                     null), null, null, Guid.Empty);
             }
 

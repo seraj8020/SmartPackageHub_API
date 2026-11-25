@@ -25,6 +25,7 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<PackageIntake> _intakes;
         private readonly IRepository<PackageImage> _images;
         private readonly IRepository<Shelf> _shelves;
+        private readonly IRepository<AuthorizedCollector> _collectors;
         private readonly ILogger<GetResidentPackagesQueryHandler> _logger;
 
         public GetResidentPackagesQueryHandler(
@@ -35,6 +36,7 @@ namespace HubManagement.Application.HubResidents.Queries
             IRepository<PackageIntake> intakes,
             IRepository<PackageImage> images,
             IRepository<Shelf> shelves,
+            IRepository<AuthorizedCollector> collectors,
             ILogger<GetResidentPackagesQueryHandler> logger) : base(mapper)
         {
             _residents = residents;
@@ -43,6 +45,7 @@ namespace HubManagement.Application.HubResidents.Queries
             _intakes = intakes;
             _images = images;
             _shelves = shelves;
+            _collectors = collectors;
             _logger = logger;
         }
 
@@ -108,6 +111,18 @@ namespace HubManagement.Application.HubResidents.Queries
                         noTracking: true).ConfigureAwait(false))
                     .ToDictionary(shelf => shelf.Id);
 
+            var now = DateTime.UtcNow;
+            var collectorRows = await _collectors.ListAsync(
+                    row => packageIds.Contains(row.PackageId) && row.IsActive,
+                    cancellationToken: default,
+                    noTracking: true).ConfigureAwait(false);
+            var collectorsByPackage = collectorRows
+                .Where(row => row.IsValidAt(now))
+                .GroupBy(row => row.PackageId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.OrderByDescending(row => row.AuthorizedAtUtc).First());
+
             return waiting
                 .OrderByDescending(p => p.RecievedAt)
                 .Select(p =>
@@ -116,6 +131,7 @@ namespace HubManagement.Application.HubResidents.Queries
                     Shelf? shelf = null;
                     if (p.ShelfId.HasValue)
                         shelvesById.TryGetValue(p.ShelfId.Value, out shelf);
+                    collectorsByPackage.TryGetValue(p.Id, out var collector);
 
                     return new ResidentPackageDto
                     {
@@ -144,6 +160,8 @@ namespace HubManagement.Application.HubResidents.Queries
                         PreferredDeliveryMethod = p.PreferredDeliveryMethod,
                         IsDamaged = damagedByPackage.Contains(p.Id),
                         HasArrivalPhoto = arrivalPhotoPackageIds.Contains(p.Id),
+                        AuthorizedCollectorName = collector?.CollectorName,
+                        AuthorizedCollectorPhone = collector?.CollectorPhone,
                         ShelfCode = shelf?.Code,
                         ShelfTowerOrWing = shelf?.TowerOrWing,
                         ShelfZone = shelf?.Location?.Zone,

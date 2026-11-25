@@ -36,6 +36,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<DispatchBatch> DispatchBatches { get; set; }
         public DbSet<GuestAccess> GuestAccesses { get; set; }
+        public DbSet<AuthorizedCollector> AuthorizedCollectors { get; set; }
         public DbSet<VacationHold> VacationHolds { get; set; }
         public DbSet<CourierBlacklist> CourierBlacklists { get; set; }
         public DbSet<CourierAgent> CourierAgents { get; set; }
@@ -53,6 +54,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(DeliverySlotEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(DispatchBatchEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(GuestAccessEntityConfiguration).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(AuthorizedCollectorEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(MembershipEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(NotificationEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(OtpLogEntityConfiguration).Assembly);

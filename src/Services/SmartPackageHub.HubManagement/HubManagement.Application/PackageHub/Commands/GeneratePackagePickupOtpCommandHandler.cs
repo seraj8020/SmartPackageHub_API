@@ -28,6 +28,7 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<OtpLog> _otpLogs;
         private readonly IRepository<VacationHold> _vacationHolds;
+        private readonly IRepository<AuthorizedCollector> _collectors;
         private readonly IOtpSmsDispatcher _otpSmsDispatcher;
         private readonly ILogger<GeneratePackagePickupOtpCommandHandler> _logger;
 
@@ -36,6 +37,7 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<Resident> residents,
             IRepository<OtpLog> otpLogs,
             IRepository<VacationHold> vacationHolds,
+            IRepository<AuthorizedCollector> collectors,
             IOtpSmsDispatcher otpSmsDispatcher,
             ILogger<GeneratePackagePickupOtpCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
@@ -44,6 +46,7 @@ namespace HubManagement.Application.PackageHub.Commands
             _residents = residents;
             _otpLogs = otpLogs;
             _vacationHolds = vacationHolds;
+            _collectors = collectors;
             _otpSmsDispatcher = otpSmsDispatcher;
             _logger = logger;
         }
@@ -76,13 +79,17 @@ namespace HubManagement.Application.PackageHub.Commands
                     Message = "A pickup OTP can only be generated for a dispatched package.",
                 };
 
-            if (await VacationHoldLookup.IsDoorDeliveryBlockedAsync(_vacationHolds, package, DateTime.UtcNow)
+            if (!await PackageHoldLookup.IsCounterHandoverAllowedAsync(
+                        _vacationHolds,
+                        _collectors,
+                        package,
+                        DateTime.UtcNow)
                     .ConfigureAwait(false))
             {
                 return new GeneratePackagePickupOtpResult
                 {
                     Found = true,
-                    Message = VacationHoldLookup.DoorDeliveryBlockedMessage,
+                    Message = PackageHoldLookup.CounterBlockedMessage,
                 };
             }
 

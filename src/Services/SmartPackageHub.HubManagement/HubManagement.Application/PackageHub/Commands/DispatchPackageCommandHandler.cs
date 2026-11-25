@@ -3,6 +3,7 @@ using HubManagement.Application.PackageHub.DTOs;
 using HubManagement.Application.PackageHub.Services;
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Core.Hubs.Models;
+// PackageHoldLookup + AuthorizedCollector
 using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
@@ -20,6 +21,7 @@ namespace HubManagement.Application.PackageHub.Commands
         private readonly IRepository<PackageCustodyHop> _custodyHops;
         private readonly IRepository<User> _users;
         private readonly IRepository<VacationHold> _vacationHolds;
+        private readonly IRepository<AuthorizedCollector> _collectors;
         private readonly ILogger<DispatchPackageCommandHandler> _logger;
 
         public DispatchPackageCommandHandler(
@@ -27,6 +29,7 @@ namespace HubManagement.Application.PackageHub.Commands
             IRepository<PackageCustodyHop> custodyHops,
             IRepository<User> users,
             IRepository<VacationHold> vacationHolds,
+            IRepository<AuthorizedCollector> collectors,
             ILogger<DispatchPackageCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
@@ -34,6 +37,7 @@ namespace HubManagement.Application.PackageHub.Commands
             _custodyHops = custodyHops;
             _users = users;
             _vacationHolds = vacationHolds;
+            _collectors = collectors;
             _logger = logger;
         }
 
@@ -47,14 +51,19 @@ namespace HubManagement.Application.PackageHub.Commands
             if (package.Status != PackageStatus.Shelved)
                 return new PackageCommandResult(true, true, false, "Only shelved packages can be dispatched.", null);
 
-            if (await VacationHoldLookup.IsDoorDeliveryBlockedAsync(_vacationHolds, package, DateTime.UtcNow)
-                    .ConfigureAwait(false))
+            var dispatchBlock = await PackageHoldLookup.GetDispatchBlockMessageAsync(
+                    _vacationHolds,
+                    _collectors,
+                    package,
+                    DateTime.UtcNow)
+                .ConfigureAwait(false);
+            if (dispatchBlock is not null)
             {
                 return new PackageCommandResult(
                     true,
                     false,
                     false,
-                    VacationHoldLookup.DoorDeliveryBlockedMessage,
+                    dispatchBlock,
                     null);
             }
 

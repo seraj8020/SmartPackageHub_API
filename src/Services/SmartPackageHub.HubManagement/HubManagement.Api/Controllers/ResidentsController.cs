@@ -348,5 +348,83 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
                 return BadRequest(new { Message = ex.Message });
             }
         }
+
+        [HttpGet("{id:guid}/packages/{packageId:guid}/authorized-collector")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(AuthorizedCollectorDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> GetAuthorizedCollector(Guid id, Guid packageId)
+        {
+            var detail = await _mediator.Send(new GetResidentPackageDetailQuery(id, packageId))
+                .ConfigureAwait(false);
+            if (detail is null)
+                return NotFound();
+            if (detail.AuthorizedCollector is null)
+                return NoContent();
+
+            return Ok(detail.AuthorizedCollector);
+        }
+
+        [HttpPost("{id:guid}/packages/{packageId:guid}/authorized-collector")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> AuthorizeCollector(
+            Guid id,
+            Guid packageId,
+            [FromBody] AuthorizeCollectorRequestDto request)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            try
+            {
+                var result = await _mediator.Send(new AuthorizePackageCollectorCommand(
+                        id,
+                        packageId,
+                        request.CollectorName,
+                        request.CollectorPhone,
+                        request.Note,
+                        request.ExpiresAtUtc))
+                    .ConfigureAwait(false);
+                return Ok(new { id = result });
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound(new { Message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:guid}/packages/{packageId:guid}/authorized-collector/revoke")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> RevokeAuthorizedCollector(Guid id, Guid packageId)
+        {
+            try
+            {
+                var result = await _mediator.Send(new RevokePackageCollectorCommand(id, packageId))
+                    .ConfigureAwait(false);
+                return Ok(new { id = result });
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound(new { Message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
     }
 }

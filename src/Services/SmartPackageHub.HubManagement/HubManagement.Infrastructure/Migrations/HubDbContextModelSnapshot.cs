@@ -106,6 +106,58 @@ namespace HubManagement.Infrastructure.Migrations
                     b.ToTable("AuditLogs", (string)null);
                 });
 
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.AuthorizedCollector", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AuthorizedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CollectorName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("CollectorPhone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid>("PackageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ResidentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SocietyId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResidentId")
+                        .HasDatabaseName("IX_AuthorizedCollectors_ResidentId");
+
+                    b.HasIndex("SocietyId");
+
+                    b.HasIndex("PackageId", "IsActive")
+                        .HasDatabaseName("IX_AuthorizedCollectors_PackageId_IsActive");
+
+                    b.ToTable("AuthorizedCollectors", (string)null);
+                });
+
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.CourierAgent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1351,6 +1403,27 @@ namespace HubManagement.Infrastructure.Migrations
                     b.HasOne("HubManagement.Core.Hubs.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.AuthorizedCollector", b =>
+                {
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Package", null)
+                        .WithMany()
+                        .HasForeignKey("PackageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Society", null)
+                        .WithMany()
+                        .HasForeignKey("SocietyId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

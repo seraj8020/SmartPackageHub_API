@@ -104,7 +104,7 @@ namespace HubManagement.Application.PackageHub.Commands
             var heldCount = 0;
             foreach (var package in candidates)
             {
-                if (await VacationHoldLookup.IsDoorDeliveryBlockedAsync(_vacationHolds, package, now)
+                if (await PackageHoldLookup.IsDoorDeliveryBlockedAsync(_vacationHolds, package, now)
                         .ConfigureAwait(false))
                 {
                     heldCount++;

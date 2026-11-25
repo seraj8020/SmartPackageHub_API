@@ -24,6 +24,8 @@ namespace HubManagement.Application.HubResidents.DTOs
         public string? PreferredDeliveryMethod { get; set; }
         public bool IsDamaged { get; set; }
 
+        public AuthorizedCollectorDto? AuthorizedCollector { get; set; }
+
         /// <summary>Hub slot code (e.g. A-12-3). Null when not yet shelved.</summary>
         public string? ShelfCode { get; set; }
         public string? ShelfTowerOrWing { get; set; }

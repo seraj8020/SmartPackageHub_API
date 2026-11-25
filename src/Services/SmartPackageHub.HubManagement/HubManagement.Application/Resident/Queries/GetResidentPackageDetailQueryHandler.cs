@@ -21,6 +21,7 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<PackageReturnImage> _returnImages;
         private readonly IRepository<Shelf> _shelves;
         private readonly IRepository<PackageImage> _images;
+        private readonly IRepository<AuthorizedCollector> _collectors;
         private readonly IParcelPhotoStore _photos;
 
         public GetResidentPackageDetailQueryHandler(
@@ -33,6 +34,7 @@ namespace HubManagement.Application.HubResidents.Queries
             IRepository<PackageReturnImage> returnImages,
             IRepository<Shelf> shelves,
             IRepository<PackageImage> images,
+            IRepository<AuthorizedCollector> collectors,
             IParcelPhotoStore photos) : base(mapper)
         {
             _residents = residents;
@@ -43,6 +45,7 @@ namespace HubManagement.Application.HubResidents.Queries
             _returnImages = returnImages;
             _shelves = shelves;
             _images = images;
+            _collectors = collectors;
             _photos = photos;
         }
 
@@ -139,6 +142,10 @@ namespace HubManagement.Application.HubResidents.Queries
             if (package.ShelfId.HasValue)
                 shelf = await _shelves.GetByIdAsync(package.ShelfId.Value).ConfigureAwait(false);
 
+            var now = DateTime.UtcNow;
+            var collector = await PackageHoldLookup.FindActiveCollectorAsync(_collectors, package.Id, now)
+                .ConfigureAwait(false);
+
             return new ResidentPackageDetailDto
             {
                 Id = package.Id,
@@ -161,6 +168,9 @@ namespace HubManagement.Application.HubResidents.Queries
                     : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
                 PreferredDeliveryMethod = package.PreferredDeliveryMethod,
                 IsDamaged = isDamaged,
+                AuthorizedCollector = collector is null
+                    ? null
+                    : GetPackageAuthorizedCollectorQueryHandler.MapCollector(collector),
                 ShelfCode = shelf?.Code,
                 ShelfTowerOrWing = shelf?.TowerOrWing,
                 ShelfZone = shelf?.Location?.Zone,

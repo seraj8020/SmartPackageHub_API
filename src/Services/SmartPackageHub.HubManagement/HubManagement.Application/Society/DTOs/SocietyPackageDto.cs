@@ -30,5 +30,10 @@ namespace HubManagement.Application.Societies.DTOs
         public string? PreferredDeliveryMethod { get; set; }
         /// <summary>True when an intake arrival/parcel photo exists for this package.</summary>
         public bool HasArrivalPhoto { get; set; }
+
+        /// <summary>Active authorized collector for pickup on behalf of the resident.</summary>
+        public string? AuthorizedCollectorName { get; set; }
+        public string? AuthorizedCollectorPhone { get; set; }
+        public string? AuthorizedCollectorNote { get; set; }
     }
 }

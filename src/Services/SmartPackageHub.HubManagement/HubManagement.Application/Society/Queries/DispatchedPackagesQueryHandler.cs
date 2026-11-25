@@ -18,6 +18,7 @@ namespace HubManagement.Application.Societies.Queries
         private readonly IRepository<Shelf> _shelves;
         private readonly IRepository<DeliverySlot> _slots;
         private readonly IRepository<PackageImage> _images;
+        private readonly IRepository<AuthorizedCollector> _collectors;
         private readonly ILogger<DispatchedPackagesQueryHandler> _logger;
 
         public DispatchedPackagesQueryHandler(
@@ -27,6 +28,7 @@ namespace HubManagement.Application.Societies.Queries
             IRepository<Shelf> shelves,
             IRepository<DeliverySlot> slots,
             IRepository<PackageImage> images,
+            IRepository<AuthorizedCollector> collectors,
             ILogger<DispatchedPackagesQueryHandler> logger) : base(mapper)
         {
             _societies = societies;
@@ -34,6 +36,7 @@ namespace HubManagement.Application.Societies.Queries
             _shelves = shelves;
             _slots = slots;
             _images = images;
+            _collectors = collectors;
             _logger = logger;
         }
 
@@ -75,14 +78,28 @@ namespace HubManagement.Application.Societies.Queries
                     _images, packageIds, _logger)
                 .ConfigureAwait(false);
 
+            var now = DateTime.UtcNow;
+            var collectorRows = await _collectors.ListAsync(
+                    row => packageIds.Contains(row.PackageId) && row.IsActive,
+                    noTracking: true)
+                .ConfigureAwait(false);
+            var collectorsByPackage = collectorRows
+                .Where(row => row.IsValidAt(now))
+                .GroupBy(row => row.PackageId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.OrderByDescending(row => row.AuthorizedAtUtc).First());
+
             return waiting.Select(p =>
             {
                 activeSlots.TryGetValue(p.Id, out var slot);
+                collectorsByPackage.TryGetValue(p.Id, out var collector);
                 return SocietyPackageMapper.Map(
                     p,
                     shelfCodes,
                     slot: slot,
-                    hasArrivalPhoto: arrivalPhotoIds.Contains(p.Id));
+                    hasArrivalPhoto: arrivalPhotoIds.Contains(p.Id),
+                    authorizedCollector: collector);
             }).ToList();
         }
     }

@@ -1,6 +1,7 @@
 using HubManagement.Core.Hubs.Entities;
 using HubManagement.Application.DeliverySlots.Helpers;
 using System.Globalization;
+// AuthorizedCollector is in HubManagement.Core.Hubs.Entities
 
 namespace HubManagement.Application.Societies.DTOs
 {
@@ -13,7 +14,8 @@ namespace HubManagement.Application.Societies.DTOs
             DeliverySlot? slot = null,
             IReadOnlyDictionary<Guid, int>? shelfCapacitiesById = null,
             IReadOnlyDictionary<Guid, bool>? shelfColdById = null,
-            bool hasArrivalPhoto = false)
+            bool hasArrivalPhoto = false,
+            AuthorizedCollector? authorizedCollector = null)
         {
             ArgumentNullException.ThrowIfNull(package);
             string? shelfCode = null;
@@ -63,6 +65,9 @@ namespace HubManagement.Application.Societies.DTOs
                     : DeliverySlotWindows.LabelFor(slot.WindowStart, slot.WindowEnd),
                 PreferredDeliveryMethod = package.PreferredDeliveryMethod,
                 HasArrivalPhoto = hasArrivalPhoto,
+                AuthorizedCollectorName = authorizedCollector?.CollectorName,
+                AuthorizedCollectorPhone = authorizedCollector?.CollectorPhone,
+                AuthorizedCollectorNote = authorizedCollector?.Note,
             };
         }
 

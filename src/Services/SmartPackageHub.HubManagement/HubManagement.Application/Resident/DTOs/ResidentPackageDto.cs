@@ -7,10 +7,15 @@ namespace HubManagement.Application.HubResidents.DTOs
     {
         public Guid Id { get; set; }
         public string TrackingNumber { get; set; } = string.Empty;
+        /// <summary>Courier AWB / airway bill when captured at intake.</summary>
+        public string? CourierAwb { get; set; }
         public DateTime ReceivedAt { get; set; }
         public string? Courier { get; set; }
         public string? Category { get; set; }
         public double Weight { get; set; }
+        public double Length { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
         public string FlatNumber { get; set; } = string.Empty;
         public string? PkgNumber { get; set; }
         public string Status { get; set; } = string.Empty;

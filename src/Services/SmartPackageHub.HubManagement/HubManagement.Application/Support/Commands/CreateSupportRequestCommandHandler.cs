@@ -55,9 +55,7 @@ namespace HubManagement.Application.Support.Commands
             if (resident is null)
                 return SupportCommandResult.NotFound("Resident was not found.");
 
-            if (payload.SocietyId != Guid.Empty && payload.SocietyId != resident.SocietyId)
-                return SupportCommandResult.Fail("Society does not match this resident.");
-
+            // Always use the resident's society from DB — do not reject on client-supplied societyId.
             var society = await _societies.GetByIdAsync(resident.SocietyId).ConfigureAwait(false);
             if (society is null)
                 return SupportCommandResult.NotFound("Society was not found.");

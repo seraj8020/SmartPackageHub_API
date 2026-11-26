@@ -10,12 +10,15 @@ namespace HubManagement.Application.HubResidents.Queries
         : QueryHandler<GetResidentProfileQuery, ResidentProfileDto?>
     {
         private readonly IRepository<Resident> _residents;
+        private readonly IRepository<Society> _societies;
 
         public GetResidentProfileQueryHandler(
             IMapper mapper,
-            IRepository<Resident> residents) : base(mapper)
+            IRepository<Resident> residents,
+            IRepository<Society> societies) : base(mapper)
         {
             _residents = residents;
+            _societies = societies;
         }
 
         protected override async Task<ResidentProfileDto?> HandleAsync(GetResidentProfileQuery request)
@@ -25,10 +28,13 @@ namespace HubManagement.Application.HubResidents.Queries
             if (resident is null)
                 return null;
 
+            var society = await _societies.GetByIdAsync(resident.SocietyId).ConfigureAwait(false);
+
             return new ResidentProfileDto
             {
                 Id = resident.Id,
                 SocietyId = resident.SocietyId,
+                SocietyName = society?.Name,
                 FullName = resident.FullName,
                 PhoneNumber = resident.PhoneNumber,
                 TowerWing = resident.TowerWing,

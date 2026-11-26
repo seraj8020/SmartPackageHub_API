@@ -8,7 +8,7 @@ using SmartPackageHub.Common.ConfigOptions;
 
 namespace SmartPackageHub.HubManagement.Api.Controllers
 {
-    /// <summary>Resident in-app Support (Traizr-style ask-with-context).</summary>
+    /// <summary>Resident in-app Support (Traizr-style ticket list + new request).</summary>
     [Route("api/v{version:apiVersion}/support")]
     [ApiController]
     public sealed class SupportController : ControllerBase
@@ -29,6 +29,27 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             var config = await _mediator.Send(new GetResidentSupportConfigQuery(), cancellationToken)
                 .ConfigureAwait(false);
             return Ok(config);
+        }
+
+        /// <summary>List support tickets for a resident (newest first).</summary>
+        [HttpGet("requests")]
+        [MapToApiVersion(ApiVersions.V2)]
+        [ProducesResponseType(typeof(List<SupportRequestDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> ListRequests(
+            [FromQuery] Guid residentId,
+            CancellationToken cancellationToken)
+        {
+            if (residentId == Guid.Empty)
+                return BadRequest(new { message = "residentId is required." });
+
+            var rows = await _mediator
+                .Send(new GetResidentSupportRequestsQuery(residentId), cancellationToken)
+                .ConfigureAwait(false);
+            if (rows is null)
+                return NotFound(new { message = "Resident was not found." });
+
+            return Ok(rows);
         }
 
         /// <summary>Create a support request with resident/society context attached.</summary>
@@ -56,14 +77,7 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
             if (!result.Succeeded || result.Request is null)
                 return BadRequest(new { message = result.Message });
 
-            return Ok(new
-            {
-                id = result.Request.Id,
-                status = result.Request.Status,
-                supportEmail = result.Request.SupportEmail,
-                requestedAtUtc = result.Request.RequestedAtUtc,
-                message = result.Message,
-            });
+            return Ok(result.Request);
         }
     }
 }

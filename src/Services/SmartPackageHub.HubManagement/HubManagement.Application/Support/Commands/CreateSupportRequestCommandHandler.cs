@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HubManagement.Application.Support.DTOs;
+using HubManagement.Application.Support.Queries;
 using HubManagement.Core.Hubs.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -55,7 +56,6 @@ namespace HubManagement.Application.Support.Commands
             if (resident is null)
                 return SupportCommandResult.NotFound("Resident was not found.");
 
-            // Always use the resident's society from DB — do not reject on client-supplied societyId.
             var society = await _societies.GetByIdAsync(resident.SocietyId).ConfigureAwait(false);
             if (society is null)
                 return SupportCommandResult.NotFound("Society was not found.");
@@ -70,7 +70,9 @@ namespace HubManagement.Application.Support.Commands
                 row = SupportRequest.Create(
                     resident.SocietyId,
                     resident.Id,
-                    payload.Topic,
+                    payload.Subject,
+                    payload.ResolvedCategory,
+                    payload.Urgency,
                     payload.Message,
                     supportEmail,
                     payload.ResidentName ?? resident.FullName,
@@ -93,7 +95,10 @@ namespace HubManagement.Application.Support.Commands
                 DateTime.UtcNow,
                 JsonSerializer.Serialize(new
                 {
-                    topic = row.Topic,
+                    reference = row.ReferenceCode,
+                    subject = row.Subject,
+                    category = row.Topic,
+                    urgency = row.Urgency,
                     supportEmail = row.SupportEmail,
                     society = society.Name,
                 })));
@@ -102,17 +107,7 @@ namespace HubManagement.Application.Support.Commands
             LogSupportRequested(_logger, row.Id, row.ResidentId, null);
 
             return SupportCommandResult.Ok(
-                new SupportRequestDto
-                {
-                    Id = row.Id,
-                    SocietyId = row.SocietyId,
-                    ResidentId = row.ResidentId,
-                    Topic = row.Topic,
-                    Message = row.Message,
-                    Status = row.Status,
-                    SupportEmail = row.SupportEmail,
-                    RequestedAtUtc = row.RequestedAtUtc,
-                },
+                GetResidentSupportRequestsQueryHandler.Map(row),
                 "Support request received. Our team will follow up shortly.");
         }
 

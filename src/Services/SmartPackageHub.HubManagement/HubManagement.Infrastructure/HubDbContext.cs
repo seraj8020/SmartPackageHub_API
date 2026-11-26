@@ -38,6 +38,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
         public DbSet<GuestAccess> GuestAccesses { get; set; }
         public DbSet<AuthorizedCollector> AuthorizedCollectors { get; set; }
         public DbSet<VacationHold> VacationHolds { get; set; }
+        public DbSet<SupportRequest> SupportRequests { get; set; }
         public DbSet<CourierBlacklist> CourierBlacklists { get; set; }
         public DbSet<CourierAgent> CourierAgents { get; set; }
         public DbSet<SecureBag> SecureBags { get; set; }
@@ -74,6 +75,7 @@ namespace SmartPackageHub.HubManagement.Infrastructure
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(UserEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(UserSocietyEntityConfiguration).Assembly);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(VacationHoldEntityConfiguration).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(SupportRequestEntityConfiguration).Assembly);
 
             var aggregateTypes = modelBuilder.Model
                                              .GetEntityTypes()

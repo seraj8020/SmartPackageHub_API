@@ -78,6 +78,7 @@ namespace HubManagement.Application.HubResidents.Queries
                         Notes = d.Notes,
                         Method = d.Method,
                         Status = d.Status.Value,
+                        PackageStatus = package?.Status.ToString() ?? "Delivered",
                         PkgNumber = package?.PkgNumber ?? string.Empty,
                         TrackingNumber = package?.SphTrackingNumber?.Value,
                         CourierAwb = string.IsNullOrWhiteSpace(package?.CourierAwb)

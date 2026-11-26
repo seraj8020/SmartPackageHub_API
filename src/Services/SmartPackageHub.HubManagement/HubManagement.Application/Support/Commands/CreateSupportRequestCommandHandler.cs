@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
 using SmartPackageHub.Common.ConfigOptions;
+using SmartPackageHub.Common.Services.Messaging.Guards;
 
 namespace HubManagement.Application.Support.Commands
 {
@@ -50,11 +51,11 @@ namespace HubManagement.Application.Support.Commands
             ArgumentNullException.ThrowIfNull(request);
             var payload = request.Request ?? throw new ArgumentNullException(nameof(request));
 
-            var resident = await _residents.GetByIdAsync(payload.ResidentId).ConfigureAwait(false);
+            var resident = await ResolveResidentAsync(payload).ConfigureAwait(false);
             if (resident is null)
                 return SupportCommandResult.NotFound("Resident was not found.");
 
-            if (payload.SocietyId == Guid.Empty || payload.SocietyId != resident.SocietyId)
+            if (payload.SocietyId != Guid.Empty && payload.SocietyId != resident.SocietyId)
                 return SupportCommandResult.Fail("Society does not match this resident.");
 
             var society = await _societies.GetByIdAsync(resident.SocietyId).ConfigureAwait(false);
@@ -115,6 +116,25 @@ namespace HubManagement.Application.Support.Commands
                     RequestedAtUtc = row.RequestedAtUtc,
                 },
                 "Support request received. Our team will follow up shortly.");
+        }
+
+        private async Task<Resident?> ResolveResidentAsync(CreateSupportRequestDto payload)
+        {
+            if (payload.ResidentId != Guid.Empty)
+            {
+                var byId = await _residents.GetByIdAsync(payload.ResidentId).ConfigureAwait(false);
+                if (byId is not null)
+                    return byId;
+            }
+
+            if (!PhoneNumberGuard.TryNormalizeIndiaMobile(payload.ResidentPhone, out var phone))
+                return null;
+
+            return _residents.GetAll().AsEnumerable()
+                .FirstOrDefault(item =>
+                    item.IsActive &&
+                    PhoneNumberGuard.TryNormalizeIndiaMobile(item.PhoneNumber, out var stored) &&
+                    string.Equals(stored, phone, StringComparison.Ordinal));
         }
     }
 }

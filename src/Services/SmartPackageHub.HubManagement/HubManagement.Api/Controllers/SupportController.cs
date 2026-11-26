@@ -39,11 +39,16 @@ namespace SmartPackageHub.HubManagement.Api.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult> CreateRequest(
-            [FromBody] CreateSupportRequestDto request,
+            [FromBody] CreateSupportRequestDto? request,
             CancellationToken cancellationToken)
         {
+            if (request is null)
+                return BadRequest(new { message = "Support request body is required." });
+            if (request.ResidentId == Guid.Empty && string.IsNullOrWhiteSpace(request.ResidentPhone))
+                return BadRequest(new { message = "Resident id or phone is required." });
+
             var result = await _mediator
-                .Send(new CreateSupportRequestCommand(request ?? new CreateSupportRequestDto()), cancellationToken)
+                .Send(new CreateSupportRequestCommand(request), cancellationToken)
                 .ConfigureAwait(false);
 
             if (!result.Found)

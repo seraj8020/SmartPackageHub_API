@@ -116,6 +116,8 @@ services.Configure<AuthOptions>(
     builder.Configuration.GetSection(AuthOptions.SectionName));
 services.Configure<AnalyticsRollupOptions>(
     builder.Configuration.GetSection(AnalyticsRollupOptions.SectionName));
+services.Configure<ResidentSupportOptions>(
+    builder.Configuration.GetSection(ResidentSupportOptions.SectionName));
 services.AddSingleton<IFeatureFlags, FeatureFlagsService>();
 services.AddSingleton<HubManagement.Application.Auth.Services.PlatformAdminSessionStore>();
 services.AddSingleton<HubManagement.Application.Auth.Services.StaffSessionStore>();

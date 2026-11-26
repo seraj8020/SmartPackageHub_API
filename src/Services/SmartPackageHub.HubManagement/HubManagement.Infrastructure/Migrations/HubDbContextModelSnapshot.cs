@@ -1306,6 +1306,67 @@ namespace HubManagement.Infrastructure.Migrations
                     b.ToTable("SocietyCarrierReturnPolicies", (string)null);
                 });
 
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.SupportRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FlatNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ResidentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResidentName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("ResidentPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("SocietyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("SupportEmail")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("TowerWing")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResidentId", "RequestedAtUtc")
+                        .HasDatabaseName("IX_SupportRequests_ResidentId_RequestedAtUtc");
+
+                    b.HasIndex("SocietyId", "RequestedAtUtc")
+                        .HasDatabaseName("IX_SupportRequests_SocietyId_RequestedAtUtc");
+
+                    b.ToTable("SupportRequests", (string)null);
+                });
+
             modelBuilder.Entity("HubManagement.Core.Hubs.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2231,6 +2292,21 @@ namespace HubManagement.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("SocietyId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HubManagement.Core.Hubs.Entities.SupportRequest", b =>
+                {
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HubManagement.Core.Hubs.Entities.Society", null)
+                        .WithMany()
+                        .HasForeignKey("SocietyId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

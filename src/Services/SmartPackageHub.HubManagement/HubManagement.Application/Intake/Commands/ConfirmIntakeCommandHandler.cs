@@ -38,8 +38,6 @@ namespace HubManagement.Application.Intake.Commands
         private readonly IRepository<UserSociety> _userSocieties;
         private readonly IRepository<Shelf> _shelves;
         private readonly IRepository<CourierAgent> _agents;
-        private readonly IRepository<OtpLog> _otpLogs;
-        private readonly IRepository<Notification> _notifications;
         private readonly IRepository<VacationHold> _vacationHolds;
         private readonly IRepository<PackageCustodyHop> _custodyHops;
         private readonly IParcelPhotoStore _photos;
@@ -57,8 +55,6 @@ namespace HubManagement.Application.Intake.Commands
             IRepository<UserSociety> userSocieties,
             IRepository<Shelf> shelves,
             IRepository<CourierAgent> agents,
-            IRepository<OtpLog> otpLogs,
-            IRepository<Notification> notifications,
             IRepository<VacationHold> vacationHolds,
             IRepository<PackageCustodyHop> custodyHops,
             IParcelPhotoStore photos,
@@ -76,8 +72,6 @@ namespace HubManagement.Application.Intake.Commands
             _userSocieties = userSocieties;
             _shelves = shelves;
             _agents = agents;
-            _otpLogs = otpLogs;
-            _notifications = notifications;
             _vacationHolds = vacationHolds;
             _custodyHops = custodyHops;
             _photos = photos;
@@ -203,9 +197,15 @@ namespace HubManagement.Application.Intake.Commands
                 return null;
             }
 
+            var photoStored = false;
             try
             {
-                await LinkPhotoAsync(IntakeText.Clean(request.ClientPhotoId, 80), prior.Id, priorPackage.Id, cancellationToken).ConfigureAwait(false);
+                photoStored = await LinkPhotoAsync(
+                        IntakeText.Clean(request.ClientPhotoId, 80),
+                        prior.Id,
+                        priorPackage.Id,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 #pragma warning disable CA1031 // Idempotent replay must still return 200 if photo link cannot write.
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -214,7 +214,10 @@ namespace HubManagement.Application.Intake.Commands
                 LogPhotoLinkFailed(_logger, prior.Id, priorPackage.CourierAwb, ex);
             }
 
-            return new IntakeStatusResult<ConfirmIntakeResponse>(200, null, await MapAsync(prior, priorPackage, null).ConfigureAwait(false));
+            return new IntakeStatusResult<ConfirmIntakeResponse>(
+                200,
+                null,
+                await MapAsync(prior, priorPackage, photoStored).ConfigureAwait(false));
         }
 
         private static (string? awb, string? courier, string? name, string? tower, string? flat, string? trackingError) ParseAndValidateTracking(ConfirmIntakeRequest request)
@@ -409,9 +412,15 @@ namespace HubManagement.Application.Intake.Commands
             PackageCustodyRecorder.RecordReceivedAtHub(_custodyHops, package, staffName);
 
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
+            var photoStored = false;
             try
             {
-                await LinkPhotoAsync(IntakeText.Clean(request.ClientPhotoId, 80), package.PackageIntake.Id, package.Id, cancellationToken).ConfigureAwait(false);
+                photoStored = await LinkPhotoAsync(
+                        IntakeText.Clean(request.ClientPhotoId, 80),
+                        package.PackageIntake.Id,
+                        package.Id,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 #pragma warning disable CA1031 // Photo link must not fail an already-committed intake.
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -423,7 +432,10 @@ namespace HubManagement.Application.Intake.Commands
             if (request.IsCod)
                 _queue.Enqueue(package.PackageIntake.Id);
             LogIntakeConfirmed(_logger, package.PackageIntake.Id, awb, null);
-            return new IntakeStatusResult<ConfirmIntakeResponse>(200, null, await MapAsync(package.PackageIntake, package, null).ConfigureAwait(false));
+            return new IntakeStatusResult<ConfirmIntakeResponse>(
+                200,
+                null,
+                await MapAsync(package.PackageIntake, package, photoStored).ConfigureAwait(false));
         }
 
         private CourierAgent? FindAgent(Guid societyId, string? courier)
@@ -431,27 +443,37 @@ namespace HubManagement.Application.Intake.Commands
             if (string.IsNullOrWhiteSpace(courier))
                 return null;
 
-            return _agents.GetAll().AsEnumerable().FirstOrDefault(agent =>
-                agent.IsActive &&
-                agent.SocietyId == societyId &&
-                !string.IsNullOrWhiteSpace(agent.CarrierName) &&
-                (courier.Contains(agent.CarrierName, StringComparison.OrdinalIgnoreCase) ||
-                 agent.CarrierName.Contains(courier, StringComparison.OrdinalIgnoreCase)));
+            // Society-scoped only — never scan every courier agent row.
+            return _agents
+                .FetchMulti(agent => agent.SocietyId == societyId && agent.IsActive, noTracking: true)
+                .AsEnumerable()
+                .FirstOrDefault(agent =>
+                    !string.IsNullOrWhiteSpace(agent.CarrierName) &&
+                    (courier.Contains(agent.CarrierName, StringComparison.OrdinalIgnoreCase) ||
+                     agent.CarrierName.Contains(courier, StringComparison.OrdinalIgnoreCase)));
         }
 
-        private async Task LinkPhotoAsync(string? clientPhotoId, Guid intakeId, Guid packageId, CancellationToken cancellationToken)
+        private async Task<bool> LinkPhotoAsync(
+            string? clientPhotoId,
+            Guid intakeId,
+            Guid packageId,
+            CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(clientPhotoId) || !Guid.TryParse(clientPhotoId, out _))
-                return;
+                return false;
 
-            await _photos.WriteLinkAsync(clientPhotoId, intakeId, packageId, cancellationToken).ConfigureAwait(false);
-            var linked = await IntakePhotoLinker.LinkAsync(_photos, _images, clientPhotoId, intakeId, packageId, cancellationToken).ConfigureAwait(false);
+            // LinkAsync writes the storage link once when intake/package ids are known.
+            var linked = await IntakePhotoLinker
+                .LinkAsync(_photos, _images, clientPhotoId, intakeId, packageId, cancellationToken)
+                .ConfigureAwait(false);
             if (linked.Inserted)
                 await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return linked.Linked;
         }
 
-        private async Task<ConfirmIntakeResponse> MapAsync(PackageIntake intake, Package package, string? knownOtp)
+        private async Task<ConfirmIntakeResponse> MapAsync(PackageIntake intake, Package package, bool photoStored)
         {
+            // Intake confirm never issues pickup OTP (shelving does). Skip OTP/notification table scans.
             ResidentMatchDto? resident = null;
             if (package.ResidentId is Guid residentId)
             {
@@ -460,18 +482,9 @@ namespace HubManagement.Application.Intake.Commands
                     resident = ResidentMatcher.ToDto(row);
             }
 
-            var shelfCode = package.ShelfId is Guid shelfId ? (await _shelves.GetByIdAsync(shelfId).ConfigureAwait(false))?.Code ?? string.Empty : string.Empty;
-            var otp = knownOtp ?? _otpLogs.GetAll()
-                .Where(log => log.PackageId == package.Id && log.Purpose == "Pickup")
-                .AsEnumerable()
-                .OrderByDescending(log => log.Expiry?.Value)
-                .Select(log => log.Token?.Value)
-                .FirstOrDefault();
-            var templateName = package.IsCod && package.CodApprovalStatus == CodApprovalStatus.Pending
-                ? "CodApprovalRequired"
-                : "IntakeReceived";
-            var notified = _notifications.GetAll().Any(notification =>
-                notification.PackageId == package.Id && notification.Content.TemplateName == templateName);
+            var shelfCode = package.ShelfId is Guid shelfId
+                ? (await _shelves.GetByIdAsync(shelfId).ConfigureAwait(false))?.Code ?? string.Empty
+                : string.Empty;
 
             return new ConfirmIntakeResponse
             {
@@ -485,13 +498,11 @@ namespace HubManagement.Application.Intake.Commands
                 IsCod = package.IsCod,
                 CodAmount = package.CodAmount,
                 CodApprovalStatus = package.CodApprovalStatus.ToString(),
-                PickupOtp = otp,
-                PickupQrPayload = string.IsNullOrEmpty(otp) ? string.Empty : $"SPH|{package.PkgNumber}|{otp}",
-                NotificationStatus = notified ? "Dispatched" : "Queued",
+                PickupOtp = string.Empty,
+                PickupQrPayload = string.Empty,
+                NotificationStatus = "Queued",
                 MatchStatus = intake.MatchStatus,
-                PhotoStored = _images
-                    .FetchMulti(image => image.IntakeId == intake.Id, noTracking: true)
-                    .Any(),
+                PhotoStored = photoStored,
                 Resident = resident
             };
         }

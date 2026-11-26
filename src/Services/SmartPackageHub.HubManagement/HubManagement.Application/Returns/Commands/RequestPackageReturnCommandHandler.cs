@@ -71,44 +71,12 @@ namespace HubManagement.Application.Returns.Commands
             if (!PackageReturnReasonParser.TryParse(payload.Reason, out var reason))
                 return PackageReturnCommandResult.Fail("Return reason is required and must be a supported value.");
 
-            var package = await _packages.GetByIdAsync(request.PackageId).ConfigureAwait(false);
-            if (package is null)
-                return PackageReturnCommandResult.NotFound("Package was not found.");
+            var gate = await ValidateReturnRequestAsync(request.PackageId, payload.ResidentId).ConfigureAwait(false);
+            if (gate.Error is not null)
+                return gate.Error;
 
-            if (package.Status != PackageStatus.Delivered)
-                return PackageReturnCommandResult.Fail(
-                    "Request return is only available for delivered packages.",
-                    conflict: true);
-
-            if (package.ResidentId is not Guid packageResidentId || packageResidentId == Guid.Empty)
-                return PackageReturnCommandResult.Fail("Package has no resident assigned.");
-
-            if (payload.ResidentId == Guid.Empty || payload.ResidentId != packageResidentId)
-                return PackageReturnCommandResult.Fail("Resident does not own this package.");
-
-            var openExists = _returns.FetchMulti(r =>
-                    r.PackageId == package.Id &&
-                    (r.Status == PackageReturnStatus.ReturnRequested ||
-                     r.Status == PackageReturnStatus.ReturnReceived ||
-                     r.Status == PackageReturnStatus.ReturnShelved),
-                noTracking: true)
-                .Any();
-            if (openExists)
-                return PackageReturnCommandResult.Fail(
-                    "An open return already exists for this package.",
-                    conflict: true);
-
-            var deliveredAt = ResolveDeliveredAt(package.Id);
-            if (deliveredAt is null)
-                return PackageReturnCommandResult.Fail(
-                    "Delivery timestamp is missing; return cannot be requested yet.",
-                    conflict: true);
-
-            var windowDays = await ResolveReturnWindowDaysAsync(package).ConfigureAwait(false);
-            if (DateTime.UtcNow > deliveredAt.Value.AddDays(windowDays))
-                return PackageReturnCommandResult.Fail(
-                    $"Return window of {windowDays} day(s) has expired.",
-                    conflict: true);
+            var package = gate.Package!;
+            var packageResidentId = gate.ResidentId;
 
             PackageReturn packageReturn;
             try
@@ -137,22 +105,87 @@ namespace HubManagement.Application.Returns.Commands
                 DateTime.UtcNow,
                 $"{{\"reason\":\"{reason}\",\"packageId\":\"{package.Id}\"}}"));
 
+            // Same commit as the return so Redis/SMS cannot delay the mobile response.
+            var smsToEnqueue = PrepareReturnRequestedNotices(package, packageReturn, resident);
             await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
             LogReturnRequested(_logger, packageReturn.Id, package.Id, null);
-
-            try
-            {
-                await QueueReturnRequestedNoticeAsync(package, packageReturn, resident, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                LogReturnNotifyFailed(_logger, packageReturn.Id, ex);
-            }
+            await TryEnqueueReturnSmsAsync(packageReturn.Id, smsToEnqueue, cancellationToken).ConfigureAwait(false);
 
             return PackageReturnCommandResult.Ok(
                 PackageReturnMapper.ToDto(packageReturn, package: package, resident: resident),
                 "Return request received. Staff will guide pickup/drop.");
+        }
+
+        private async Task<(PackageReturnCommandResult? Error, Package? Package, Guid ResidentId)> ValidateReturnRequestAsync(
+            Guid packageId,
+            Guid residentId)
+        {
+            var package = await _packages.GetByIdAsync(packageId).ConfigureAwait(false);
+            if (package is null)
+                return (PackageReturnCommandResult.NotFound("Package was not found."), null, Guid.Empty);
+
+            if (package.Status != PackageStatus.Delivered)
+                return (PackageReturnCommandResult.Fail(
+                    "Request return is only available for delivered packages.",
+                    conflict: true), null, Guid.Empty);
+
+            if (package.ResidentId is not Guid packageResidentId || packageResidentId == Guid.Empty)
+                return (PackageReturnCommandResult.Fail("Package has no resident assigned."), null, Guid.Empty);
+
+            if (residentId == Guid.Empty || residentId != packageResidentId)
+                return (PackageReturnCommandResult.Fail("Resident does not own this package."), null, Guid.Empty);
+
+            var openExists = _returns.FetchMulti(r =>
+                    r.PackageId == package.Id &&
+                    (r.Status == PackageReturnStatus.ReturnRequested ||
+                     r.Status == PackageReturnStatus.ReturnReceived ||
+                     r.Status == PackageReturnStatus.ReturnShelved),
+                noTracking: true)
+                .Any();
+            if (openExists)
+                return (PackageReturnCommandResult.Fail(
+                    "An open return already exists for this package.",
+                    conflict: true), null, Guid.Empty);
+
+            var deliveredAt = ResolveDeliveredAt(package.Id);
+            if (deliveredAt is null)
+                return (PackageReturnCommandResult.Fail(
+                    "Delivery timestamp is missing; return cannot be requested yet.",
+                    conflict: true), null, Guid.Empty);
+
+            var windowDays = await ResolveReturnWindowDaysAsync(package).ConfigureAwait(false);
+            if (DateTime.UtcNow > deliveredAt.Value.AddDays(windowDays))
+            {
+                return (PackageReturnCommandResult.Fail(
+                    $"Return window of {windowDays} day(s) has expired.",
+                    conflict: true), null, Guid.Empty);
+            }
+
+            return (null, package, packageResidentId);
+        }
+
+        private async Task TryEnqueueReturnSmsAsync(
+            Guid returnId,
+            OutboundMessageWorkItem? smsToEnqueue,
+            CancellationToken cancellationToken)
+        {
+            if (smsToEnqueue is null)
+                return;
+
+            try
+            {
+                using var enqueueCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                enqueueCts.CancelAfter(TimeSpan.FromMilliseconds(750));
+                await _outboundQueue.EnqueueAsync(smsToEnqueue, enqueueCts.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                LogReturnNotifyFailed(_logger, returnId, ex);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                LogReturnNotifyFailed(_logger, returnId, null);
+            }
         }
 
         private DateTime? ResolveDeliveredAt(Guid packageId)
@@ -178,14 +211,17 @@ namespace HubManagement.Application.Returns.Commands
             return Task.FromResult(policy?.ReturnWindowDays ?? SocietyCarrierReturnPolicy.DefaultReturnWindowDays);
         }
 
-        private async Task QueueReturnRequestedNoticeAsync(
+        /// <summary>
+        /// Inserts in-app/push + optional SMS notification rows for the pending unit of work.
+        /// Returns an SMS queue item when SMS should be enqueued after commit (never blocks commit).
+        /// </summary>
+        private OutboundMessageWorkItem? PrepareReturnRequestedNotices(
             Package package,
             PackageReturn packageReturn,
-            Resident? resident,
-            CancellationToken cancellationToken)
+            Resident? resident)
         {
             if (resident is null)
-                return;
+                return null;
 
             const string templateName = "ReturnRequested";
             var body = SmsEncodingHelper.ToGsm7SafeOtpMessage(
@@ -203,36 +239,29 @@ namespace HubManagement.Application.Returns.Commands
             _notifications.Insert(push);
 
             var phone = resident.PhoneNumber;
-            if (phone is { Length: > 0 } && PhoneNumberGuard.TryNormalizeIndiaMobile(phone, out var local10))
+            if (phone is not { Length: > 0 } ||
+                !PhoneNumberGuard.TryNormalizeIndiaMobile(phone, out var local10))
             {
-                var idempotencyKey = $"return:{packageReturn.Id:N}:{templateName}:{ChannelType.SMS}";
-                var existingSms = await _notifications.FirstOrDefaultAsync(n => n.IdempotencyKey == idempotencyKey)
-                    .ConfigureAwait(false);
-                if (existingSms is null)
-                {
-                    var segments = SmsEncodingHelper.EstimateSegmentCount(body);
-                    var sms = Notification.Create(
-                        package.SocietyId,
-                        resident.Id,
-                        package.Id,
-                        NotificationChannel.Create(ChannelType.SMS, local10),
-                        MessageContent.Create(templateName, body),
-                        idempotencyKey,
-                        segmentCount: segments);
-                    _notifications.Insert(sms);
-                    await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
-                    await _outboundQueue.EnqueueAsync(
-                        new OutboundMessageWorkItem(
-                            sms.Id,
-                            ChannelType.SMS.ToString(),
-                            idempotencyKey,
-                            DateTime.UtcNow),
-                        cancellationToken).ConfigureAwait(false);
-                    return;
-                }
+                return null;
             }
 
-            await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
+            var idempotencyKey = $"return:{packageReturn.Id:N}:{templateName}:{ChannelType.SMS}";
+            var segments = SmsEncodingHelper.EstimateSegmentCount(body);
+            var sms = Notification.Create(
+                package.SocietyId,
+                resident.Id,
+                package.Id,
+                NotificationChannel.Create(ChannelType.SMS, local10),
+                MessageContent.Create(templateName, body),
+                idempotencyKey,
+                segmentCount: segments);
+            _notifications.Insert(sms);
+
+            return new OutboundMessageWorkItem(
+                sms.Id,
+                ChannelType.SMS.ToString(),
+                idempotencyKey,
+                DateTime.UtcNow);
         }
     }
 }

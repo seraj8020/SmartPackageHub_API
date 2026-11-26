@@ -1,12 +1,9 @@
 using HubManagement.Application.Intake.DTOs;
 using SmartPackageHub.Common.Services.Storage.Abstractions;
 using SmartPackageHub.Common.Services.Storage.DTOs;
-using SmartPackageHub.Common.Services.Storage.Services;
-using HubManagement.Core.Hubs.Entities;
 using Microsoft.Extensions.Logging;
 using SmartPackageHub.Applications.Abstractions.Commands;
 using SmartPackageHub.Applications.Abstractions.Repositories;
-using HubManagement.Application.Intake.Services;
 
 namespace HubManagement.Application.Intake.Commands
 {
@@ -17,17 +14,14 @@ namespace HubManagement.Application.Intake.Commands
                 LogLevel.Information,
                 new EventId(1, nameof(SaveParcelPhotoCommandHandler)),
                 "Stored parcel photo {ClientPhotoId}. Linked: {Linked}");
-        private readonly IRepository<PackageImage> _images;
         private readonly IParcelPhotoStore _photos;
         private readonly ILogger<SaveParcelPhotoCommandHandler> _logger;
 
         public SaveParcelPhotoCommandHandler(
-            IRepository<PackageImage> images,
             IParcelPhotoStore photos,
             ILogger<SaveParcelPhotoCommandHandler> logger,
             IUnitOfWork unitOfWork) : base(unitOfWork)
         {
-            _images = images;
             _photos = photos;
             _logger = logger;
         }
@@ -41,26 +35,16 @@ namespace HubManagement.Application.Intake.Commands
             if (request.Bytes.Length == 0 || request.Bytes.Length > 1_500_000)
                 return new PhotoUploadResult(false, "Parcel photo must be under 1.5 MB", null);
 
-            var saved = await _photos.SaveAsync(id, request.Bytes, request.ContentType, cancellationToken).ConfigureAwait(false);
-            var linked = false;
-            var inserted = false;
-            for (var attempt = 0; attempt < 8 && !linked; attempt++)
-            {
-                var result = await IntakePhotoLinker.LinkAsync(_photos, _images, id, null, null, cancellationToken).ConfigureAwait(false);
-                linked = result.Linked;
-                inserted |= result.Inserted;
-                if (!linked)
-                    await Task.Delay(150, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (inserted)
-                await UnitOfWork!.CommitAsync(cancellationToken).ConfigureAwait(false);
-            LogSaveParcelPhoto(_logger, id, linked, null);
+            // Save blob only. ConfirmIntake writes the intake↔photo link after the package exists.
+            // The old 8×150ms poll waited for a link that Confirm had not created yet (~1.2s wasted).
+            var saved = await _photos.SaveAsync(id, request.Bytes, request.ContentType, cancellationToken)
+                .ConfigureAwait(false);
+            LogSaveParcelPhoto(_logger, id, false, null);
             return new PhotoUploadResult(true, null, new PhotoUploadResponse
             {
                 ClientPhotoId = id,
                 StorageKey = saved.StorageKey,
-                Linked = linked
+                Linked = false
             });
         }
     }

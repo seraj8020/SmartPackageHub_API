@@ -151,19 +151,28 @@ namespace HubManagement.Application.PackageHub.Commands
 
             var token = payload.Token.Trim();
             var utcNow = DateTime.UtcNow;
-            var otpLog = await _otpLogs.FirstOrDefaultAsync(log =>
-                log.PackageId == package.Id &&
-                log.Purpose == "Pickup" &&
-                !log.IsUsed &&
-                log.Token != null &&
-                log.Token.Value == token &&
-                log.Expiry != null &&
-                log.Expiry.Value > utcNow).ConfigureAwait(false);
+            // Match token/expiry in memory. Filtering owned Token.Value / Expiry.Value in SQL
+            // has been unreliable with Npgsql + OwnsOne and returned null for valid OTPs.
+            var candidates = await _otpLogs.ListAsync(
+                    log =>
+                        log.PackageId == package.Id &&
+                        log.Purpose == "Pickup" &&
+                        !log.IsUsed,
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            var otpLog = candidates
+                .Where(log =>
+                    log.Token is not null &&
+                    string.Equals(log.Token.Value, token, StringComparison.Ordinal) &&
+                    log.Expiry is not null &&
+                    DateTime.SpecifyKind(log.Expiry.Value, DateTimeKind.Utc) > utcNow)
+                .OrderByDescending(log => log.Expiry!.Value)
+                .FirstOrDefault();
 
             if (otpLog == null || !otpLog.ValidateCollection(token))
                 return (new PackageCommandResult(true, false, false, "Invalid, expired, or already-used OTP.", null), null, null, Guid.Empty);
 
-            _ = cancellationToken;
             return (null, package, otpLog, packageResidentId);
         }
 

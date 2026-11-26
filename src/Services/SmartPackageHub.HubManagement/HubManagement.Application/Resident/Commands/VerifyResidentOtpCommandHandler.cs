@@ -47,14 +47,23 @@ namespace HubManagement.Application.HubResidents.Commands
 
             var code = request.Code.Trim();
             var utcNow = DateTime.UtcNow;
-            var matched = await _otpLogs.FirstOrDefaultAsync(log =>
-                log.ResidentId == resident.Id &&
-                log.Purpose == "Pickup" &&
-                !log.IsUsed &&
-                log.Token != null &&
-                log.Token.Value == code &&
-                log.Expiry != null &&
-                log.Expiry.Value > utcNow).ConfigureAwait(false);
+            // Match token/expiry in memory — owned-type SQL filters have missed valid OTPs.
+            var candidates = await _otpLogs.ListAsync(
+                    log =>
+                        log.ResidentId == resident.Id &&
+                        log.Purpose == "Pickup" &&
+                        !log.IsUsed,
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            var matched = candidates
+                .Where(log =>
+                    log.Token is not null &&
+                    string.Equals(log.Token.Value, code, StringComparison.Ordinal) &&
+                    log.Expiry is not null &&
+                    DateTime.SpecifyKind(log.Expiry.Value, DateTimeKind.Utc) > utcNow)
+                .OrderByDescending(log => log.Expiry!.Value)
+                .FirstOrDefault();
 
             if (matched == null || !matched.ValidateCollection(code))
                 return new VerifyOtpResponse(true, false, "Invalid or expired OTP.");

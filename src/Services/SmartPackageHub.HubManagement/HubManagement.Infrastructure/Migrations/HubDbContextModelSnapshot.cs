@@ -1320,6 +1320,11 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
+                    b.Property<string>("ReferenceCode")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)");
+
                     b.Property<DateTime>("RequestedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1342,6 +1347,11 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
                     b.Property<string>("SupportEmail")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -1356,7 +1366,16 @@ namespace HubManagement.Infrastructure.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<string>("Urgency")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ReferenceCode")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SupportRequests_ReferenceCode");
 
                     b.HasIndex("ResidentId", "RequestedAtUtc")
                         .HasDatabaseName("IX_SupportRequests_ResidentId_RequestedAtUtc");

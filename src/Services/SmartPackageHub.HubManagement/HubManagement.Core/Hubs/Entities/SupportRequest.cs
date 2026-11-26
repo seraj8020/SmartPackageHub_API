@@ -1,13 +1,23 @@
+using System.Security.Cryptography;
 using SmartPackageHub.Domains.Abstractions.Entities;
 
 namespace HubManagement.Core.Hubs.Entities
 {
-    /// <summary>Resident in-app support ticket (Traizr-style ask-with-context).</summary>
+    /// <summary>Resident in-app support ticket (Traizr-style list + new request).</summary>
     public sealed class SupportRequest : EntityBase, IAggregateRoot
     {
+        private static readonly char[] ReferenceAlphabet =
+            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".ToCharArray();
+
         public Guid SocietyId { get; private set; }
         public Guid ResidentId { get; private set; }
+        /// <summary>Short public reference (e.g. VVRED9U).</summary>
+        public string ReferenceCode { get; private set; } = string.Empty;
+        /// <summary>Ticket subject line.</summary>
+        public string Subject { get; private set; } = string.Empty;
+        /// <summary>Category label (mapped from client category / topic).</summary>
         public string Topic { get; private set; } = string.Empty;
+        public string Urgency { get; private set; } = "Normal";
         public string Message { get; private set; } = string.Empty;
         public string? ResidentName { get; private set; }
         public string? ResidentPhone { get; private set; }
@@ -24,7 +34,10 @@ namespace HubManagement.Core.Hubs.Entities
         private SupportRequest(
             Guid societyId,
             Guid residentId,
+            string referenceCode,
+            string subject,
             string topic,
+            string urgency,
             string message,
             string? residentName,
             string? residentPhone,
@@ -35,7 +48,10 @@ namespace HubManagement.Core.Hubs.Entities
         {
             SocietyId = societyId;
             ResidentId = residentId;
+            ReferenceCode = referenceCode;
+            Subject = subject;
             Topic = topic;
+            Urgency = urgency;
             Message = message;
             ResidentName = residentName;
             ResidentPhone = residentPhone;
@@ -49,7 +65,9 @@ namespace HubManagement.Core.Hubs.Entities
         public static SupportRequest Create(
             Guid societyId,
             Guid residentId,
-            string topic,
+            string subject,
+            string category,
+            string urgency,
             string message,
             string supportEmail,
             string? residentName = null,
@@ -62,9 +80,15 @@ namespace HubManagement.Core.Hubs.Entities
             if (residentId == Guid.Empty)
                 throw new ArgumentException("Resident is required.", nameof(residentId));
 
-            var cleanTopic = (topic ?? string.Empty).Trim();
-            if (cleanTopic.Length is < 2 or > 80)
-                throw new ArgumentException("Topic must be between 2 and 80 characters.", nameof(topic));
+            var cleanSubject = (subject ?? string.Empty).Trim();
+            if (cleanSubject.Length is < 2 or > 120)
+                throw new ArgumentException("Subject must be between 2 and 120 characters.", nameof(subject));
+
+            var cleanCategory = (category ?? string.Empty).Trim();
+            if (cleanCategory.Length is < 2 or > 80)
+                throw new ArgumentException("Category must be between 2 and 80 characters.", nameof(category));
+
+            var cleanUrgency = NormalizeUrgency(urgency);
 
             var cleanMessage = (message ?? string.Empty).Trim();
             if (cleanMessage.Length is < 8 or > 4000)
@@ -77,7 +101,10 @@ namespace HubManagement.Core.Hubs.Entities
             return new SupportRequest(
                 societyId,
                 residentId,
-                cleanTopic,
+                NewReferenceCode(),
+                cleanSubject,
+                cleanCategory,
+                cleanUrgency,
                 cleanMessage,
                 TrimOrNull(residentName, 120),
                 TrimOrNull(residentPhone, 20),
@@ -85,6 +112,29 @@ namespace HubManagement.Core.Hubs.Entities
                 TrimOrNull(flatNumber, 40),
                 email,
                 DateTime.UtcNow);
+        }
+
+        private static string NormalizeUrgency(string? urgency)
+        {
+            var value = (urgency ?? string.Empty).Trim();
+            if (value.Length == 0)
+                return "Normal";
+            if (value.Equals("Low", StringComparison.OrdinalIgnoreCase))
+                return "Low";
+            if (value.Equals("High", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("Urgent", StringComparison.OrdinalIgnoreCase))
+                return "High";
+            return "Normal";
+        }
+
+        private static string NewReferenceCode()
+        {
+            Span<char> chars = stackalloc char[7];
+            Span<byte> bytes = stackalloc byte[7];
+            RandomNumberGenerator.Fill(bytes);
+            for (var i = 0; i < chars.Length; i++)
+                chars[i] = ReferenceAlphabet[bytes[i] % ReferenceAlphabet.Length];
+            return new string(chars);
         }
 
         private static string? TrimOrNull(string? value, int max)

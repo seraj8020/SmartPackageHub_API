@@ -13,7 +13,10 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
 
             builder.Property(e => e.SocietyId).IsRequired();
             builder.Property(e => e.ResidentId).IsRequired();
+            builder.Property(e => e.ReferenceCode).IsRequired().HasMaxLength(12);
+            builder.Property(e => e.Subject).IsRequired().HasMaxLength(120);
             builder.Property(e => e.Topic).IsRequired().HasMaxLength(80);
+            builder.Property(e => e.Urgency).IsRequired().HasMaxLength(20);
             builder.Property(e => e.Message).IsRequired().HasMaxLength(4000);
             builder.Property(e => e.ResidentName).HasMaxLength(120);
             builder.Property(e => e.ResidentPhone).HasMaxLength(20);
@@ -23,6 +26,9 @@ namespace SmartPackageHub.HubManagement.Infrastructure.Configurations
             builder.Property(e => e.SupportEmail).IsRequired().HasMaxLength(150);
             builder.Property(e => e.RequestedAtUtc).IsRequired();
 
+            builder.HasIndex(e => e.ReferenceCode)
+                .IsUnique()
+                .HasDatabaseName("IX_SupportRequests_ReferenceCode");
             builder.HasIndex(e => new { e.SocietyId, e.RequestedAtUtc })
                 .HasDatabaseName("IX_SupportRequests_SocietyId_RequestedAtUtc");
             builder.HasIndex(e => new { e.ResidentId, e.RequestedAtUtc })

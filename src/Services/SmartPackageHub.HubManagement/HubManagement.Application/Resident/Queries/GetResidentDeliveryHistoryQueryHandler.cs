@@ -1,6 +1,7 @@
 using AutoMapper;
 using HubManagement.Application.HubResidents.DTOs;
 using HubManagement.Core.Hubs.Entities;
+using HubManagement.Core.Hubs.Models;
 using SmartPackageHub.Applications.Abstractions.Queries;
 using SmartPackageHub.Applications.Abstractions.Repositories;
 
@@ -12,18 +13,21 @@ namespace HubManagement.Application.HubResidents.Queries
         private readonly IRepository<Delivery> _deliveries;
         private readonly IRepository<Package> _packages;
         private readonly IRepository<PackageIntake> _intakes;
+        private readonly IRepository<PackageReturn> _returns;
 
         public GetResidentDeliveryHistoryQueryHandler(
             IMapper mapper,
             IRepository<Resident> residents,
             IRepository<Delivery> deliveries,
             IRepository<Package> packages,
-            IRepository<PackageIntake> intakes) : base(mapper)
+            IRepository<PackageIntake> intakes,
+            IRepository<PackageReturn> returns) : base(mapper)
         {
             _residents = residents;
             _deliveries = deliveries;
             _packages = packages;
             _intakes = intakes;
+            _returns = returns;
         }
 
         protected override async Task<List<DeliveryHistoryDto>?> HandleAsync(GetResidentDeliveryHistoryQuery request)
@@ -66,10 +70,29 @@ namespace HubManagement.Application.HubResidents.Queries
                     .Select(intake => intake.PackageId)
                     .ToHashSet();
 
+            // Prefer an open return; otherwise the latest request for that package.
+            var returnsByPackage = packageIds.Count == 0
+                ? new Dictionary<Guid, PackageReturn>()
+                : _returns.FetchMulti(
+                        r => r.ResidentId == resident.Id && packageIds.Contains(r.PackageId),
+                        noTracking: true)
+                    .AsEnumerable()
+                    .GroupBy(r => r.PackageId)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group
+                            .OrderByDescending(r =>
+                                r.Status is PackageReturnStatus.ReturnRequested
+                                    or PackageReturnStatus.ReturnReceived
+                                    or PackageReturnStatus.ReturnShelved)
+                            .ThenByDescending(r => r.RequestedAtUtc)
+                            .First());
+
             return deliveries
                 .Select(d =>
                 {
                     packages.TryGetValue(d.PackageId, out var package);
+                    returnsByPackage.TryGetValue(d.PackageId, out var packageReturn);
                     return new DeliveryHistoryDto
                     {
                         Id = d.Id,
@@ -87,6 +110,10 @@ namespace HubManagement.Application.HubResidents.Queries
                         Courier = package?.CourierPartner,
                         Category = package?.Category,
                         IsDamaged = damagedByPackage.Contains(d.PackageId),
+                        ReturnStatus = packageReturn?.Status.ToString(),
+                        ReturnReason = packageReturn?.Reason.ToString(),
+                        ReturnNote = packageReturn?.Note,
+                        ReturnRequestedAtUtc = packageReturn?.RequestedAtUtc,
                     };
                 })
                 .ToList();

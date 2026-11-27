@@ -23,6 +23,8 @@ namespace HubManagement.Application.Returns.DTOs
         public string? CourierAwb { get; set; }
         public string? ResidentName { get; set; }
         public string? Unit { get; set; }
+        public bool HasHubIntakeDamage { get; set; }
+        public string? HubIntakeDamageNote { get; set; }
         public IReadOnlyList<PackageReturnImageDto> Photos { get; set; } = Array.Empty<PackageReturnImageDto>();
     }
 }

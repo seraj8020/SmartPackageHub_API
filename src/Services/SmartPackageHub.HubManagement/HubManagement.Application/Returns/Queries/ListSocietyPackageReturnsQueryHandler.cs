@@ -16,6 +16,7 @@ namespace HubManagement.Application.Returns.Queries
         private readonly IRepository<Package> _packages;
         private readonly IRepository<Resident> _residents;
         private readonly IRepository<Shelf> _shelves;
+        private readonly IRepository<PackageIntake> _intakes;
 
         public ListSocietyPackageReturnsQueryHandler(
             IMapper mapper,
@@ -23,13 +24,15 @@ namespace HubManagement.Application.Returns.Queries
             IRepository<PackageReturnImage> images,
             IRepository<Package> packages,
             IRepository<Resident> residents,
-            IRepository<Shelf> shelves) : base(mapper)
+            IRepository<Shelf> shelves,
+            IRepository<PackageIntake> intakes) : base(mapper)
         {
             _returns = returns;
             _images = images;
             _packages = packages;
             _residents = residents;
             _shelves = shelves;
+            _intakes = intakes;
         }
 
         protected override Task<IReadOnlyList<PackageReturnDto>> HandleAsync(ListSocietyPackageReturnsQuery request)
@@ -55,6 +58,9 @@ namespace HubManagement.Application.Returns.Queries
 
             var packages = _packages.FetchMulti(p => packageIds.Contains(p.Id), noTracking: true)
                 .ToDictionary(p => p.Id);
+            var intakesByPackage = _intakes.FetchMulti(i => packageIds.Contains(i.PackageId), noTracking: true)
+                .GroupBy(i => i.PackageId)
+                .ToDictionary(group => group.Key, group => group.OrderByDescending(i => i.ScannedAt).First());
             var residents = _residents.FetchMulti(r => residentIds.Contains(r.Id), noTracking: true)
                 .ToDictionary(r => r.Id);
             var shelves = shelfIds.Count == 0
@@ -68,12 +74,16 @@ namespace HubManagement.Application.Returns.Queries
             IReadOnlyList<PackageReturnDto> result = returns.Select(r =>
             {
                 packages.TryGetValue(r.PackageId, out var package);
+                intakesByPackage.TryGetValue(r.PackageId, out var intake);
                 residents.TryGetValue(r.ResidentId, out var resident);
                 string? shelfCode = null;
                 if (r.ShelfId is Guid shelfId && shelves.TryGetValue(shelfId, out var shelf))
                     shelfCode = shelf.Code;
                 photosByReturn.TryGetValue(r.Id, out var photos);
-                return PackageReturnMapper.ToDto(r, photos, package, resident, shelfCode);
+                var dto = PackageReturnMapper.ToDto(r, photos, package, resident, shelfCode);
+                dto.HasHubIntakeDamage = intake?.IsDamaged == true;
+                dto.HubIntakeDamageNote = intake?.DamageNote;
+                return dto;
             }).ToList();
 
             return Task.FromResult(result);
